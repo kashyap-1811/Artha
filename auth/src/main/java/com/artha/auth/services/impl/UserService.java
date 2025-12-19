@@ -17,13 +17,13 @@ public class UserService implements IUserService {
     final private UserRepository userRepository;
 
     @Override
-    public User create(User u) {
-        return userRepository.save(u);
+    public User create(User user) {
+        return userRepository.save(user);
     }
 
     @Override
-    public User update(User u) {
-        return userRepository.save(u);
+    public User update(User user) {
+        return userRepository.save(user);
     }
 
     @Override

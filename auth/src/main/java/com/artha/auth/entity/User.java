@@ -1,5 +1,6 @@
 package com.artha.auth.entity;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import lombok.*;
 

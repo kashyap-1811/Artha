@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.Instant;
+import java.util.HashSet;
 import java.util.Set;
 
 @Entity
@@ -29,6 +30,15 @@ public class Company {
     @Column(nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 
+    @Builder.Default
     @OneToMany(mappedBy = "company", cascade = CascadeType.ALL, orphanRemoval = true)
-    private Set<UserCompany> users;
+    private Set<UserCompany> users = new HashSet<>();
+
+    void addUserCompany(UserCompany uc) {
+        users.add(uc);
+    }
+
+    void removeUserCompany(UserCompany uc) {
+        users.remove(uc);
+    }
 }

@@ -1,6 +1,8 @@
 package com.artha.auth.services.impl;
 
-import com.artha.auth.entity.User;
+import com.artha.auth.entity.*;
+import com.artha.auth.repository.CompanyRepository;
+import com.artha.auth.repository.UserCompanyRepository;
 import com.artha.auth.repository.UserRepository;
 import com.artha.auth.services.IUserService;
 import jakarta.persistence.EntityNotFoundException;
@@ -16,6 +18,8 @@ import java.util.Optional;
 public class UserService implements IUserService {
 
     private final UserRepository userRepository;
+    private final CompanyRepository companyRepository;
+    private final UserCompanyRepository userCompanyRepository;
 
     @Override
     public User create(User user) {
@@ -24,14 +28,36 @@ public class UserService implements IUserService {
             throw new IllegalStateException("Email already registered");
         }
 
-        return userRepository.save(user);
+        // 1️⃣ Save user
+        User savedUser = userRepository.save(user);
+
+        // 2️⃣ Create PERSONAL company
+        Company personalCompany = Company.builder()
+                .name(savedUser.getFullName() + "'s Personal Account")
+                .type(CompanyType.PERSONAL)
+                .build();
+
+        companyRepository.save(personalCompany);
+
+        // 3️⃣ Link OWNER
+        UserCompany uc = UserCompany.builder()
+                .role(UserCompanyRole.OWNER)
+                .active(true)
+                .build();
+
+        savedUser.addUserCompany(uc);
+        personalCompany.addUserCompany(uc);
+
+        userCompanyRepository.save(uc);
+
+        return savedUser;
     }
 
     @Override
     public User update(User user) {
 
         if (user.getId() == null) {
-            throw new IllegalStateException("User ID must be provided for update");
+            throw new IllegalStateException("User ID must be provided");
         }
 
         User existing = userRepository.findById(user.getId())
@@ -39,8 +65,7 @@ public class UserService implements IUserService {
                         new EntityNotFoundException("User not found: " + user.getId())
                 );
 
-        existing.setFullname(user.getFullname());
-        existing.setEmail(user.getEmail());
+        existing.setFullName(user.getFullName());
         existing.setActive(user.isActive());
 
         return userRepository.save(existing);
@@ -48,7 +73,6 @@ public class UserService implements IUserService {
 
     @Override
     public User getById(String id) {
-
         return userRepository.findById(id)
                 .orElseThrow(() ->
                         new EntityNotFoundException("User not found: " + id)

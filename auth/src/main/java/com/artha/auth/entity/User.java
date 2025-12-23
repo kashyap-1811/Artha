@@ -1,8 +1,9 @@
 package com.artha.auth.entity;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import lombok.*;
-
+import java.util.HashSet;
 import java.util.Set;
 
 @Entity
@@ -19,7 +20,7 @@ public class User {
     private String id;
 
     @Column(nullable = false)
-    private String fullname;
+    private String fullName;
 
     @Column(nullable = false, unique = true)
     private String email;
@@ -30,6 +31,23 @@ public class User {
     @Column(nullable = false)
     private boolean active = true;
 
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    private Set<UserCompany> companies;
+    @Builder.Default
+    @OneToMany(
+            mappedBy = "user",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true
+    )
+    private Set<UserCompany> userCompanies = new HashSet<>();
+
+    /* ---------- Domain Helpers ---------- */
+
+    public void addUserCompany(UserCompany uc) {
+        userCompanies.add(uc);
+        uc.setUser(this);
+    }
+
+    public void removeUserCompany(UserCompany uc) {
+        userCompanies.remove(uc);
+        uc.setUser(null);
+    }
 }

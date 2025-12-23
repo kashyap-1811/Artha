@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.Instant;
+import java.util.HashSet;
 import java.util.Set;
 
 @Entity
@@ -27,8 +28,32 @@ public class Company {
     private CompanyType type;
 
     @Column(nullable = false, updatable = false)
-    private Instant createdAt = Instant.now();
+    private Instant createdAt;
 
-    @OneToMany(mappedBy = "company", cascade = CascadeType.ALL, orphanRemoval = true)
-    private Set<UserCompany> users;
+    @Builder.Default
+    @OneToMany(
+            mappedBy = "company",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true
+    )
+    private Set<UserCompany> userCompanies = new HashSet<>();
+
+    /* ---------- Lifecycle ---------- */
+
+    @PrePersist
+    protected void onCreate() {
+        this.createdAt = Instant.now();
+    }
+
+    /* ---------- Domain Methods ---------- */
+
+    public void addUserCompany(UserCompany uc) {
+        userCompanies.add(uc);
+        uc.setCompany(this);
+    }
+
+    public void removeUserCompany(UserCompany uc) {
+        userCompanies.remove(uc);
+        uc.setCompany(null);
+    }
 }

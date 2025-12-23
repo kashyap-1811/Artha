@@ -3,8 +3,15 @@ package com.artha.auth.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.Instant;
+
 @Entity
-@Table(name = "user_companies")
+@Table(
+        name = "user_companies",
+        uniqueConstraints = {
+                @UniqueConstraint(columnNames = {"user_id", "company_id"})
+        }
+)
 @Getter
 @Setter
 @NoArgsConstructor
@@ -12,20 +19,32 @@ import lombok.*;
 @Builder
 public class UserCompany {
 
-    @EmbeddedId
-    private UserCompanyId id;
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private String id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @MapsId("userId")
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @MapsId("companyId")
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "company_id", nullable = false)
     private Company company;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private CompanyRole role;
+    private UserCompanyRole role;
+
+    @Column(nullable = false)
+    private boolean active = true;
+
+    @Column(nullable = false, updatable = false)
+    private Instant joinedAt;
+
+    /* ---------- Lifecycle ---------- */
+
+    @PrePersist
+    protected void onCreate() {
+        this.joinedAt = Instant.now();
+    }
 }

@@ -7,8 +7,6 @@ import com.artha.auth.repository.UserRepository;
 import com.artha.auth.services.ICompanyService;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
-import lombok.AllArgsConstructor;
-import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -16,41 +14,37 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 @Transactional
 public class CompanyService implements ICompanyService {
-    final private UserRepository userRepository;
-    final private CompanyRepository companyRepository;
-    final private UserCompanyRepository userCompanyRepository;
+
+    private final UserRepository userRepository;
+    private final CompanyRepository companyRepository;
+    private final UserCompanyRepository userCompanyRepository;
 
     @Override
-    public Company createCompanyWithOwner(User user, Company company) {
-        User persistedUser = userRepository.findById(user.getId())
+    public Company createCompanyWithOwner(User owner, Company company) {
+
+        User persistedUser = userRepository.findById(owner.getId())
                 .orElseThrow(() ->
-                        new EntityNotFoundException("User not found: " + user.getId())
+                        new EntityNotFoundException("User not found: " + owner.getId())
                 );
 
+        company.setType(CompanyType.BUSINESS);
         Company savedCompany = companyRepository.save(company);
 
-        UserCompany membership = UserCompany.builder()
-                .id(new UserCompanyId(
-                        persistedUser.getId(),
-                        savedCompany.getId()
-                ))
-                .user(persistedUser)
-                .company(savedCompany)
-                .role(CompanyRole.OWNER)
+        UserCompany uc = UserCompany.builder()
+                .role(UserCompanyRole.OWNER)
+                .active(true)
                 .build();
 
-        userCompanyRepository.save(membership);
+        persistedUser.addUserCompany(uc);
+        savedCompany.addUserCompany(uc);
+
+        userCompanyRepository.save(uc);
 
         return savedCompany;
     }
 
     @Override
-    public Company update(Company company) {
-        return companyRepository.save(company);
-    }
-
-    @Override
-    public Company addMember(User user, Company company, CompanyRole role) {
+    public Company addMember(User user, Company company, UserCompanyRole role) {
 
         User persistedUser = userRepository.findById(user.getId())
                 .orElseThrow(() ->
@@ -62,24 +56,26 @@ public class CompanyService implements ICompanyService {
                         new EntityNotFoundException("Company not found: " + company.getId())
                 );
 
+        if (persistedCompany.getType() == CompanyType.PERSONAL) {
+            throw new IllegalStateException("Cannot add members to PERSONAL company");
+        }
+
         if (userCompanyRepository.existsByUser_IdAndCompany_Id(
                 persistedUser.getId(),
                 persistedCompany.getId()
         )) {
-            throw new IllegalStateException("User is already a member of this company");
+            throw new IllegalStateException("User already a member");
         }
 
-        UserCompany membership = UserCompany.builder()
-                .id(new UserCompanyId(
-                        persistedUser.getId(),
-                        persistedCompany.getId()
-                ))
-                .user(persistedUser)
-                .company(persistedCompany)
+        UserCompany uc = UserCompany.builder()
                 .role(role)
+                .active(true)
                 .build();
 
-        userCompanyRepository.save(membership);
+        persistedUser.addUserCompany(uc);
+        persistedCompany.addUserCompany(uc);
+
+        userCompanyRepository.save(uc);
 
         return persistedCompany;
     }
@@ -87,71 +83,48 @@ public class CompanyService implements ICompanyService {
     @Override
     public Company removeMember(User user, Company company) {
 
-        User persistedUser = userRepository.findById(user.getId())
-                .orElseThrow(() ->
-                        new EntityNotFoundException("User not found: " + user.getId())
-                );
-
-        Company persistedCompany = companyRepository.findById(company.getId())
-                .orElseThrow(() ->
-                        new EntityNotFoundException("Company not found: " + company.getId())
-                );
-
         UserCompany membership = userCompanyRepository
-                .findByUser_IdAndCompany_Id(
-                        persistedUser.getId(),
-                        persistedCompany.getId()
-                )
+                .findByUser_IdAndCompany_Id(user.getId(), company.getId())
                 .orElseThrow(() ->
-                        new IllegalStateException("User is not a member of this company")
+                        new IllegalStateException("User not a member")
                 );
 
-        if (membership.getRole() == CompanyRole.OWNER) {
-            throw new IllegalStateException("OWNER cannot be removed from the company");
+        if (membership.getRole() == UserCompanyRole.OWNER) {
+            throw new IllegalStateException("OWNER cannot be removed");
         }
+
+        membership.getUser().removeUserCompany(membership);
+        membership.getCompany().removeUserCompany(membership);
 
         userCompanyRepository.delete(membership);
 
-        return persistedCompany;
+        return membership.getCompany();
     }
 
     @Override
-    public Company changeRole(User user, Company company, CompanyRole newRole) {
-
-        User persistedUser = userRepository.findById(user.getId())
-                .orElseThrow(() ->
-                        new EntityNotFoundException("User not found: " + user.getId())
-                );
-
-        Company persistedCompany = companyRepository.findById(company.getId())
-                .orElseThrow(() ->
-                        new EntityNotFoundException("Company not found: " + company.getId())
-                );
+    public Company changeRole(User user, Company company, UserCompanyRole newRole) {
 
         UserCompany membership = userCompanyRepository
-                .findByUser_IdAndCompany_Id(
-                        persistedUser.getId(),
-                        persistedCompany.getId()
-                )
+                .findByUser_IdAndCompany_Id(user.getId(), company.getId())
                 .orElseThrow(() ->
-                        new IllegalStateException("User is not a member of this company")
+                        new IllegalStateException("User not a member")
                 );
 
         if (membership.getRole() == newRole) {
-            return persistedCompany;
+            return membership.getCompany();
         }
 
-        if (membership.getRole() == CompanyRole.OWNER && newRole != CompanyRole.OWNER) {
+        if (membership.getRole() == UserCompanyRole.OWNER) {
 
             long ownerCount = userCompanyRepository
-                    .findByCompany_Id(persistedCompany.getId())
+                    .findByCompany_IdAndActiveTrue(company.getId())
                     .stream()
-                    .filter(uc -> uc.getRole() == CompanyRole.OWNER)
+                    .filter(uc -> uc.getRole() == UserCompanyRole.OWNER)
                     .count();
 
             if (ownerCount <= 1) {
                 throw new IllegalStateException(
-                        "Cannot change role: company must have at least one OWNER"
+                        "Company must have at least one OWNER"
                 );
             }
         }
@@ -159,12 +132,15 @@ public class CompanyService implements ICompanyService {
         membership.setRole(newRole);
         userCompanyRepository.save(membership);
 
-        return persistedCompany;
+        return membership.getCompany();
     }
 
     @Override
     public Company getById(String id) {
-        return companyRepository.getReferenceById(id);
+        return companyRepository.findById(id)
+                .orElseThrow(() ->
+                        new EntityNotFoundException("Company not found: " + id)
+                );
     }
 
     @Override

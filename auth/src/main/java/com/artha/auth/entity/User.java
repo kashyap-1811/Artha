@@ -20,7 +20,7 @@ public class User {
     private String id;
 
     @Column(nullable = false)
-    private String fullname;
+    private String fullName;
 
     @Column(nullable = false, unique = true)
     private String email;
@@ -28,17 +28,26 @@ public class User {
     @Column(nullable = false)
     private String password;
 
+    @Column(nullable = false)
     private boolean active = true;
 
     @Builder.Default
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    private Set<UserCompany> companies = new HashSet<>();
+    @OneToMany(
+            mappedBy = "user",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true
+    )
+    private Set<UserCompany> userCompanies = new HashSet<>();
 
-    void addUserCompany(UserCompany uc) {
-        companies.add(uc);
+    /* ---------- Domain Helpers ---------- */
+
+    public void addUserCompany(UserCompany uc) {
+        userCompanies.add(uc);
+        uc.setUser(this);
     }
 
-    void removeUserCompany(UserCompany uc) {
-        companies.remove(uc);
+    public void removeUserCompany(UserCompany uc) {
+        userCompanies.remove(uc);
+        uc.setUser(null);
     }
 }

@@ -1,47 +1,82 @@
 package com.artha.auth.controller;
 
+import com.artha.auth.dto.user.CreateUserRequest;
+import com.artha.auth.dto.user.UpdateUserRequest;
+import com.artha.auth.dto.user.UserResponse;
 import com.artha.auth.entity.User;
 import com.artha.auth.services.IUserService;
+import com.artha.auth.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.net.URI;
-
 @RestController
+@RequestMapping("/api/users")
 @RequiredArgsConstructor
-@RequestMapping("/user")
 public class UserController {
 
     private final IUserService userService;
 
+    /* ---------------- CREATE USER (SIGNUP) ---------------- */
+
     @PostMapping
-    public ResponseEntity<User> create(@RequestBody User user) {
-        User created = userService.create(user);
-
-        return ResponseEntity
-                .created(URI.create("/user/" + created.getId()))
-                .body(created);
-    }
-
-    @GetMapping("/{id}")
-    public ResponseEntity<User> getById(@PathVariable String id) {
-        return ResponseEntity.ok(userService.getById(id));
-    }
-
-    @PutMapping("/{id}")
-    public ResponseEntity<User> update(
-            @PathVariable String id,
-            @RequestBody User user
+    public ResponseEntity<UserResponse> createUser(
+            @RequestBody CreateUserRequest request
     ) {
-        user.setId(id); // enforce path id
-        return ResponseEntity.ok(userService.update(user));
+        User user = User.builder()
+                .fullName(request.getFullName())
+                .email(request.getEmail())
+                .password(request.getPassword())
+                .active(true)
+                .build();
+
+        User savedUser = userService.create(user);
+
+        return ResponseEntity.ok(
+                UserMapper.toResponse(savedUser)
+        );
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable String id) {
-        userService.delete(id);
+    /* ---------------- UPDATE PROFILE ---------------- */
+
+    @PutMapping("/{userId}")
+    public ResponseEntity<UserResponse> updateUser(
+            @PathVariable String userId,
+            @RequestBody UpdateUserRequest request
+    ) {
+        User user = User.builder()
+                .id(userId)
+                .fullName(request.getFullName())
+                .active(request.isActive())
+                .build();
+
+        User updated = userService.update(user);
+
+        return ResponseEntity.ok(
+                UserMapper.toResponse(updated)
+        );
+    }
+
+    /* ---------------- GET USER ---------------- */
+
+    @GetMapping("/{userId}")
+    public ResponseEntity<UserResponse> getUser(
+            @PathVariable String userId
+    ) {
+        return ResponseEntity.ok(
+                UserMapper.toResponse(
+                        userService.getById(userId)
+                )
+        );
+    }
+
+    /* ---------------- DELETE USER ---------------- */
+
+    @DeleteMapping("/{userId}")
+    public ResponseEntity<Void> deleteUser(
+            @PathVariable String userId
+    ) {
+        userService.delete(userId);
         return ResponseEntity.noContent().build();
     }
 }

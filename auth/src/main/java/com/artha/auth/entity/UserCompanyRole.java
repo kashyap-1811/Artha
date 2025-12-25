@@ -1,6 +1,6 @@
 package com.artha.auth.entity;
 
-public enum CompanyRole {
+public enum UserCompanyRole {
     OWNER,
     MEMBER,
     VIEWER

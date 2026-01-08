@@ -8,7 +8,10 @@ import com.artha.auth.services.IUserService;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import com.artha.auth.config.AppConfig;
 
 import java.util.Optional;
 
@@ -20,18 +23,22 @@ public class UserService implements IUserService {
     private final UserRepository userRepository;
     private final CompanyRepository companyRepository;
     private final UserCompanyRepository userCompanyRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    @Override
     public User create(User user) {
 
         if (userRepository.existsByEmail(user.getEmail())) {
             throw new IllegalStateException("Email already registered");
         }
 
-        // 1️⃣ Save user
+        // 🔐 ENCODE PASSWORD HERE
+        user.setPassword(
+                passwordEncoder.encode(user.getPassword())
+        );
+
         User savedUser = userRepository.save(user);
 
-        // 2️⃣ Create PERSONAL company
+        // create PERSONAL company (already discussed)
         Company personalCompany = Company.builder()
                 .name(savedUser.getFullName() + "'s Personal Account")
                 .type(CompanyType.PERSONAL)
@@ -39,7 +46,6 @@ public class UserService implements IUserService {
 
         companyRepository.save(personalCompany);
 
-        // 3️⃣ Link OWNER
         UserCompany uc = UserCompany.builder()
                 .role(UserCompanyRole.OWNER)
                 .active(true)

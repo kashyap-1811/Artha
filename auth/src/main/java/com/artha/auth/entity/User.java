@@ -30,7 +30,9 @@ public class User implements UserDetails {
     @Column(nullable = false, unique = true)
     private String email;
 
-    @Column(nullable = false)
+    private String providerId;
+
+    @Column(nullable = true)
     private String password;
 
     @Column(nullable = false)

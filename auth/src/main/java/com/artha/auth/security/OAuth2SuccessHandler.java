@@ -26,6 +26,7 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
     private final OAuth2AuthService oAuth2AuthService;
     private final ObjectMapper objectMapper;
 
+//    http://localhost:8080/oauth2/login/google
     @Override
     public void onAuthenticationSuccess(
             HttpServletRequest request,

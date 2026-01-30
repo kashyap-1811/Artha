@@ -81,10 +81,8 @@
 .form-group select {
     width: 100%;
     padding: 0.875rem 1rem;
-    background: #1e1e24;
-    /* Darker, specific background */
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    /* More visible border */
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
     color: var(--text-primary);
     font-size: 1rem;
@@ -99,22 +97,24 @@
 
 .form-group input:hover,
 .form-group select:hover {
-    border-color: rgba(255, 255, 255, 0.3);
-    background: #23232a;
+    border-color: var(--border-focus);
+    background: var(--bg-input);
+    filter: brightness(1.1);
+    /* Slight brighten on hover instead of hardcoded color */
 }
 
 .form-group input:focus,
 .form-group select:focus {
     outline: none;
     border-color: var(--primary);
-    background: #23232a;
+    background: var(--bg-secondary);
     box-shadow: 0 0 0 3px var(--primary-glow);
 }
 
 /* Fix dropdown options visibility in dark mode */
 .form-group select option {
-    background-color: #1e1e24;
-    color: white;
+    background-color: var(--bg-card);
+    color: var(--text-primary);
     padding: 10px;
 }
 

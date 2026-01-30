@@ -97,6 +97,14 @@ export const api = {
         }),
         getAll: (companyId) => request(`${EXPENSE_API_URL}/expenses?companyId=${companyId}`, {
             headers: { ...getAuthHeaders() }
+        }),
+        approve: (expenseId) => request(`${EXPENSE_API_URL}/expenses/${expenseId}/approve`, {
+            method: 'POST',
+            headers: { ...getAuthHeaders() }
+        }),
+        reject: (expenseId) => request(`${EXPENSE_API_URL}/expenses/${expenseId}/reject`, {
+            method: 'POST',
+            headers: { ...getAuthHeaders() }
         })
     }
 };

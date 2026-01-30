@@ -19,7 +19,7 @@ export default function AppRoutes() {
             <Route path="/" element={<Landing />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
-            <Route path="/oauth2/callback" element={<OAuthCallback />} />
+            <Route path="/oauth/callback" element={<OAuthCallback />} />
 
             {/* Protected Dashboard Routes */}
             <Route path="/dashboard" element={

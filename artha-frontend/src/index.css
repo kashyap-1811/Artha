@@ -1,0 +1,181 @@
+:root {
+  /* Premium Dark Theme Palette (Default) */
+  --bg-primary: #0a0a0c;
+  --bg-secondary: #121216;
+  --bg-card: #1c1c21;
+
+  --text-primary: #f2f2f7;
+  --text-secondary: #a1a1aa;
+  --text-muted: #71717a;
+
+  /* Inputs & Elements */
+  --bg-input: #1e1e24;
+  --border-color: rgba(255, 255, 255, 0.15);
+  --border-focus: rgba(255, 255, 255, 0.3);
+
+  --primary: #6d28d9;
+  --primary-hover: #5b21b6;
+  --primary-glow: rgba(109, 40, 217, 0.5);
+
+  --accent: #10b981;
+  --accent-glow: rgba(16, 185, 129, 0.4);
+
+  --danger: #ef4444;
+  --warning: #f59e0b;
+
+  /* Typography */
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+
+  /* Spacing & Radius */
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+
+  /* Transitions */
+  --transition-fast: 150ms ease;
+  --transition-normal: 300ms ease;
+}
+
+/* Light Theme Overrides */
+.light-mode {
+  --bg-primary: #ffffff;
+  /* Pure White */
+  --bg-secondary: #f3f4f6;
+  /* Very light gray for sidebar */
+  --bg-card: #ffffff;
+
+  --text-primary: #000000;
+  /* Pure Black */
+  --text-secondary: #4b5563;
+  /* Dark Gray */
+  --text-muted: #9ca3af;
+
+  /* Inputs & Elements */
+  --bg-input: #f9fafb;
+  --border-color: #e5e7eb;
+  /* Light gray border */
+  --border-focus: #d1d5db;
+
+  --primary: #4f46e5;
+  /* Indigo 600 - High contrast */
+  --primary-hover: #4338ca;
+  --primary-glow: rgba(79, 70, 229, 0.15);
+
+  --btn-text-color: white;
+
+  /* box shadow for cards in light mode to stand out against white bg */
+  --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+/* Fix text visibility for Outline Button in Light Mode */
+.light-mode .btn-outline {
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+.light-mode .btn-outline:hover {
+  background: var(--primary-glow);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+  font-family: inherit;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+/* Utilities */
+.container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+/* Button Base */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: all var(--transition-normal);
+  letter-spacing: 0.02em;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid transparent;
+}
+
+.btn:active {
+  transform: scale(0.98);
+}
+
+/* Primary Button */
+.btn-primary {
+  background: linear-gradient(135deg, var(--primary), #7c3aed);
+  color: white;
+  box-shadow: 0 4px 14px 0 var(--primary-glow);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, #7c3aed, var(--primary));
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px 0 var(--primary-glow);
+  filter: brightness(1.1);
+}
+
+/* Secondary Button */
+.btn-secondary {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+}
+
+/* Outline Button */
+.btn-outline {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  /* Slightly brighter border for Dark Mode */
+  color: var(--text-primary);
+  /* Use text-primary (white-ish) instead of secondary for better visibility */
+}
+
+.btn-outline:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: rgba(109, 40, 217, 0.1);
+}
+
+.btn-sm {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.85rem;
+}

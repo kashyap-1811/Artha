@@ -35,7 +35,7 @@ export default function CompanyDetail() {
             ]);
 
             setActiveBudget(budgetData);
-            setExpenses(expensesData.sort((a, b) => new Date(b.expenseDate) - new Date(a.expenseDate)));
+            setExpenses(expensesData.sort((a, b) => new Date(b.spentDate) - new Date(a.spentDate)));
         } catch (error) {
             console.error("Error fetching details", error);
             setError("Failed to load company details.");
@@ -119,19 +119,19 @@ export default function CompanyDetail() {
                             <table className="data-table">
                                 <thead>
                                     <tr>
-                                        <th>Description</th>
+                                        <th>Date</th>
+                                        <th>Reference</th>
                                         <th>Category</th>
                                         <th>Amount</th>
-                                        <th>Date</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {expenses.slice(0, 5).map(exp => (
                                         <tr key={exp.id}>
-                                            <td>{exp.description}</td>
+                                            <td>{new Date(exp.spentDate).toLocaleDateString()}</td>
+                                            <td>{exp.reference || '-'}</td>
                                             <td><span className="badge">{exp.type}</span></td>
                                             <td className="font-mono">{formatCurrency(exp.amount)}</td>
-                                            <td>{new Date(exp.expenseDate).toLocaleDateString()}</td>
                                         </tr>
                                     ))}
                                     {expenses.length === 0 && (

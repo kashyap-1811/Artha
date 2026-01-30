@@ -48,23 +48,12 @@
   border-radius: var(--radius-lg);
   width: 100%;
   max-width: 400px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--card-shadow, 0 4px 20px rgba(0, 0, 0, 0.5));
   text-align: center;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  /* Subtle border */
+  border: 1px solid var(--border-color);
 }
 
-.auth-card h2 {
-  font-size: 1.8rem;
-  margin-bottom: 0.5rem;
-  color: var(--text-primary);
-}
-
-.auth-subtitle {
-  color: var(--text-secondary);
-  font-size: 0.9rem;
-  margin-bottom: 2rem;
-}
+/* ... existing code ... */
 
 .form-group {
   margin-bottom: 1.25rem;
@@ -79,21 +68,30 @@
   font-weight: 500;
 }
 
-.form-group input {
+.form-group input,
+.form-group select,
+.form-select {
   width: 100%;
   padding: 0.75rem;
   border-radius: var(--radius-md);
-  background: var(--bg-secondary);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
   color: var(--text-primary);
   font-size: 1rem;
   transition: all 0.2s;
+  appearance: none;
+  /* Remove default arrow for consistent styling */
 }
 
-.form-group input:focus {
+/* Add custom arrow for selects if needed, or keeping simple for now */
+
+.form-group input:focus,
+.form-group select:focus,
+.form-select:focus {
   outline: none;
   border-color: var(--primary);
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--bg-secondary);
+  box-shadow: 0 0 0 2px var(--primary-glow);
 }
 
 .btn-block {
@@ -113,7 +111,8 @@
 .divider::after {
   content: "";
   flex: 1;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid var(--border-color);
+  /* Use variable */
 }
 
 .divider::before {
@@ -125,14 +124,27 @@
 }
 
 .btn-google {
-  background: white;
-  color: #333;
-  transition: background 0.2s;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-weight: 500;
+  position: relative;
+  transition: all 0.2s;
 }
 
 .btn-google:hover {
-  background: #e0e0e0;
+  background: var(--bg-secondary);
+  border-color: var(--text-muted);
 }
+
+/* Google "G" Logo mock using CSS (since we don't have the SVG asset handy immediately, though SVG would be better. 
+   I'll assume I can add a background image or just leave it clean text with better button style for now, 
+   but ideally I'd inline an SVG) */
+
 
 .error-message {
   background: rgba(239, 68, 68, 0.1);

@@ -17,27 +17,32 @@ export default function CompanyExpenses() {
     const [error, setError] = useState(null);
     const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
     const { user } = useAuth();
+    const [companyDetails, setCompanyDetails] = useState(null);
 
     // Grouping State
     const [currentPeriodExpenses, setCurrentPeriodExpenses] = useState([]);
     const [historyGroups, setHistoryGroups] = useState({});
     const [expandedMonth, setExpandedMonth] = useState(null);
 
-    // Form inputs
-    const [mainExpenseForm, setMainExpenseForm] = useState({ description: '', amount: '', expenseDate: '', type: '' });
+    // Form inputs - Updated to match backend DTO
+    const [mainExpenseForm, setMainExpenseForm] = useState({ reference: '', amount: '', spentDate: '', type: '' });
 
     const fetchData = async () => {
         setLoading(true);
         setError(null);
         try {
-            // Parallel fetch: Expenses + Active Budget
-            const [expensesData, budgetData] = await Promise.all([
+            // Parallel fetch: Expenses + Active Budget + User's Companies (to find owner)
+            const [expensesData, budgetData, myCompanies] = await Promise.all([
                 api.expenses.getAll(companyId),
-                api.budgets.getActive(companyId)
+                api.budgets.getActive(companyId),
+                api.companies.getMyCompanies(user?.id || localStorage.getItem('userId'))
             ]);
 
             setExpenses(expensesData);
             setActiveBudget(budgetData);
+
+            const currentCompany = myCompanies.find(c => c.companyId === companyId);
+            setCompanyDetails(currentCompany);
 
             // Process expenses based on budget period
             processExpenses(expensesData, budgetData);
@@ -70,7 +75,7 @@ export default function CompanyExpenses() {
         const history = [];
 
         allExpenses.forEach(exp => {
-            const expDate = new Date(exp.spentDate || exp.expenseDate); // Handle naming inconsistency
+            const expDate = new Date(exp.spentDate); // Backend sends spentDate
             if (expDate >= startDate && expDate <= endDate) {
                 current.push(exp);
             } else {
@@ -85,7 +90,7 @@ export default function CompanyExpenses() {
     const groupHistoryExpenses = (data) => {
         const groups = {};
         data.forEach(exp => {
-            const date = new Date(exp.spentDate || exp.expenseDate);
+            const date = new Date(exp.spentDate);
             const monthKey = date.toLocaleString('default', { month: 'long', year: 'numeric' });
 
             if (!groups[monthKey]) {
@@ -103,8 +108,8 @@ export default function CompanyExpenses() {
     };
 
     useEffect(() => {
-        if (companyId) fetchData();
-    }, [companyId]);
+        if (companyId && (user?.id || localStorage.getItem('userId'))) fetchData();
+    }, [companyId, user]);
 
     const handleAddExpense = async (e) => {
         e.preventDefault();
@@ -113,15 +118,31 @@ export default function CompanyExpenses() {
                 companyId,
                 ...mainExpenseForm,
                 amount: parseFloat(mainExpenseForm.amount),
-                spentDate: mainExpenseForm.expenseDate,
+                spentDate: mainExpenseForm.spentDate,
                 privateCompany: false, // Default
                 createdBy: user?.id || localStorage.getItem('userId')
             });
             setIsExpenseModalOpen(false);
-            setMainExpenseForm({ description: '', amount: '', expenseDate: '', type: activeBudget?.allocations?.[0]?.categoryName || '' });
+            setMainExpenseForm({ reference: '', amount: '', spentDate: '', type: activeBudget?.allocations?.[0]?.categoryName || '' });
             fetchData();
         } catch (err) {
             alert('Failed to add expense');
+        }
+    };
+
+    const handleStatusChange = async (expenseId, action) => {
+        try {
+            if (action === 'approve') {
+                await api.expenses.approve(expenseId);
+            } else {
+                await api.expenses.reject(expenseId);
+            }
+            // Refresh data
+            const expensesData = await api.expenses.getAll(companyId);
+            setExpenses(expensesData);
+            processExpenses(expensesData, activeBudget);
+        } catch (err) {
+            alert(`Failed to ${action} expense.`);
         }
     };
 
@@ -139,8 +160,10 @@ export default function CompanyExpenses() {
     const remainingBudget = budgetLimit - currentTotal;
     const progress = budgetLimit > 0 ? (currentTotal / budgetLimit) * 100 : 0;
 
-    const sortedHistoryGroups = Object.values(historyGroups).sort((a, b) => new Date(b.lastDate) - new Date(a.lastDate));
+    // Check ownership
+    const isOwner = companyDetails?.role === 'OWNER';
 
+    const sortedHistoryGroups = Object.values(historyGroups).sort((a, b) => new Date(b.lastDate) - new Date(a.lastDate));
 
     // Calculate spent per category
     const spentByCategory = currentPeriodExpenses.reduce((acc, exp) => {
@@ -199,21 +222,50 @@ export default function CompanyExpenses() {
                                     <thead>
                                         <tr>
                                             <th>Date</th>
-                                            <th>Description</th>
+                                            <th>Reference</th>
                                             <th>Category</th>
+                                            <th>Status</th>
                                             <th>Amount</th>
+                                            {isOwner && <th>Action</th>}
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {currentPeriodExpenses.length === 0 ? (
-                                            <tr><td colSpan="4" className="text-center p-4 text-muted">No expenses in this period yet.</td></tr>
+                                            <tr><td colSpan={isOwner ? 6 : 5} className="text-center p-4 text-muted">No expenses in this period yet.</td></tr>
                                         ) : (
                                             currentPeriodExpenses.map(exp => (
                                                 <tr key={exp.id}>
-                                                    <td>{new Date(exp.spentDate || exp.expenseDate).toLocaleDateString()}</td>
-                                                    <td>{exp.description}</td>
+                                                    <td>{new Date(exp.spentDate).toLocaleDateString()}</td>
+                                                    <td>{exp.reference || '-'}</td>
                                                     <td><span className="badge">{exp.type}</span></td>
+                                                    <td>
+                                                        <span className={`badge ${exp.status === 'APPROVED' ? 'bg-green-100 text-green-800' : (exp.status === 'REJECTED' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800')}`}>
+                                                            {exp.status || 'PENDING'}
+                                                        </span>
+                                                    </td>
                                                     <td className="font-mono">{formatCurrency(exp.amount)}</td>
+                                                    {isOwner && (
+                                                        <td>
+                                                            {exp.status === 'PENDING' && (
+                                                                <div className="flex gap-2">
+                                                                    <button
+                                                                        className="btn btn-sm btn-success"
+                                                                        onClick={() => handleStatusChange(exp.id, 'approve')}
+                                                                        style={{ backgroundColor: '#10b981', borderColor: '#10b981', color: 'white' }}
+                                                                    >
+                                                                        Approve
+                                                                    </button>
+                                                                    <button
+                                                                        className="btn btn-sm btn-danger"
+                                                                        onClick={() => handleStatusChange(exp.id, 'reject')}
+                                                                        style={{ backgroundColor: '#ef4444', borderColor: '#ef4444', color: 'white' }}
+                                                                    >
+                                                                        Reject
+                                                                    </button>
+                                                                </div>
+                                                            )}
+                                                        </td>
+                                                    )}
                                                 </tr>
                                             ))
                                         )}
@@ -261,9 +313,9 @@ export default function CompanyExpenses() {
                                                                             <div className="flex flex-col">
                                                                                 <div className="flex items-center gap-2 mb-1">
                                                                                     <span className="badge">{exp.type}</span>
-                                                                                    <span className="text-xs text-secondary">{new Date(exp.spentDate || exp.expenseDate).toLocaleDateString()}</span>
+                                                                                    <span className="text-xs text-secondary">{new Date(exp.spentDate).toLocaleDateString()}</span>
                                                                                 </div>
-                                                                                <span className="text-sm text-white mb-1">{exp.description}</span>
+                                                                                <span className="text-sm text-white mb-1">{exp.reference}</span>
                                                                                 <span className="font-mono font-bold text-lg text-white">
                                                                                     {formatCurrency(exp.amount)}
                                                                                 </span>
@@ -293,23 +345,15 @@ export default function CompanyExpenses() {
                         <select
                             value={mainExpenseForm.type}
                             onChange={e => setMainExpenseForm({ ...mainExpenseForm, type: e.target.value })}
-                            className="form-select"
+                            className="form-select" // Use standard class
                             required
-                            style={{
-                                width: '100%',
-                                padding: '0.75rem',
-                                borderRadius: '8px',
-                                background: '#1e293b',
-                                color: 'white',
-                                border: '1px solid rgba(255,255,255,0.1)'
-                            }}
                         >
-                            <option value="" style={{ color: '#94a3b8' }}>Select Category</option>
+                            <option value="">Select Category</option>
                             {activeBudget?.allocations?.map(alloc => {
                                 const spent = spentByCategory[alloc.categoryName] || 0;
                                 const remaining = alloc.allocatedAmount - spent;
                                 return (
-                                    <option key={alloc.id} value={alloc.categoryName} style={{ background: '#1e293b', color: 'white' }}>
+                                    <option key={alloc.id} value={alloc.categoryName}>
                                         {alloc.categoryName} (Rem: {formatCurrency(remaining)})
                                     </option>
                                 );
@@ -321,11 +365,12 @@ export default function CompanyExpenses() {
                     </div>
 
                     <div className="form-group">
-                        <label>Description</label>
+                        <label>Reference / Description</label>
                         <input
                             type="text"
-                            placeholder="e.g. Server costs"
-                            onChange={e => setMainExpenseForm({ ...mainExpenseForm, description: e.target.value })}
+                            placeholder="e.g. Invoice #123"
+                            value={mainExpenseForm.reference}
+                            onChange={e => setMainExpenseForm({ ...mainExpenseForm, reference: e.target.value })}
                             required
                         />
                     </div>
@@ -336,6 +381,7 @@ export default function CompanyExpenses() {
                             <input
                                 type="number"
                                 placeholder="0.00"
+                                value={mainExpenseForm.amount}
                                 onChange={e => setMainExpenseForm({ ...mainExpenseForm, amount: e.target.value })}
                                 required
                             />
@@ -346,7 +392,8 @@ export default function CompanyExpenses() {
                                 type="date"
                                 min={activeBudget?.startDate}
                                 max={activeBudget?.endDate}
-                                onChange={e => setMainExpenseForm({ ...mainExpenseForm, expenseDate: e.target.value })}
+                                value={mainExpenseForm.spentDate}
+                                onChange={e => setMainExpenseForm({ ...mainExpenseForm, spentDate: e.target.value })}
                                 required
                             />
                         </div>

@@ -1,25 +1,42 @@
-import { Routes, Route } from "react-router-dom";
-import Login from "../auth/Login";
-import Signup from "../auth/Signup";
-import OAuthCallback from "../auth/OAuthCallback";
-import Dashboard from "../pages/Dashboard";
-import ProtectedRoute from "./ProtectedRoute";
+import { Routes, Route, Navigate } from 'react-router-dom';
+import Login from '../pages/Login';
+import Signup from '../pages/Signup';
+import Landing from '../pages/Landing';
+import DashboardHome from '../pages/DashboardHome';
+import CompanyList from '../pages/CompanyList';
+import CompanyDetail from '../pages/CompanyDetail';
+import CompanyBudgets from '../pages/company/CompanyBudgets';
+import CompanyExpenses from '../pages/company/CompanyExpenses';
+import Profile from '../pages/Profile';
+import OAuthCallback from '../pages/OAuthCallback';
+import ProtectedRoute from './ProtectedRoute';
+import DashboardLayout from '../layouts/DashboardLayout';
 
-const AppRoutes = () => {
-  return (
-    <Routes>
-      {/* Public routes */}
-      <Route path="/login" element={<Login />} />
-      <Route path="/signup" element={<Signup />} />
-      <Route path="/oauth/callback" element={<OAuthCallback />} />
+export default function AppRoutes() {
+    return (
+        <Routes>
+            {/* Public Routes */}
+            <Route path="/" element={<Landing />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+            <Route path="/oauth2/callback" element={<OAuthCallback />} />
 
-      {/* Protected routes */}
-      <Route element={<ProtectedRoute />}>
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/" element={<Dashboard />} />
-      </Route>
-    </Routes>
-  );
-};
+            {/* Protected Dashboard Routes */}
+            <Route path="/dashboard" element={
+                <ProtectedRoute>
+                    <DashboardLayout />
+                </ProtectedRoute>
+            }>
+                <Route index element={<DashboardHome />} />
+                <Route path="companies" element={<CompanyList />} />
+                <Route path="companies/:id" element={<CompanyDetail />} />
+                <Route path="companies/:id/budgets" element={<CompanyBudgets />} />
+                <Route path="companies/:id/expenses" element={<CompanyExpenses />} />
+                <Route path="profile" element={<Profile />} />
+            </Route>
 
-export default AppRoutes;
+            {/* Fallback */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+    );
+}

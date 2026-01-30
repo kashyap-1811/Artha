@@ -1,7 +1,6 @@
 package com.artha.auth.controller;
 
 import com.artha.auth.dto.user.CreateUserRequest;
-import com.artha.auth.dto.auth.LoginResponse;
 import com.artha.auth.dto.user.UpdateUserRequest;
 import com.artha.auth.dto.user.UserResponse;
 import com.artha.auth.entity.User;

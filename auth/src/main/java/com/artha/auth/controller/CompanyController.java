@@ -6,7 +6,6 @@ import com.artha.auth.dto.userCompany.AddMemberRequest;
 import com.artha.auth.dto.userCompany.UserCompanyResponse;
 import com.artha.auth.entity.Company;
 import com.artha.auth.entity.User;
-import com.artha.auth.entity.UserCompany;
 import com.artha.auth.services.ICompanyService;
 import com.artha.auth.repository.UserCompanyRepository;
 import com.artha.auth.mapper.CompanyMapper;

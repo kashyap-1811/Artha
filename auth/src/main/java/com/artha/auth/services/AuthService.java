@@ -4,8 +4,6 @@ import com.artha.auth.dto.auth.LoginRequest;
 import com.artha.auth.dto.auth.LoginResponse;
 import com.artha.auth.dto.auth.SignupRequest;
 import com.artha.auth.dto.auth.SignupResponse;
-import org.jspecify.annotations.Nullable;
-import org.springframework.security.oauth2.core.user.OAuth2User;
 
 public interface AuthService {
     LoginResponse login(LoginRequest request);

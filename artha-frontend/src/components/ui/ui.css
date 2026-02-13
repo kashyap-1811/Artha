@@ -1,0 +1,54 @@
+/* Glassmorphism Card */
+.ui-card {
+    background: var(--bg-card);
+    /* Use variable */
+    border: 1px solid var(--border-color);
+    /* Use variable */
+    border-radius: 16px;
+    padding: 1.5rem;
+    color: var(--text-primary);
+    box-shadow: var(--card-shadow, 0 4px 20px rgba(0, 0, 0, 0.2));
+    /* Use variable with fallback */
+    transition: transform 0.2s, box-shadow 0.2s, background-color 0.3s;
+}
+
+.ui-card:hover {
+    box-shadow: var(--card-shadow-hover, 0 8px 30px rgba(0, 0, 0, 0.3));
+    border-color: var(--border-focus);
+}
+
+.ui-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.ui-card-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+/* Skeleton Loader */
+.ui-skeleton {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+    animation: pulse 1.5s infinite ease-in-out;
+}
+
+@keyframes pulse {
+    0% {
+        opacity: 0.6;
+    }
+
+    50% {
+        opacity: 0.3;
+    }
+
+    100% {
+        opacity: 0.6;
+    }
+}
+
+/* Modal Styles would go here */

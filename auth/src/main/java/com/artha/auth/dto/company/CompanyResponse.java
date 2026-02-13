@@ -10,4 +10,5 @@ public class CompanyResponse {
     private String id;
     private String name;
     private CompanyType type;
+    private String ownerId;
 }

@@ -5,7 +5,6 @@ import com.artha.auth.entity.User;
 import com.artha.auth.repository.UserRepository;
 import com.artha.auth.security.AuthUtil;
 import com.artha.auth.services.OAuth2AuthService;
-import com.artha.auth.services.impl.UserService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.BadCredentialsException;

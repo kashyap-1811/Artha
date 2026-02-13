@@ -1,0 +1,19 @@
+.dashboard-layout {
+    display: flex;
+    min-height: 100vh;
+    background-color: var(--bg-dark);
+}
+
+.dashboard-content {
+    flex: 1;
+    margin-left: 260px;
+    /* Match sidebar width */
+    padding: 2rem;
+    min-height: 100vh;
+    background: radial-gradient(circle at top right, rgba(99, 102, 241, 0.05), transparent 40%);
+}
+
+.content-container {
+    max-width: 1200px;
+    margin: 0 auto;
+}

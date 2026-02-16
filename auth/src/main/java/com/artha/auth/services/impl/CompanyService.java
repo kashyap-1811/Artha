@@ -1,5 +1,6 @@
 package com.artha.auth.services.impl;
 
+import com.artha.auth.dto.userCompany.CompanyMemberResponse;
 import com.artha.auth.entity.*;
 import com.artha.auth.repository.CompanyRepository;
 import com.artha.auth.repository.UserCompanyRepository;
@@ -9,6 +10,8 @@ import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -146,5 +149,21 @@ public class CompanyService implements ICompanyService {
     @Override
     public void delete(String id) {
         companyRepository.deleteById(id);
+    }
+
+    @Override
+    public List<CompanyMemberResponse> getCompanyMembers(String companyId) {
+
+        List<UserCompany> companyUsers =
+                userCompanyRepository.findByCompany_IdAndActiveTrue(companyId);
+        return companyUsers.stream()
+                .map(cu -> CompanyMemberResponse.builder()
+                        .userId(cu.getUser().getId())
+                        .fullName(cu.getUser().getFullName())
+                        .email(cu.getUser().getEmail())
+                        .role(cu.getRole())
+                        .build()
+                )
+                .toList();
     }
 }

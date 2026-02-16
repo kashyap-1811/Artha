@@ -1,8 +1,12 @@
 package com.artha.budget.service.impl;
 
+import com.artha.budget.dto.request.UpdateAllocationRequestDTO;
+import com.artha.budget.dto.request.UpdateBudgetRequestDTO;
+import com.artha.budget.dto.response.BudgetResponseDTO;
 import com.artha.budget.entity.Budget;
 import com.artha.budget.entity.BudgetCategoryAllocation;
 import com.artha.budget.entity.BudgetStatus;
+import com.artha.budget.mapper.BudgetMapper;
 import com.artha.budget.repository.BudgetCategoryAllocationRepository;
 import com.artha.budget.repository.BudgetRepository;
 import com.artha.budget.service.BudgetService;
@@ -161,5 +165,83 @@ public class BudgetServiceImpl implements BudgetService {
         budget.removeAllocation(allocation);
 
         budgetRepository.save(budget);
+    }
+
+    @Override
+    public BudgetCategoryAllocation updateAllocation(
+            UUID budgetId,
+            UUID allocationId,
+            UpdateAllocationRequestDTO request) {
+
+        BudgetCategoryAllocation allocation =
+                allocationRepository.findById(allocationId)
+                        .orElseThrow(() -> new RuntimeException("Allocation not found"));
+
+        if (!allocation.getBudget().getId().equals(budgetId)) {
+            throw new RuntimeException("Invalid budget allocation mapping");
+        }
+
+        if (request.getAllocatedAmount().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Allocated amount must be greater than zero");
+        }
+
+        // Validate sum of allocations <= total budget
+        BigDecimal totalOtherAllocations =
+                allocationRepository.sumAllocatedAmountByBudgetExcludingId(budgetId, allocationId);
+
+        if (totalOtherAllocations.add(request.getAllocatedAmount())
+                .compareTo(allocation.getBudget().getTotalAmount()) > 0) {
+            throw new RuntimeException("Allocation exceeds total budget");
+        }
+
+        allocation.setCategoryName(request.getCategoryName());
+        allocation.setAllocatedAmount(request.getAllocatedAmount());
+        allocation.setAlertThreshold(request.getAlertThreshold());
+
+        return allocationRepository.save(allocation);
+    }
+
+    @Override
+    public Budget updateBudget(UUID budgetId, UpdateBudgetRequestDTO request) {
+
+        Budget budget = budgetRepository.findById(budgetId)
+                .orElseThrow(() -> new RuntimeException("Budget not found"));
+
+        BigDecimal totalAllocated =
+                allocationRepository.sumAllocatedAmountByBudgetId(budgetId);
+
+        if (request.getTotalAmount().compareTo(totalAllocated) < 0) {
+            throw new RuntimeException("Total budget cannot be less than allocated amount");
+        }
+
+        budget.setName(request.getName());
+        budget.setTotalAmount(request.getTotalAmount());
+        budget.setEndDate(request.getEndDate());
+
+        return budgetRepository.save(budget);
+    }
+
+    @Override
+    public void removeBudget(UUID budgetId) {
+
+        Budget budget = budgetRepository.findById(budgetId)
+                .orElseThrow(() -> new IllegalArgumentException("Budget not found"));
+
+        if (budget.getStatus() == BudgetStatus.CLOSED) {
+            throw new IllegalStateException("Cannot delete closed budget");
+        }
+
+        budget.setStatus(BudgetStatus.CLOSED);
+
+        budgetRepository.save(budget);
+    }
+
+    @Override
+    public BudgetResponseDTO getAllDetailOfBudget(UUID budgetId) {
+
+        Budget budget = budgetRepository.findById(budgetId)
+                .orElseThrow(() -> new IllegalArgumentException("Budget not found"));
+
+        return BudgetMapper.toBudgetResponse(budget);
     }
 }

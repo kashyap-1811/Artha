@@ -4,12 +4,19 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "expenses")
+@Table(
+        name = "expenses",
+        indexes = {
+                @Index(name = "idx_expense_budget", columnList = "budget_id"),
+                @Index(name = "idx_expense_allocation", columnList = "allocation_id")
+        }
+)
 @Getter
 @Setter
 @NoArgsConstructor
@@ -21,27 +28,36 @@ public class Expense {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(nullable = false)
+    @Column(name = "company_id", nullable = false)
     private String companyId;
 
-    @Column(nullable = false)
-    private String createdBy;
+    @Column(name = "budget_id", nullable = false)
+    private UUID budgetId;
 
-    @Column(nullable = false)
+    @Column(name = "allocation_id", nullable = false)
+    private UUID allocationId;
+
+    @Column(nullable = false, precision = 19, scale = 2)
     private BigDecimal amount;
-
-    @Column(nullable = false)
-    private LocalDate spentDate;
-
-    @Column(nullable = false)
-    private String type;
 
     private String reference;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private ExpenseStatus status;
+    private LocalDate spentDate;
 
-    @Column(nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    @Enumerated(EnumType.STRING)
+    private ExpenseType type; // PERSONAL / BUSINESS
+
+    @Enumerated(EnumType.STRING)
+    private ExpenseStatus status; // PENDING / APPROVED / REJECTED
+
+    private Boolean warning;
+
+    private String createdBy;
+
+    private Instant createdAt;
+
+    @PrePersist
+    protected void onCreate() {
+        this.createdAt = Instant.now();
+    }
 }

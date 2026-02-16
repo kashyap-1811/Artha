@@ -27,4 +27,16 @@ public interface BudgetCategoryAllocationRepository
     BigDecimal sumAllocatedAmountByBudgetId(
             @Param("budgetId") UUID budgetId
     );
+
+    @Query("""
+       SELECT COALESCE(SUM(bca.allocatedAmount), 0)
+       FROM BudgetCategoryAllocation bca
+       WHERE bca.budget.id = :budgetId
+       AND bca.id <> :allocationId
+       """)
+    BigDecimal sumAllocatedAmountByBudgetExcludingId(
+            @Param("budgetId") UUID budgetId,
+            @Param("allocationId") UUID allocationId
+    );
+
 }

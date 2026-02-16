@@ -3,6 +3,7 @@ package com.artha.auth.controller;
 import com.artha.auth.dto.company.CompanyResponse;
 import com.artha.auth.dto.company.CreateCompanyRequest;
 import com.artha.auth.dto.userCompany.AddMemberRequest;
+import com.artha.auth.dto.userCompany.CompanyMemberResponse;
 import com.artha.auth.dto.userCompany.UserCompanyResponse;
 import com.artha.auth.entity.Company;
 import com.artha.auth.entity.User;
@@ -128,5 +129,12 @@ public class CompanyController {
                         .toList();
 
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/{companyId}/members")
+    public List<CompanyMemberResponse> getCompanyMembers(
+            @PathVariable String companyId
+    ) {
+        return companyService.getCompanyMembers(companyId);
     }
 }

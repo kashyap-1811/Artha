@@ -1,5 +1,6 @@
 package com.artha.expense.controller;
 
+import com.artha.expense.dto.BudgetExpenseSummaryResponse;
 import com.artha.expense.dto.CreateExpenseRequest;
 import com.artha.expense.dto.ExpenseResponse;
 import com.artha.expense.service.ExpenseService;
@@ -16,7 +17,7 @@ public class ExpenseController {
 
     private final ExpenseService expenseService;
 
-    // Create expense
+    // ===================== CREATE =====================
     @PostMapping
     public ExpenseResponse createExpense(
             @RequestBody CreateExpenseRequest request
@@ -24,7 +25,13 @@ public class ExpenseController {
         return expenseService.createExpense(request);
     }
 
-    // Get all expenses of a company
+    // ===================== GET BY ID =====================
+    @GetMapping("/{id}")
+    public ExpenseResponse getExpense(@PathVariable UUID id) {
+        return expenseService.getExpense(id);
+    }
+
+    // ===================== GET BY COMPANY =====================
     @GetMapping
     public List<ExpenseResponse> getExpenses(
             @RequestParam String companyId
@@ -32,15 +39,38 @@ public class ExpenseController {
         return expenseService.getCompanyExpenses(companyId);
     }
 
-    // Approve expense (manager/admin action)
+    // ===================== GET BY BUDGET =====================
+    @GetMapping("/budget/{budgetId}")
+    public List<ExpenseResponse> getExpensesByBudget(
+            @PathVariable UUID budgetId
+    ) {
+        return expenseService.getExpensesByBudgetId(budgetId);
+    }
+
+    // ===================== GET BY ALLOCATION =====================
+    @GetMapping("/allocation/{allocationId}")
+    public List<ExpenseResponse> getExpensesByAllocation(
+            @PathVariable UUID allocationId
+    ) {
+        return expenseService.getExpensesByAllocationId(allocationId);
+    }
+
+    // ===================== APPROVE =====================
     @PostMapping("/{id}/approve")
     public ExpenseResponse approveExpense(@PathVariable UUID id) {
         return expenseService.approveExpense(id);
     }
 
-    // Reject expense (manager/admin action)
+    // ===================== REJECT =====================
     @PostMapping("/{id}/reject")
     public ExpenseResponse rejectExpense(@PathVariable UUID id) {
         return expenseService.rejectExpense(id);
+    }
+
+    @GetMapping("/budget/{budgetId}/summary")
+    public BudgetExpenseSummaryResponse getBudgetSummary(
+            @PathVariable UUID budgetId
+    ) {
+        return expenseService.getBudgetSummary(budgetId);
     }
 }

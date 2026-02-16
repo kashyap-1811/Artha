@@ -2,6 +2,8 @@ package com.artha.budget.controller;
 
 import com.artha.budget.dto.request.AddAllocationRequestDTO;
 import com.artha.budget.dto.request.CreateBudgetRequestDTO;
+import com.artha.budget.dto.request.UpdateAllocationRequestDTO;
+import com.artha.budget.dto.request.UpdateBudgetRequestDTO;
 import com.artha.budget.dto.response.BudgetAllocationResponseDTO;
 import com.artha.budget.dto.response.BudgetResponseDTO;
 import com.artha.budget.entity.Budget;
@@ -113,5 +115,38 @@ public class BudgetController {
             @PathVariable UUID allocationId
     ) {
         budgetService.removeCategoryAllocation(budgetId, allocationId);
+    }
+
+
+    @PutMapping("/{budgetId}/allocations/{allocationId}")
+    public BudgetAllocationResponseDTO updateAllocation(
+            @PathVariable UUID budgetId,
+            @PathVariable UUID allocationId,
+            @RequestBody UpdateAllocationRequestDTO request) {
+
+        BudgetCategoryAllocation allocation =
+                budgetService.updateAllocation(budgetId, allocationId, request);
+
+        return BudgetMapper.toAllocationResponse(allocation);
+    }
+
+    @PutMapping("/{budgetId}")
+    public BudgetResponseDTO updateBudget(
+            @PathVariable UUID budgetId,
+            @RequestBody UpdateBudgetRequestDTO request) {
+
+        Budget budget = budgetService.updateBudget(budgetId, request);
+        return BudgetMapper.toBudgetResponse(budget);
+    }
+
+    @DeleteMapping("/{budgetId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void removeBudget(@PathVariable UUID budgetId) {
+        budgetService.removeBudget(budgetId);
+    }
+
+    @GetMapping("/{budgetId}/details")
+    public BudgetResponseDTO getAllDetailOfBudget(@PathVariable UUID budgetId) {
+        return budgetService.getAllDetailOfBudget(budgetId);
     }
 }

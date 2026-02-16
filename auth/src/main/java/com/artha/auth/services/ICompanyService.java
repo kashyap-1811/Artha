@@ -1,8 +1,11 @@
 package com.artha.auth.services;
 
+import com.artha.auth.dto.userCompany.CompanyMemberResponse;
 import com.artha.auth.entity.Company;
 import com.artha.auth.entity.UserCompanyRole;
 import com.artha.auth.entity.User;
+
+import java.util.List;
 
 public interface ICompanyService {
 
@@ -17,4 +20,7 @@ public interface ICompanyService {
     Company getById(String id);
 
     void delete(String id);
+
+    List<CompanyMemberResponse> getCompanyMembers(String companyId);
+
 }

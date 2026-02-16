@@ -1,22 +1,35 @@
 package com.artha.expense.dto;
 
+import com.artha.expense.entity.ExpenseType;
 import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.UUID;
 
-@Getter
-@Setter
+@Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class CreateExpenseRequest {
 
     private String companyId;
-    private String createdBy;
-    private boolean privateCompany;
+
+    private UUID budgetId;
+
+    private UUID allocationId;
+
     private BigDecimal amount;
-    private LocalDate spentDate;
-    private String type;
+
     private String reference;
+
+    private LocalDate spentDate;
+
+    private ExpenseType type;  // PERSONAL / BUSINESS
+
+    private String createdBy;
+
+    private String role; // OWNER / MEMBER
+
+    private BigDecimal allocatedAmount; // For overspend logic
 }

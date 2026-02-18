@@ -23,7 +23,7 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
         @Value("${app.frontend.redirect-url}")
         private String frontendRedirectUrl;
 
-        // http://localhost:8080/oauth2/login/google
+        // http://localhost:8083/oauth2/login/google
         @Override
         public void onAuthenticationSuccess(
                         HttpServletRequest request,

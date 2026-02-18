@@ -57,14 +57,40 @@ public class User implements UserDetails {
         uc.setUser(null);
     }
 
+    /* ---------- UserDetails Implementation ---------- */
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of();
+        return List.of(); // later you can return roles here
     }
 
     @Override
     public String getUsername() {
         return email;
+    }
+
+    @Override
+    public String getPassword() {
+        return password;  // REQUIRED
+    }
+
+    @Override
+    public boolean isAccountNonExpired() {
+        return true;  // you can customize later
+    }
+
+    @Override
+    public boolean isAccountNonLocked() {
+        return true;
+    }
+
+    @Override
+    public boolean isCredentialsNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return active;   // using your active field
     }
 }

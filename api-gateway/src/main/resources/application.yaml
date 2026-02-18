@@ -1,0 +1,35 @@
+server:
+  port: 8080
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka
+
+spring:
+  application:
+    name: api-gateway
+
+  cloud:
+    gateway:
+      routes:
+        - id: auth-service
+          uri: lb://auth-service
+          predicates:
+            - Path=/auth/**
+          filters:
+            - StripPrefix=1
+
+        - id: budget-service
+          uri: lb://budget-service
+          predicates:
+            - Path=/budget/**
+          filters:
+            - StripPrefix=1
+
+        - id: expense-service
+          uri: lb://expense-service
+          predicates:
+            - Path=/expense/**
+          filters:
+            - StripPrefix=1

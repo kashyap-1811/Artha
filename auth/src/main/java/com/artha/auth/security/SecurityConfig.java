@@ -22,49 +22,72 @@ import java.util.List;
 @Slf4j
 public class SecurityConfig {
 
-        private final JwtAuthFilter jwtAuthFilter;
-        private final OAuth2SuccessHandler oAuth2SuccessHandler;
+    private final JwtAuthFilter jwtAuthFilter;
+    private final OAuth2SuccessHandler oAuth2SuccessHandler;
 
-        @Bean
-        public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
-                http
-                                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                                .csrf(csrf -> csrf.disable())
-                                .sessionManagement(sessionConfig -> sessionConfig
-                                                .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                                .authorizeHttpRequests(auth -> auth
-                                                .requestMatchers(
-                                                                "/api/auth/login",
-                                                                "/api/auth/signup",
-                                                                "/api/users")
-                                                .permitAll()
-                                                .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**")
-                                                .permitAll()
-                                                .anyRequest().authenticated())
-                                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
-                                .oauth2Login(oAuth2 -> oAuth2
-                                                .failureHandler(
-                                                                ((request, response, exception) -> {
-                                                                        log.error("OAuth error : {}",
-                                                                                        exception.getMessage());
-                                                                }))
-                                                .successHandler(oAuth2SuccessHandler));
+        http
+                .csrf(csrf -> csrf.disable())
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                )
 
-                return http.build();
-        }
+                .authorizeHttpRequests(auth -> auth
+                        // Public endpoints
+                        .requestMatchers(
+                                "/api/auth/login",
+                                "/api/auth/signup",
+                                "/api/auth/oauth2/**",
+                                "/oauth2/**"
+                        ).permitAll()
 
-        @Bean
-        public CorsConfigurationSource corsConfigurationSource() {
-                CorsConfiguration configuration = new CorsConfiguration();
-                configuration.setAllowedOriginPatterns(List.of("*"));
-                configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-                configuration.setAllowedHeaders(List.of("*"));
-                configuration.setAllowCredentials(true);
-                configuration.setExposedHeaders(Arrays.asList("Authorization", "X-USER-ID"));
+                        .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
 
-                UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-                source.registerCorsConfiguration("/**", configuration);
-                return source;
-        }
+                        // Everything else protected
+                        .anyRequest().authenticated()
+                )
+
+                // JWT filter
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+
+                // OAuth2 configuration
+                .oauth2Login(oauth -> oauth
+                        .successHandler(oAuth2SuccessHandler)
+                        .failureHandler((request, response, exception) -> {
+                            log.error("OAuth error: {}", exception.getMessage());
+                            response.setStatus(401);
+                        })
+                );
+
+        return http.build();
+    }
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+
+        CorsConfiguration configuration = new CorsConfiguration();
+
+        configuration.setAllowedOrigins(List.of(
+                "http://localhost:3000",   // React frontend if any
+                "http://localhost:8080"    // Gateway
+        ));
+
+        configuration.setAllowedMethods(List.of(
+                "GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"
+        ));
+
+        configuration.setAllowedHeaders(List.of("*"));
+        configuration.setExposedHeaders(List.of("Authorization", "X-USER-ID"));
+        configuration.setAllowCredentials(true);
+
+        UrlBasedCorsConfigurationSource source =
+                new UrlBasedCorsConfigurationSource();
+
+        source.registerCorsConfiguration("/**", configuration);
+
+        return source;
+    }
 }

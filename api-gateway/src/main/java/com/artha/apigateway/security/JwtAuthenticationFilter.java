@@ -28,24 +28,32 @@ public class JwtAuthenticationFilter implements WebFilter {
 
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             String token = authHeader.substring(7);
-            
-            // System.out.println("Processing Token: " + token); // Debug
 
             if (jwtUtil.validateToken(token)) {
                 String email = jwtUtil.getEmailFromToken(token);
-                // System.out.println("Token Valid for: " + email); // Debug
-                
+                String userId = jwtUtil.getUserIdFromToken(token);
+
                 UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
                         email, null, Collections.emptyList()
                 );
 
-                return chain.filter(exchange)
+                // Forward userId as a trusted header to downstream services.
+                // userId may be null for old tokens — downstream services handle this gracefully.
+                ServerHttpRequest.Builder requestBuilder = request.mutate();
+                if (userId != null) {
+                    requestBuilder.header("X-User-Id", userId);
+                }
+                ServerHttpRequest mutatedRequest = requestBuilder.build();
+
+                ServerWebExchange mutatedExchange = exchange.mutate()
+                        .request(mutatedRequest)
+                        .build();
+
+                return chain.filter(mutatedExchange)
                         .contextWrite(ReactiveSecurityContextHolder.withAuthentication(auth));
-            } else {
-                 // System.out.println("Token Validation Failed"); // Debug
             }
         }
-        
+
         return chain.filter(exchange);
     }
 }

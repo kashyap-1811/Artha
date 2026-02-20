@@ -25,7 +25,7 @@ public class ExpenseMapper {
                 .reference(request.getReference())
                 .status(status)
                 .warning(false)
-                .createdAt(Instant.now())   // ✅ correct
+                .createdAt(Instant.now())
                 .build();
     }
 

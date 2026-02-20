@@ -20,8 +20,8 @@ public class GlobalExceptionHandler {
     }
 
     // 400 - Bad Request
-    @ExceptionHandler(IllegalStateException.class)
-    public ResponseEntity<ApiError> handleIllegalState(IllegalStateException ex) {
+    @ExceptionHandler({IllegalStateException.class, IllegalArgumentException.class})
+    public ResponseEntity<ApiError> handleBadRequest(RuntimeException ex) {
         ApiError apiError = new ApiError(
                 ex.getMessage(),
                 HttpStatus.BAD_REQUEST
@@ -33,7 +33,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiError> handleGenericException(Exception ex) {
         ApiError apiError = new ApiError(
-                "An unexpected error occurred: " + ex.getMessage(),
+                ex.getMessage() != null ? ex.getMessage() : "Internal Server Error",
                 HttpStatus.INTERNAL_SERVER_ERROR
         );
         return new ResponseEntity<>(apiError, HttpStatus.INTERNAL_SERVER_ERROR);

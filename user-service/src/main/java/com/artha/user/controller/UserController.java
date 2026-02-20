@@ -4,7 +4,9 @@ import com.artha.user.dto.user.CreateUserRequest;
 import com.artha.user.dto.user.UpdateUserRequest;
 import com.artha.user.dto.user.UserResponse;
 import com.artha.user.entity.User;
+import com.artha.user.entity.UserCompanyRole;
 import com.artha.user.services.IUserService;
+import com.artha.user.services.IUserCompanyService;
 import com.artha.user.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -16,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 public class UserController {
 
     private final IUserService userService;
+    private final IUserCompanyService userCompanyService;
 
     /* ---------------- CREATE USER (SIGNUP) ---------------- */
 
@@ -78,5 +81,16 @@ public class UserController {
     ) {
         userService.delete(userId);
         return ResponseEntity.noContent().build();
+    }
+
+    /* ---------------- GET USER ROLE IN COMPANY (Internal) ---------------- */
+
+    @GetMapping("/{userId}/companies/{companyId}/role")
+    public ResponseEntity<UserCompanyRole> getUserRole(
+            @PathVariable String userId,
+            @PathVariable String companyId
+    ) {
+        UserCompanyRole role = userCompanyService.getUserRole(userId, companyId);
+        return ResponseEntity.ok(role);
     }
 }

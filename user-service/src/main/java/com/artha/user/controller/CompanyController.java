@@ -137,4 +137,17 @@ public class CompanyController {
     ) {
         return companyService.getCompanyMembers(companyId);
     }
+
+    /* ---------------- GET MEMBER ROLE (Internal) ---------------- */
+
+    @GetMapping("/{companyId}/members/{userId}")
+    public ResponseEntity<com.artha.user.entity.UserCompanyRole> getMemberRole(
+            @PathVariable String companyId,
+            @PathVariable String userId
+    ) {
+        com.artha.user.entity.UserCompany uc = userCompanyRepository
+                .findByUser_IdAndCompany_Id(userId, companyId)
+                .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("User is not a member of this company"));
+        return ResponseEntity.ok(uc.getRole());
+    }
 }

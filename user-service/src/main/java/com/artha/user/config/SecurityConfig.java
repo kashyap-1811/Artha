@@ -27,6 +27,9 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**", "/auth/**").permitAll()
+                        // Internal service-to-service endpoint — no JWT needed (Budget Service calls this directly)
+                        .requestMatchers("/api/users/*/companies/*/role").permitAll()
+                        .requestMatchers("/api/companies/*/members/*").permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session

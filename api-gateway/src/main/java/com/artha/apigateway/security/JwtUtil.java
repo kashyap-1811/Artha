@@ -24,13 +24,19 @@ public class JwtUtil {
     }
 
     public String getEmailFromToken(String token) {
-        Claims claims = Jwts.parser()
+        return getClaims(token).getSubject();
+    }
+
+    public String getUserIdFromToken(String token) {
+        return (String) getClaims(token).get("userId");
+    }
+
+    private Claims getClaims(String token) {
+        return Jwts.parser()
                 .verifyWith(getSecretKey())
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
-
-        return claims.getSubject();
     }
     
     public boolean validateToken(String token) {

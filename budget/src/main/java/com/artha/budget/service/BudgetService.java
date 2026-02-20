@@ -16,6 +16,7 @@ public interface BudgetService {
     /* ---------- Budget ---------- */
 
     Budget createBudget(
+            String userId,
             String companyId,
             String name,
             BigDecimal totalAmount,
@@ -23,15 +24,16 @@ public interface BudgetService {
             LocalDate endDate
     );
 
-    Budget getActiveBudget(String companyId);
+    Budget getActiveBudget(String userId, String companyId);
 
-    List<Budget> getAllBudgets(String companyId);
+    List<Budget> getAllBudgets(String userId, String companyId);
 
-    void closeBudget(UUID budgetId);
+    void closeBudget(String userId, UUID budgetId);
 
     /* ---------- Allocations ---------- */
 
     BudgetCategoryAllocation addCategoryAllocation(
+            String userId,
             UUID budgetId,
             String categoryName,
             BigDecimal allocatedAmount,
@@ -39,15 +41,16 @@ public interface BudgetService {
     );
 
     void removeCategoryAllocation(
+            String userId,
             UUID budgetId,
             UUID allocationId
     );
 
-    BudgetCategoryAllocation updateAllocation(UUID budgetId, UUID allocationId, UpdateAllocationRequestDTO request);
+    BudgetCategoryAllocation updateAllocation(String userId, UUID budgetId, UUID allocationId, UpdateAllocationRequestDTO request);
 
-    Budget updateBudget(UUID budgetId, UpdateBudgetRequestDTO request);
+    Budget updateBudget(String userId, UUID budgetId, UpdateBudgetRequestDTO request);
 
-    void removeBudget(UUID budgetId);
+    void removeBudget(String userId, UUID budgetId);
 
-    BudgetResponseDTO getAllDetailOfBudget(UUID budgetId);
+    BudgetResponseDTO getAllDetailOfBudget(String userId, UUID budgetId);
 }

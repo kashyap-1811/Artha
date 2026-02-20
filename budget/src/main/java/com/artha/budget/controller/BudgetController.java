@@ -28,15 +28,17 @@ public class BudgetController {
     /* ===================== Budget ===================== */
 
     /**
-     * Create a new budget
+     * Create a new budget.
+     * Requires: OWNER role.
      */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public BudgetResponseDTO createBudget(
+            @RequestHeader("X-User-Id") String userId,
             @RequestBody CreateBudgetRequestDTO request
     ) {
-
         Budget budget = budgetService.createBudget(
+                userId,
                 request.getCompanyId(),
                 request.getName(),
                 request.getTotalAmount(),
@@ -48,54 +50,62 @@ public class BudgetController {
     }
 
     /**
-     * Get active budget for a company
+     * Get active budget for a company.
+     * Open to all company members.
      */
     @GetMapping("/active")
     public BudgetResponseDTO getActiveBudget(
+            @RequestHeader("X-User-Id") String userId,
             @RequestParam String companyId
     ) {
-        Budget budget = budgetService.getActiveBudget(companyId);
+        Budget budget = budgetService.getActiveBudget(userId, companyId);
         return BudgetMapper.toBudgetResponse(budget);
     }
 
     /**
-     * Get all budgets (history) for a company
+     * Get all budgets (history) for a company.
+     * Open to all company members.
      */
     @GetMapping
     public List<BudgetResponseDTO> getAllBudgets(
+            @RequestHeader("X-User-Id") String userId,
             @RequestParam String companyId
     ) {
-        return budgetService.getAllBudgets(companyId)
+        return budgetService.getAllBudgets(userId, companyId)
                 .stream()
                 .map(BudgetMapper::toBudgetResponse)
                 .collect(Collectors.toList());
     }
 
     /**
-     * Close a budget
+     * Close a budget.
+     * Requires: OWNER role.
      */
     @PostMapping("/{budgetId}/close")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void closeBudget(
+            @RequestHeader("X-User-Id") String userId,
             @PathVariable UUID budgetId
     ) {
-        budgetService.closeBudget(budgetId);
+        budgetService.closeBudget(userId, budgetId);
     }
 
     /* ===================== Allocations ===================== */
 
     /**
-     * Add category allocation to a budget
+     * Add category allocation to a budget.
+     * Requires: OWNER or MEMBER role.
      */
     @PostMapping("/{budgetId}/allocations")
     @ResponseStatus(HttpStatus.CREATED)
     public BudgetAllocationResponseDTO addAllocation(
+            @RequestHeader("X-User-Id") String userId,
             @PathVariable UUID budgetId,
             @RequestBody AddAllocationRequestDTO request
     ) {
-
         BudgetCategoryAllocation allocation =
                 budgetService.addCategoryAllocation(
+                        userId,
                         budgetId,
                         request.getCategoryName(),
                         request.getAllocatedAmount(),
@@ -106,47 +116,67 @@ public class BudgetController {
     }
 
     /**
-     * Remove category allocation from budget
+     * Remove category allocation from budget.
+     * Requires: OWNER or MEMBER role.
      */
     @DeleteMapping("/{budgetId}/allocations/{allocationId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void removeAllocation(
+            @RequestHeader("X-User-Id") String userId,
             @PathVariable UUID budgetId,
             @PathVariable UUID allocationId
     ) {
-        budgetService.removeCategoryAllocation(budgetId, allocationId);
+        budgetService.removeCategoryAllocation(userId, budgetId, allocationId);
     }
 
-
+    /**
+     * Update allocation.
+     * Requires: OWNER or MEMBER role.
+     */
     @PutMapping("/{budgetId}/allocations/{allocationId}")
     public BudgetAllocationResponseDTO updateAllocation(
+            @RequestHeader("X-User-Id") String userId,
             @PathVariable UUID budgetId,
             @PathVariable UUID allocationId,
             @RequestBody UpdateAllocationRequestDTO request) {
 
         BudgetCategoryAllocation allocation =
-                budgetService.updateAllocation(budgetId, allocationId, request);
+                budgetService.updateAllocation(userId, budgetId, allocationId, request);
 
         return BudgetMapper.toAllocationResponse(allocation);
     }
 
+    /**
+     * Update budget metadata.
+     * Requires: OWNER role.
+     */
     @PutMapping("/{budgetId}")
     public BudgetResponseDTO updateBudget(
+            @RequestHeader("X-User-Id") String userId,
             @PathVariable UUID budgetId,
             @RequestBody UpdateBudgetRequestDTO request) {
 
-        Budget budget = budgetService.updateBudget(budgetId, request);
+        Budget budget = budgetService.updateBudget(userId, budgetId, request);
         return BudgetMapper.toBudgetResponse(budget);
     }
 
+    /**
+     * Delete (close) budget.
+     * Requires: OWNER role.
+     */
     @DeleteMapping("/{budgetId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void removeBudget(@PathVariable UUID budgetId) {
-        budgetService.removeBudget(budgetId);
+    public void removeBudget(
+            @RequestHeader("X-User-Id") String userId,
+            @PathVariable UUID budgetId) {
+        budgetService.removeBudget(userId, budgetId);
     }
 
     @GetMapping("/{budgetId}/details")
-    public BudgetResponseDTO getAllDetailOfBudget(@PathVariable UUID budgetId) {
-        return budgetService.getAllDetailOfBudget(budgetId);
+    public BudgetResponseDTO getAllDetailOfBudget(
+            @RequestHeader("X-User-Id") String userId,
+            @PathVariable UUID budgetId
+    ) {
+        return budgetService.getAllDetailOfBudget(userId, budgetId);
     }
 }

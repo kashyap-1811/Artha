@@ -29,12 +29,12 @@ public class BudgetMapper {
                 .createdAt(budget.getCreatedAt())
                 .updatedAt(budget.getUpdatedAt())
                 .allocations(
-                        budget.getAllocations() == null
-                                ? List.of()
-                                : budget.getAllocations()
-                                .stream()
-                                .map(BudgetMapper::toAllocationResponse)
-                                .collect(Collectors.toList())
+            budget.getAllocations() == null
+                ? List.of()
+                : budget.getAllocations()
+                .stream()
+                .map(BudgetMapper::toAllocationResponse)
+                .collect(Collectors.toList())
                 )
                 .build();
     }

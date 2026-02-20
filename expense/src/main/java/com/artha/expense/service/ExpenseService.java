@@ -9,19 +9,19 @@ import java.util.UUID;
 
 public interface ExpenseService {
 
-    ExpenseResponse createExpense(CreateExpenseRequest request);
+    ExpenseResponse createExpense(String userId, CreateExpenseRequest request);
 
-    ExpenseResponse getExpense(UUID expenseId);
+    ExpenseResponse getExpense(String userId, UUID expenseId);
 
-    List<ExpenseResponse> getCompanyExpenses(String companyId);
+    List<ExpenseResponse> getCompanyExpenses(String userId, String companyId);
 
-    List<ExpenseResponse> getExpensesByBudgetId(UUID budgetId);
+    List<ExpenseResponse> getExpensesByBudgetId(String userId, UUID budgetId);
 
-    List<ExpenseResponse> getExpensesByAllocationId(UUID allocationId);
+    List<ExpenseResponse> getExpensesByAllocationId(String userId, UUID allocationId);
 
-    ExpenseResponse approveExpense(UUID expenseId);
+    ExpenseResponse approveExpense(String userId, UUID expenseId);
 
-    ExpenseResponse rejectExpense(UUID expenseId);
+    ExpenseResponse rejectExpense(String userId, UUID expenseId);
 
-    BudgetExpenseSummaryResponse getBudgetSummary(UUID budgetId);
+    BudgetExpenseSummaryResponse getBudgetSummary(String userId, UUID budgetId);
 }

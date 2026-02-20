@@ -45,6 +45,12 @@ public class Budget {
     @Column(name = "company_id", nullable = false, length = 50)
     private String companyId;
 
+    /**
+     * userId from User Service — who created this budget
+     */
+    @Column(name = "created_by", nullable = false, length = 50)
+    private String createdBy;
+
     @Column(nullable = false, length = 150)
     private String name;
 
@@ -75,7 +81,6 @@ public class Budget {
     /**
      * One Budget → Many Category Allocations
      */
-    @Builder.Default
     @OneToMany(
             mappedBy = "budget",
             cascade = CascadeType.ALL,

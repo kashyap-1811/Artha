@@ -10,7 +10,6 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 @Builder
 public class AddAllocationRequestDTO {
-
     private String categoryName;
     private BigDecimal allocatedAmount;
     private Integer alertThreshold;

@@ -2,11 +2,11 @@ package com.artha.user.repository;
 
 import com.artha.user.entity.UserCompany;
 import com.artha.user.entity.UserCompanyRole;
+import com.artha.user.entity.CompanyType;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 public interface UserCompanyRepository extends JpaRepository<UserCompany, String> {
 
@@ -21,6 +21,18 @@ public interface UserCompanyRepository extends JpaRepository<UserCompany, String
             String userId,
             String companyId,
             UserCompanyRole role
+    );
+
+    // Active membership by role within a company
+    Optional<UserCompany> findFirstByCompany_IdAndRoleAndActiveTrue(
+            String companyId,
+            UserCompanyRole role
+    );
+
+    // Personal company membership for a user
+    Optional<UserCompany> findFirstByUser_IdAndCompany_TypeAndActiveTrue(
+            String userId,
+            CompanyType type
     );
 
     // All users of a company

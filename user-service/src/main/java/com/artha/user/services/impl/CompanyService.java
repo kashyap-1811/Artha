@@ -162,6 +162,7 @@ public class CompanyService implements ICompanyService {
                         .fullName(cu.getUser().getFullName())
                         .email(cu.getUser().getEmail())
                         .role(cu.getRole())
+                        .active(cu.getUser().isActive())
                         .build()
                 )
                 .toList();

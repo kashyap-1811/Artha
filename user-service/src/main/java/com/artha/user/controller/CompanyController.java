@@ -7,7 +7,9 @@ import com.artha.user.dto.userCompany.CompanyMemberResponse;
 import com.artha.user.dto.userCompany.UserCompanyResponse;
 import com.artha.user.entity.Company;
 import com.artha.user.entity.User;
+import com.artha.user.entity.UserCompanyRole;
 import com.artha.user.services.ICompanyService;
+import com.artha.user.services.IUserService;
 import com.artha.user.repository.UserCompanyRepository;
 import com.artha.user.mapper.CompanyMapper;
 import com.artha.user.mapper.UserCompanyMapper;
@@ -23,6 +25,7 @@ import java.util.List;
 public class CompanyController {
 
     private final ICompanyService companyService;
+    private final IUserService userService;
     private final UserCompanyRepository userCompanyRepository;
 
     /* ---------------- CREATE BUSINESS COMPANY ---------------- */
@@ -43,7 +46,7 @@ public class CompanyController {
         Company created = companyService.createCompanyWithOwner(owner, company);
 
         return ResponseEntity.ok(
-                CompanyMapper.toResponse(created)
+                CompanyMapper.toResponse(created, ownerUserId)
         );
     }
 
@@ -69,7 +72,7 @@ public class CompanyController {
         );
 
         return ResponseEntity.ok(
-                CompanyMapper.toResponse(updated)
+                CompanyMapper.toResponse(updated, resolveOwnerId(updated.getId()))
         );
     }
 
@@ -86,14 +89,14 @@ public class CompanyController {
         Company updated = companyService.removeMember(user, company);
 
         return ResponseEntity.ok(
-                CompanyMapper.toResponse(updated)
+                CompanyMapper.toResponse(updated, resolveOwnerId(updated.getId()))
         );
     }
 
     /* ---------------- CHANGE ROLE ---------------- */
 
     @PutMapping("/{companyId}/members/{userId}/role")
-    public ResponseEntity<CompanyResponse> changeRole(
+    public ResponseEntity<CompanyMemberResponse> changeRole(
             @PathVariable String companyId,
             @PathVariable String userId,
             @RequestParam String role
@@ -101,7 +104,7 @@ public class CompanyController {
         User user = User.builder().id(userId).build();
         Company company = Company.builder().id(companyId).build();
 
-        Company updated = companyService.changeRole(
+        companyService.changeRole(
                 user,
                 company,
                 Enum.valueOf(
@@ -110,8 +113,18 @@ public class CompanyController {
                 )
         );
 
+        com.artha.user.entity.UserCompany updatedMembership = userCompanyRepository
+                .findByUser_IdAndCompany_Id(userId, companyId)
+                .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("User is not a member of this company"));
+
         return ResponseEntity.ok(
-                CompanyMapper.toResponse(updated)
+                CompanyMemberResponse.builder()
+                        .userId(updatedMembership.getUser().getId())
+                        .fullName(updatedMembership.getUser().getFullName())
+                        .email(updatedMembership.getUser().getEmail())
+                        .role(updatedMembership.getRole())
+                        .active(updatedMembership.getUser().isActive())
+                        .build()
         );
     }
 
@@ -129,6 +142,16 @@ public class CompanyController {
                         .toList();
 
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/my/personal")
+    public ResponseEntity<CompanyResponse> getMyPersonalCompany(
+            @RequestHeader("X-USER-ID") String userId
+    ) {
+        Company personalCompany = userService.ensurePersonalCompany(userId);
+        return ResponseEntity.ok(
+                CompanyMapper.toResponse(personalCompany, resolveOwnerId(personalCompany.getId()))
+        );
     }
 
     @GetMapping("/{companyId}/members")
@@ -149,5 +172,12 @@ public class CompanyController {
                 .findByUser_IdAndCompany_Id(userId, companyId)
                 .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("User is not a member of this company"));
         return ResponseEntity.ok(uc.getRole());
+    }
+
+    private String resolveOwnerId(String companyId) {
+        return userCompanyRepository
+                .findFirstByCompany_IdAndRoleAndActiveTrue(companyId, UserCompanyRole.OWNER)
+                .map(uc -> uc.getUser().getId())
+                .orElse(null);
     }
 }

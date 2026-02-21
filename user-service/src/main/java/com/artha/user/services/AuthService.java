@@ -54,6 +54,7 @@ public class AuthService {
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         
         User savedUser = userService.create(user);
+        userService.ensurePersonalCompany(savedUser.getId());
 
         return new SignupResponse(savedUser.getId(), savedUser.getEmail());
     }

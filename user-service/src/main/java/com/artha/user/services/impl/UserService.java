@@ -31,26 +31,43 @@ public class UserService implements IUserService {
         // For now, we store as provided (assuming Gateway hashed it or we don't handle auth here).
 
         User savedUser = userRepository.save(user);
-
-        // create PERSONAL company (already discussed)
-        Company personalCompany = Company.builder()
-                .name(savedUser.getFullName() + "'s Personal Account")
-                .type(CompanyType.PERSONAL)
-                .build();
-
-        companyRepository.save(personalCompany);
-
-        UserCompany uc = UserCompany.builder()
-                .role(UserCompanyRole.OWNER)
-                .active(true)
-                .build();
-
-        savedUser.addUserCompany(uc);
-        personalCompany.addUserCompany(uc);
-
-        userCompanyRepository.save(uc);
-
+        ensurePersonalCompany(savedUser.getId());
         return savedUser;
+    }
+
+    @Override
+    public Company ensurePersonalCompany(String userId) {
+        User persistedUser = userRepository.findById(userId)
+                .orElseThrow(() ->
+                        new EntityNotFoundException("User not found: " + userId)
+                );
+
+        return userCompanyRepository
+                .findFirstByUser_IdAndCompany_TypeAndActiveTrue(
+                        persistedUser.getId(),
+                        CompanyType.PERSONAL
+                )
+                .map(UserCompany::getCompany)
+                .orElseGet(() -> {
+                    Company personalCompany = Company.builder()
+                            .name(persistedUser.getFullName() + "'s Personal Account")
+                            .type(CompanyType.PERSONAL)
+                            .build();
+
+                    companyRepository.save(personalCompany);
+
+                    UserCompany uc = UserCompany.builder()
+                            .role(UserCompanyRole.OWNER)
+                            .active(true)
+                            .build();
+
+                    persistedUser.addUserCompany(uc);
+                    personalCompany.addUserCompany(uc);
+
+                    userCompanyRepository.save(uc);
+
+                    return personalCompany;
+                });
     }
 
     @Override

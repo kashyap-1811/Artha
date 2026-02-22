@@ -1,0 +1,90 @@
+services:
+  service-registry:
+    build:
+      context: ./service-registry
+      dockerfile: Dockerfile
+    container_name: artha-service-registry
+    ports:
+      - "8761:8761"
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: artha-redis
+    restart: unless-stopped
+
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    container_name: artha-api-gateway
+    depends_on:
+      - service-registry
+      - redis
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-registry:8761/eureka/
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DEVTOOLS_RESTART_ENABLED: "false"
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+  user-service:
+    build:
+      context: ./user-service
+      dockerfile: Dockerfile
+    container_name: artha-user-service
+    depends_on:
+      - service-registry
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-registry:8761/eureka/
+      SPRING_DEVTOOLS_RESTART_ENABLED: "false"
+    ports:
+      - "8083:8083"
+    restart: unless-stopped
+
+  budget-service:
+    build:
+      context: ./budget
+      dockerfile: Dockerfile
+    container_name: artha-budget-service
+    depends_on:
+      - service-registry
+      - user-service
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-registry:8761/eureka/
+      SERVICES_USER_SERVICE_URL: http://user-service:8083
+      SPRING_DEVTOOLS_RESTART_ENABLED: "false"
+    ports:
+      - "8081:8081"
+    restart: unless-stopped
+
+  expense-service:
+    build:
+      context: ./expense
+      dockerfile: Dockerfile
+    container_name: artha-expense-service
+    depends_on:
+      - service-registry
+      - user-service
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-registry:8761/eureka/
+      SERVICES_USER_SERVICE_URL: http://user-service:8083
+      SPRING_DEVTOOLS_RESTART_ENABLED: "false"
+    ports:
+      - "8082:8082"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./artha-frontend
+      dockerfile: Dockerfile
+    container_name: artha-frontend
+    depends_on:
+      - api-gateway
+      - budget-service
+      - expense-service
+    ports:
+      - "5173:5173"
+    restart: unless-stopped

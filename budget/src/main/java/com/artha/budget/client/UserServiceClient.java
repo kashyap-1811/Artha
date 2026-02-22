@@ -1,7 +1,6 @@
 package com.artha.budget.client;
 
 import com.artha.budget.entity.UserCompanyRole;
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;

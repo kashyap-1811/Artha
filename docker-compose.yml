@@ -11,6 +11,12 @@ services:
   redis:
     image: redis:7-alpine
     container_name: artha-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
     restart: unless-stopped
 
   api-gateway:
@@ -19,8 +25,10 @@ services:
       dockerfile: Dockerfile
     container_name: artha-api-gateway
     depends_on:
-      - service-registry
-      - redis
+      service-registry:
+        condition: service_started
+      redis:
+        condition: service_healthy
     environment:
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-registry:8761/eureka/
       SPRING_DATA_REDIS_HOST: redis

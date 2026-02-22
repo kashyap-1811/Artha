@@ -79,7 +79,7 @@ All backend services register with the Eureka service registry and communicate v
 |---|---|---|
 | `service-registry` | 8761 | Netflix Eureka service discovery server |
 | `api-gateway` | 8080 | Central entry point — JWT validation, CORS, routing |
-| `user-service` | — | User registration/login, JWT issuance, company management |
+| `user-service` | 8083 | User registration/login, JWT issuance, company management |
 | `budget` | 8081 | Fiscal budget CRUD and category allocation management |
 | `expense` | 8082 | Expense submission, listing, approval/rejection |
 | `artha-frontend` | 5173 | React SPA — dashboards, modals, forms |

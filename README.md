@@ -11,6 +11,7 @@
 - [Tech Stack](#tech-stack)
 - [Services](#services)
 - [Getting Started](#getting-started)
+- [Run with Docker Compose](#run-with-docker-compose)
 - [API Overview](#api-overview)
 
 ---
@@ -33,25 +34,25 @@ Artha follows a microservices architecture coordinated through a service registr
 
 ```
                         ┌─────────────────────┐
-                        │   React Frontend     │
-                        │  (artha-frontend)    │
+                        │   React Frontend    │
+                        │  (artha-frontend)   │
                         └────────┬────────────┘
                                  │ HTTP
                         ┌────────▼────────────┐
-                        │    API Gateway       │  JWT validation
-                        │   (api-gateway)      │  Route forwarding
-                        └──┬──────┬──────┬────┘
-                           │      │      │
-               ┌───────────▼┐  ┌──▼───┐ ┌▼─────────┐
+                        │    API Gateway      │  JWT validation
+                        │   (api-gateway)     │  Route forwarding
+                        └──┬────── ┬──────┬───┘
+                           │       │      │
+               ┌───────────▼┐   ┌──▼───┐ ┌▼─────────┐
                │ user-service│  │budget│ │ expense  │
                │  (auth,     │  │      │ │          │
                │  companies) │  │      │ │          │
                └─────────────┘  └──────┘ └──────────┘
                            │      │      │
                     ┌──────▼──────▼──────▼──────┐
-                    │     Service Registry        │
-                    │   (Netflix Eureka Server)   │
-                    └────────────────────────────┘
+                    │     Service Registry      │
+                    │   (Netflix Eureka Server) │
+                    └───────────────────────────┘
 ```
 
 All backend services register with the Eureka service registry and communicate via the API gateway.
@@ -93,6 +94,38 @@ All backend services register with the Eureka service registry and communicate v
 - Maven 3.8+
 - PostgreSQL (running instance)
 - Node.js 18+ and npm
+- Docker Desktop (Docker Compose v2)
+
+## Run with Docker Compose
+
+This repository includes Docker support for all services and frontend.
+
+- Each backend service keeps using its existing Neon PostgreSQL database.
+- No local Postgres container is created.
+- Internal service-to-service URLs are wired through Docker networking.
+
+From the project root:
+
+```bash
+docker compose up --build
+```
+
+This starts:
+
+- `service-registry` on `http://localhost:8761`
+- `api-gateway` on `http://localhost:8080`
+- `user-service` on `http://localhost:8083`
+- `budget-service` on `http://localhost:8081`
+- `expense-service` on `http://localhost:8082`
+- `frontend` on `http://localhost:5173`
+
+To stop:
+
+```bash
+docker compose down
+```
+
+---
 
 ### 1. Start the Service Registry
 

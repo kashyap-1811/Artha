@@ -36,6 +36,7 @@ public class UserCompany {
     private UserCompanyRole role;
 
     @Column(nullable = false)
+    @Builder.Default
     private boolean active = true;
 
     @Column(nullable = false, updatable = false)

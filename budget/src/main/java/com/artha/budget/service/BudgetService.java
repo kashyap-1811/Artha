@@ -24,7 +24,7 @@ public interface BudgetService {
             LocalDate endDate
     );
 
-    Budget getActiveBudget(String userId, String companyId);
+    List<Budget> getActiveBudget(String userId, String companyId);
 
     List<Budget> getAllBudgets(String userId, String companyId);
 

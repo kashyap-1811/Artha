@@ -92,14 +92,13 @@ public class BudgetServiceImpl implements BudgetService {
     }
 
     @Override
-    public Budget getActiveBudget(String userId, String companyId) {
+    public List<Budget> getActiveBudget(String userId, String companyId) {
         authorizationService.checkPermission(userId, companyId, Action.VIEW_BUDGET);
 
         return budgetRepository
-                .findByCompanyIdAndStatus(companyId, BudgetStatus.ACTIVE)
-                .orElseThrow(() ->
-                        new IllegalStateException("No active budget found for company")
-                );
+                .findAllByCompanyIdAndStatus(companyId, BudgetStatus.ACTIVE)
+                .stream()
+                .toList();
     }
 
     @Override

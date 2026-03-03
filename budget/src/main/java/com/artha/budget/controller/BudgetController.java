@@ -54,19 +54,21 @@ public class BudgetController {
      * Open to all company members.
      */
     @GetMapping("/active")
-    public BudgetResponseDTO getActiveBudget(
+    public List<BudgetResponseDTO> getActiveBudget(
             @RequestHeader("X-User-Id") String userId,
             @RequestParam String companyId
     ) {
-        Budget budget = budgetService.getActiveBudget(userId, companyId);
-        return BudgetMapper.toBudgetResponse(budget);
+        List<Budget> activeBudgets = budgetService.getActiveBudget(userId, companyId);
+        return activeBudgets.stream()
+                .map(BudgetMapper::toBudgetResponse)
+                .collect(Collectors.toList());
     }
 
     /**
      * Get all budgets (history) for a company.
      * Open to all company members.
      */
-    @GetMapping
+    @GetMapping("/all")
     public List<BudgetResponseDTO> getAllBudgets(
             @RequestHeader("X-User-Id") String userId,
             @RequestParam String companyId

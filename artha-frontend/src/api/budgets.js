@@ -57,3 +57,31 @@ export async function getBudgetDetails(budgetId) {
 
   return response.json();
 }
+
+export async function createBudget(data) {
+  const response = await fetch(`${API_BASE_URL}${BUDGETS_BASE_PATH}`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data)
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseErrorMessage(response));
+  }
+
+  return response.json();
+}
+
+export async function createAllocation(budgetId, data) {
+  const response = await fetch(`${API_BASE_URL}${BUDGETS_BASE_PATH}/${budgetId}/allocations`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data)
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseErrorMessage(response));
+  }
+
+  return response.json();
+}

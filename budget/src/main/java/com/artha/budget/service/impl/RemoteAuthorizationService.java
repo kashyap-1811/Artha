@@ -5,7 +5,6 @@ import com.artha.budget.entity.Action;
 import com.artha.budget.entity.UserCompanyRole;
 import com.artha.budget.exception.AccessDeniedException;
 import com.artha.budget.service.AuthorizationService;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 @Service

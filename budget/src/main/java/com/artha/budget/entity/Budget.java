@@ -87,6 +87,7 @@ public class Budget {
             orphanRemoval = true,
             fetch = FetchType.LAZY
     )
+    @Builder.Default
     private Set<BudgetCategoryAllocation> allocations = new HashSet<>();
 
     /* ---------- Lifecycle Hooks ---------- */

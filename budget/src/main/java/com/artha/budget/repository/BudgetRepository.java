@@ -6,7 +6,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 public interface BudgetRepository extends JpaRepository<Budget, UUID> {
@@ -15,7 +14,7 @@ public interface BudgetRepository extends JpaRepository<Budget, UUID> {
      * Get active budget for a company
      * (At most ONE active budget should exist)
      */
-    Optional<Budget> findByCompanyIdAndStatus(
+    List<Budget> findAllByCompanyIdAndStatus(
             String companyId,
             BudgetStatus status
     );

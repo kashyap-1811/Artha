@@ -43,3 +43,31 @@ export async function getUserById(userId) {
 
   return response.json();
 }
+
+export async function updateUser(userId, data) {
+  const response = await fetch(`${API_BASE_URL}${USERS_BASE_PATH}/${userId}`, {
+    method: "PUT",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data)
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseErrorMessage(response));
+  }
+
+  return response.json();
+}
+
+export async function getUserByEmail(email) {
+  const query = new URLSearchParams({ email }).toString();
+  const response = await fetch(`${API_BASE_URL}${USERS_BASE_PATH}/by-email?${query}`, {
+    method: "GET",
+    headers: getAuthHeaders()
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseErrorMessage(response));
+  }
+
+  return response.json();
+}

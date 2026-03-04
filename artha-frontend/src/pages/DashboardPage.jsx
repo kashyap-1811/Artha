@@ -122,18 +122,7 @@ function DashboardPage() {
             <p className="dashboard-overline">Overview</p>
             <h1>Good evening {userName || "User"}</h1>
           </div>
-          <button
-            className="logout-btn"
-            onClick={() => {
-              localStorage.removeItem("artha_jwt");
-              localStorage.removeItem("artha_user_id");
-              localStorage.removeItem("artha_user");
-              navigate("/auth", { replace: true });
-            }}
-            type="button"
-          >
-            Logout
-          </button>
+
         </header>
 
         <section className="balance-card">

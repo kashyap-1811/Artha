@@ -57,3 +57,43 @@ export async function createCompany(name) {
 
   return response.json();
 }
+
+export async function getCompanyMembers(companyId) {
+  const response = await fetch(`${API_BASE_URL}${COMPANIES_BASE_PATH}/${companyId}/members`, {
+    method: "GET",
+    headers: getAuthHeaders()
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseErrorMessage(response));
+  }
+
+  return response.json();
+}
+
+export async function addCompanyMember(companyId, data) {
+  const response = await fetch(`${API_BASE_URL}${COMPANIES_BASE_PATH}/${companyId}/members`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data)
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseErrorMessage(response));
+  }
+
+  return response.json();
+}
+
+export async function removeCompanyMember(companyId, userId) {
+  const response = await fetch(`${API_BASE_URL}${COMPANIES_BASE_PATH}/${companyId}/members/${userId}`, {
+    method: "DELETE",
+    headers: getAuthHeaders()
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseErrorMessage(response));
+  }
+
+  return response.json();
+}

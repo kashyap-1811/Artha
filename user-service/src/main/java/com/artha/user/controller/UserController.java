@@ -73,6 +73,19 @@ public class UserController {
         );
     }
 
+    /* ---------------- GET USER BY EMAIL ---------------- */
+
+    @GetMapping("/by-email")
+    public ResponseEntity<UserResponse> getUserByEmail(
+            @RequestParam String email
+    ) {
+        return ResponseEntity.ok(
+                UserMapper.toResponse(
+                        userService.getByEmail(email)
+                )
+        );
+    }
+
     /* ---------------- DELETE USER ---------------- */
 
     @DeleteMapping("/{userId}")

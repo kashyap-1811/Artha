@@ -97,6 +97,14 @@ public class UserService implements IUserService {
     }
 
     @Override
+    public User getByEmail(String email) {
+        return userRepository.findByEmail(email)
+                .orElseThrow(() ->
+                        new EntityNotFoundException("User not found with email: " + email)
+                );
+    }
+
+    @Override
     public void delete(String id) {
 
         if (!userRepository.existsById(id)) {

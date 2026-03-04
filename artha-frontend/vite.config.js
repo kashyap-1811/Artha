@@ -29,6 +29,11 @@ export default defineConfig({
         target: proxyTarget,
         changeOrigin: true,
         secure: false
+      },
+      "/expense": {
+        target: proxyTarget,
+        changeOrigin: true,
+        secure: false
       }
     }
   }

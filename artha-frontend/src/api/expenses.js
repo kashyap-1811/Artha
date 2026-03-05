@@ -110,3 +110,29 @@ export async function rejectExpense(expenseId) {
 
     return response.json();
 }
+
+export async function getExpense(expenseId) {
+    const response = await fetch(`${API_BASE_URL}${EXPENSES_BASE_PATH}/${expenseId}`, {
+        method: "GET",
+        headers: getAuthHeaders()
+    });
+
+    if (!response.ok) {
+        throw new Error(await parseErrorMessage(response));
+    }
+
+    return response.json();
+}
+
+export async function getBudgetSummary(budgetId) {
+    const response = await fetch(`${API_BASE_URL}${EXPENSES_BASE_PATH}/budget/${budgetId}/summary`, {
+        method: "GET",
+        headers: getAuthHeaders()
+    });
+
+    if (!response.ok) {
+        throw new Error(await parseErrorMessage(response));
+    }
+
+    return response.json();
+}

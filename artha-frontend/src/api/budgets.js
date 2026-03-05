@@ -85,3 +85,87 @@ export async function createAllocation(budgetId, data) {
 
   return response.json();
 }
+
+export async function getActiveBudget(companyId) {
+  const query = new URLSearchParams({ companyId });
+  const response = await fetch(`${API_BASE_URL}${BUDGETS_BASE_PATH}/active?${query.toString()}`, {
+    method: "GET",
+    headers: getAuthHeaders()
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseErrorMessage(response));
+  }
+
+  return response.json();
+}
+
+export async function closeBudget(budgetId) {
+  const response = await fetch(`${API_BASE_URL}${BUDGETS_BASE_PATH}/${budgetId}/close`, {
+    method: "POST",
+    headers: getAuthHeaders()
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseErrorMessage(response));
+  }
+
+  if (response.status === 204) return null;
+  return response.json();
+}
+
+export async function removeAllocation(budgetId, allocationId) {
+  const response = await fetch(`${API_BASE_URL}${BUDGETS_BASE_PATH}/${budgetId}/allocations/${allocationId}`, {
+    method: "DELETE",
+    headers: getAuthHeaders()
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseErrorMessage(response));
+  }
+
+  if (response.status === 204) return null;
+  return response.json();
+}
+
+export async function updateAllocation(budgetId, allocationId, data) {
+  const response = await fetch(`${API_BASE_URL}${BUDGETS_BASE_PATH}/${budgetId}/allocations/${allocationId}`, {
+    method: "PUT",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data)
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseErrorMessage(response));
+  }
+
+  return response.json();
+}
+
+export async function updateBudget(budgetId, data) {
+  const response = await fetch(`${API_BASE_URL}${BUDGETS_BASE_PATH}/${budgetId}`, {
+    method: "PUT",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data)
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseErrorMessage(response));
+  }
+
+  return response.json();
+}
+
+export async function removeBudget(budgetId) {
+  const response = await fetch(`${API_BASE_URL}${BUDGETS_BASE_PATH}/${budgetId}`, {
+    method: "DELETE",
+    headers: getAuthHeaders()
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseErrorMessage(response));
+  }
+
+  if (response.status === 204) return null;
+  return response.json();
+}

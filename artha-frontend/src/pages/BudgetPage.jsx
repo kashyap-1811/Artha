@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { createAllocation, getBudgetDetails } from "../api/budgets";
+import { createAllocation, getBudgetDetails, removeAllocation, updateAllocation } from "../api/budgets";
 import { getExpensesByBudget, createExpense, approveExpense, rejectExpense } from "../api/expenses";
 
 const SELECT_STYLE = {
@@ -40,6 +40,13 @@ function BudgetPage() {
   const [allocatedAmount, setAllocatedAmount] = useState("");
   const [alertThreshold, setAlertThreshold] = useState("80");
 
+  const [isUpdatingAllocation, setIsUpdatingAllocation] = useState(false);
+  const [showEditAllocation, setShowEditAllocation] = useState(false);
+  const [editingAllocationId, setEditingAllocationId] = useState(null);
+  const [editCategoryName, setEditCategoryName] = useState("");
+  const [editAllocatedAmount, setEditAllocatedAmount] = useState("");
+  const [editAlertThreshold, setEditAlertThreshold] = useState("");
+
   // ── Expense creation ─────────────────────────────────────────
   const [isCreatingExpense, setIsCreatingExpense] = useState(false);
   const [showCreateExpense, setShowCreateExpense] = useState(false);
@@ -57,7 +64,9 @@ function BudgetPage() {
     return Array.isArray(budget?.allocations) ? budget.allocations : [];
   }, [budget]);
 
-  const isOwner = (location.state?.userRole || localStorage.getItem("artha_user_role") || "MEMBER").toUpperCase() === "OWNER";
+  const userRole = (location.state?.userRole || localStorage.getItem("artha_user_role") || "MEMBER").toUpperCase();
+  const isPrivileged = userRole === 'OWNER';
+  const isViewer = userRole === 'VIEWER';
 
   function formatAmount(value) {
     const parsed = Number(value);
@@ -92,14 +101,14 @@ function BudgetPage() {
 
   // Close modals on Escape
   useEffect(() => {
-    if (!showCreate && !showCreateExpense) return undefined;
+    if (!showCreate && !showCreateExpense && !showEditAllocation) return undefined;
     function handleEscape(e) {
-      if (e.key === "Escape") { setShowCreate(false); setShowCreateExpense(false); }
+      if (e.key === "Escape") { setShowCreate(false); setShowCreateExpense(false); setShowEditAllocation(false); }
     }
     document.body.style.overflow = "hidden";
     window.addEventListener("keydown", handleEscape);
     return () => { document.body.style.overflow = ""; window.removeEventListener("keydown", handleEscape); };
-  }, [showCreate, showCreateExpense]);
+  }, [showCreate, showCreateExpense, showEditAllocation]);
 
   // ── Handlers ─────────────────────────────────────────────────
   async function handleCreateAllocation(event) {
@@ -123,6 +132,49 @@ function BudgetPage() {
       setAllocError(err.message || "Failed to create allocation.");
     } finally {
       setIsCreating(false);
+    }
+  }
+
+  function openEditAllocation(allocation) {
+    setEditingAllocationId(allocation.id);
+    setEditCategoryName(allocation.categoryName);
+    setEditAllocatedAmount(allocation.allocatedAmount);
+    setEditAlertThreshold(allocation.alertThreshold);
+    setShowEditAllocation(true);
+  }
+
+  async function handleUpdateAllocation(event) {
+    event.preventDefault();
+    const trimmed = editCategoryName.trim();
+    if (!trimmed || !editAllocatedAmount || !editAlertThreshold) {
+      setAllocError("Please fill in all allocation fields."); return;
+    }
+    setIsUpdatingAllocation(true);
+    setAllocError("");
+    try {
+      await updateAllocation(budgetId, editingAllocationId, {
+        categoryName: trimmed,
+        allocatedAmount: Number(editAllocatedAmount),
+        alertThreshold: Number(editAlertThreshold)
+      });
+      await fetchAll();
+      setShowEditAllocation(false);
+      setEditingAllocationId(null);
+    } catch (err) {
+      setAllocError(err.message || "Failed to update allocation.");
+    } finally {
+      setIsUpdatingAllocation(false);
+    }
+  }
+
+  async function handleDeleteAllocation(allocationId) {
+    if (!window.confirm("Are you sure you want to delete this allocation?")) return;
+    setAllocError("");
+    try {
+      await removeAllocation(budgetId, allocationId);
+      await fetchAll();
+    } catch (err) {
+      setAllocError(err.message || "Failed to delete allocation.");
     }
   }
 
@@ -210,9 +262,11 @@ function BudgetPage() {
             <h1>{budgetName}</h1>
             <p>{companyName}</p>
           </div>
-          <button className="create-btn" onClick={() => setShowCreate(true)} type="button">
-            + Create Allocation
-          </button>
+          {isPrivileged && (
+            <button className="create-btn" onClick={() => setShowCreate(true)} type="button">
+              + Create Allocation
+            </button>
+          )}
         </header>
 
         {error && <p className="dashboard-error">{error}</p>}
@@ -246,20 +300,42 @@ function BudgetPage() {
                   {/* ── Allocation Header ── */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
                     <div>
-                      <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700 }}>{allocation.categoryName}</h3>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700 }}>{allocation.categoryName}</h3>
+                        {isPrivileged && (
+                          <div style={{ display: 'flex', gap: '0.3rem' }}>
+                            <button
+                              className="status-inactive profile-status"
+                              style={{ border: 'none', cursor: 'pointer', padding: '0.1rem 0.35rem', fontSize: '0.7rem' }}
+                              onClick={() => openEditAllocation(allocation)}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              className="status-inactive profile-status"
+                              style={{ border: 'none', cursor: 'pointer', padding: '0.1rem 0.35rem', fontSize: '0.7rem', background: '#fef2f2', color: '#ef4444' }}
+                              onClick={() => handleDeleteAllocation(allocation.id)}
+                            >
+                              Del
+                            </button>
+                          </div>
+                        )}
+                      </div>
                       <p style={{ margin: '0.2rem 0 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
                         Budget: <strong>Rs {formatAmount(allocation.allocatedAmount)}</strong>
                         &nbsp;·&nbsp;Alert at <strong>{allocation.alertThreshold}%</strong>
                       </p>
                     </div>
-                    <button
-                      className="create-btn"
-                      style={{ fontSize: '0.8rem', padding: '0.35rem 0.85rem' }}
-                      onClick={() => openAddExpense(allocation)}
-                      type="button"
-                    >
-                      + Add Expense
-                    </button>
+                    {!isViewer && (
+                      <button
+                        className="create-btn"
+                        style={{ fontSize: '0.8rem', padding: '0.35rem 0.85rem' }}
+                        onClick={() => openAddExpense(allocation)}
+                        type="button"
+                      >
+                        + Add Expense
+                      </button>
+                    )}
                   </div>
 
                   {/* ── Spend Progress ── */}
@@ -317,7 +393,7 @@ function BudgetPage() {
                           }}>
                             {expense.status || "PENDING"}
                           </span>
-                          {(!expense.status || expense.status === 'PENDING') && isOwner && (
+                          {(!expense.status || expense.status === 'PENDING') && isPrivileged && (
                             <div style={{ display: 'flex', gap: '0.4rem' }}>
                               <button
                                 type="button"
@@ -418,6 +494,42 @@ function BudgetPage() {
               <div className="create-modal-actions">
                 <button className="create-cancel-btn" onClick={() => setShowCreateExpense(false)} type="button">Cancel</button>
                 <button className="create-confirm-btn" type="submit" disabled={isCreatingExpense}>{isCreatingExpense ? "Adding…" : "Add Expense"}</button>
+              </div>
+            </form>
+          </section>
+        </div>,
+        document.body
+      )}
+
+      {/* ── EDIT ALLOCATION MODAL ── */}
+      {showEditAllocation && createPortal(
+        <div className="create-modal-overlay" onClick={() => setShowEditAllocation(false)} role="presentation">
+          <section className="create-modal" onClick={e => e.stopPropagation()}>
+            <div className="create-modal-head">
+              <h3>Edit Allocation</h3>
+              <button className="create-modal-close" onClick={() => setShowEditAllocation(false)} type="button">×</button>
+            </div>
+            <form className="create-modal-form" onSubmit={handleUpdateAllocation}>
+              {allocError && (
+                <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '8px', padding: '0.6rem 0.85rem', marginBottom: '0.75rem', color: '#dc2626', fontSize: '0.85rem', fontWeight: 500 }}>
+                  {allocError}
+                </div>
+              )}
+              <label className="field">
+                <span className="field-label">Category Name</span>
+                <input value={editCategoryName} onChange={e => setEditCategoryName(e.target.value)} placeholder="e.g. Marketing" autoFocus required />
+              </label>
+              <label className="field">
+                <span className="field-label">Allocated Amount</span>
+                <input type="number" step="0.01" min="0" value={editAllocatedAmount} onChange={e => setEditAllocatedAmount(e.target.value)} placeholder="e.g. 50000" required />
+              </label>
+              <label className="field">
+                <span className="field-label">Alert Threshold (%)</span>
+                <input type="number" min="1" max="100" value={editAlertThreshold} onChange={e => setEditAlertThreshold(e.target.value)} required />
+              </label>
+              <div className="create-modal-actions">
+                <button className="create-cancel-btn" onClick={() => setShowEditAllocation(false)} type="button">Cancel</button>
+                <button className="create-confirm-btn" type="submit" disabled={isUpdatingAllocation}>{isUpdatingAllocation ? "Updating…" : "Update"}</button>
               </div>
             </form>
           </section>

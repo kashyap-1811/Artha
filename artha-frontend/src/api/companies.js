@@ -97,3 +97,17 @@ export async function removeCompanyMember(companyId, userId) {
 
   return response.json();
 }
+
+export async function changeMemberRole(companyId, userId, role) {
+  const query = new URLSearchParams({ role }).toString();
+  const response = await fetch(`${API_BASE_URL}${COMPANIES_BASE_PATH}/${companyId}/members/${userId}/role?${query}`, {
+    method: "PUT",
+    headers: getAuthHeaders()
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseErrorMessage(response));
+  }
+
+  return response.json();
+}

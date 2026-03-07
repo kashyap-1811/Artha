@@ -1,0 +1,18 @@
+INFO:     Will watch for changes in these directories: ['/Users/apple/Jasmita Vekariya/CE-SEM VI/SDP/Artha/Artha/analysis-service']
+INFO:     Uvicorn running on http://0.0.0.0:8084 (Press CTRL+C to quit)
+INFO:     Started reloader process [9714] using StatReload
+INFO:     Started server process [9793]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+Connecting to MongoDB Atlas...
+Successfully connected to MongoDB Atlas!
+INFO:     127.0.0.1:50721 - "GET /budget/test-budget-1/top-spenders HTTP/1.1" 200 OK
+INFO:     0:0:0:0:0:0:0:1:0 - "GET /budget/371c842f-e108-4a60-bdd1-276107b87e7f/top-spenders HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50956 - "GET /company/0218c828-1888-4090-b89f-66bc373f245a/category-breakdown HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50958 - "GET /company/0218c828-1888-4090-b89f-66bc373f245a/spending-trend HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50960 - "GET /budget/371c842f-e108-4a60-bdd1-276107b87e7f/top-spenders HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50988 - "GET /company/92c0095f-dd08-4a38-a133-f3e118aa1be2/category-breakdown HTTP/1.1" 200 OK
+/Users/apple/Jasmita Vekariya/CE-SEM VI/SDP/Artha/Artha/analysis-service/app/services/analysis_service.py:332: UserWarning: Converting to PeriodArray/Index representation will drop timezone information.
+  df['month'] = df['date'].dt.to_period('M').astype(str)
+INFO:     127.0.0.1:50990 - "GET /company/92c0095f-dd08-4a38-a133-f3e118aa1be2/spending-trend HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50992 - "GET /budget/c8f94f1a-b16f-4c25-a026-6b60d4215e06/top-spenders HTTP/1.1" 200 OK

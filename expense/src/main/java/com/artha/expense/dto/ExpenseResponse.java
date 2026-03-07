@@ -23,6 +23,8 @@ public class ExpenseResponse {
 
     private UUID allocationId;
 
+    private String allocationName;
+
     private BigDecimal amount;
 
     private LocalDate spentDate;

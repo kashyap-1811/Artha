@@ -28,7 +28,7 @@ function CompanyPage() {
   const [editBudgetStatus, setEditBudgetStatus] = useState("");
 
   const [isAddingMember, setIsAddingMember] = useState(false);
-  const [showAddMember, setShowAddMember] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
   const [memberEmail, setMemberEmail] = useState("");
   const [memberRole, setMemberRole] = useState("MEMBER");
 
@@ -73,12 +73,12 @@ function CompanyPage() {
   }, [companyId, navigate]);
 
   useEffect(() => {
-    if (!showCreateBudget && !showAddMember) return undefined;
+    if (!showCreateBudget && !showShareModal && !showEditBudget) return undefined;
 
     function handleEscape(event) {
       if (event.key === "Escape") {
         setShowCreateBudget(false);
-        setShowAddMember(false);
+        setShowShareModal(false);
         setShowEditBudget(false);
       }
     }
@@ -90,7 +90,7 @@ function CompanyPage() {
       document.body.style.overflow = "";
       window.removeEventListener("keydown", handleEscape);
     };
-  }, [showCreateBudget, showAddMember]);
+  }, [showCreateBudget, showShareModal, showEditBudget]);
 
   const companyName = location.state?.companyName || "Company";
 
@@ -242,7 +242,7 @@ function CompanyPage() {
 
       setMemberEmail("");
       setMemberRole("MEMBER");
-      setShowAddMember(false);
+      // Don't close modal on success so they can see the user added to the list
     } catch (requestError) {
       setError(requestError.message || "Failed to add member. Double check the email address.");
     } finally {
@@ -263,6 +263,11 @@ function CompanyPage() {
   }
 
   async function handleChangeRole(memberUserId, newRole) {
+    if (newRole === "REMOVE") {
+      handleRemoveMember(memberUserId);
+      return;
+    }
+
     setError("");
     try {
       const updatedMember = await changeMemberRole(companyId, memberUserId, newRole);
@@ -283,65 +288,26 @@ function CompanyPage() {
             <h1>{companyName}</h1>
             <p>Company ID: {companyId}</p>
           </div>
-          {isPrivileged && (
-            <div style={{ display: 'flex', gap: '1rem' }}>
-              <button className="create-btn" onClick={() => setShowAddMember(true)} type="button">
-                Add Member
-              </button>
+          <div style={{ display: 'flex', gap: '1rem' }}>
+            <button className="create-btn" onClick={() => setShowShareModal(true)} type="button" style={{ background: '#ffffff', color: 'var(--text-main)', border: '1px solid var(--edge)', boxShadow: 'var(--shadow-sm)' }}>
+              Share
+            </button>
+            {isPrivileged && (
               <button className="create-btn" onClick={() => setShowCreateBudget(true)} type="button">
                 Create Budget
               </button>
-            </div>
-          )}
+            )}
+          </div>
         </header>
 
-        {error && <p className="dashboard-error">{error}</p>}
+        {error && !showShareModal && !showCreateBudget && !showEditBudget && (
+          <p className="dashboard-error">{error}</p>
+        )}
 
         {isLoading ? (
           <p className="dashboard-muted">Loading company data...</p>
         ) : (
           <div className="budget-sections">
-            <section className="budget-group">
-              <h2>Company Members</h2>
-              {members.length === 0 ? (
-                <p className="dashboard-muted">No members found.</p>
-              ) : (
-                <div className="budget-grid">
-                  {members.map((member) => (
-                    <article className="budget-tile active" key={member.userId} style={{ cursor: 'default' }}>
-                      <div className="budget-tile-head">
-                        <strong>{member.fullName || member.email}</strong>
-                        {isPrivileged && member.userId !== currentUserId && member.role !== 'OWNER' ? (
-                          <select
-                            value={member.role}
-                            onChange={(e) => handleChangeRole(member.userId, e.target.value)}
-                            style={{ padding: '0.1rem 0.3rem', fontSize: '0.8rem', borderRadius: '4px', border: '1px solid var(--edge)', background: 'var(--bg-card)' }}
-                            onClick={e => e.stopPropagation()}
-                          >
-                            <option value="VIEWER">VIEWER</option>
-                            <option value="MEMBER">MEMBER</option>
-                            <option value="OWNER">OWNER</option>
-                          </select>
-                        ) : (
-                          <span>{member.role === 'OWNER' && !isPrivileged ? 'OWNER' : member.role}</span>
-                        )}
-                      </div>
-                      <p style={{ fontSize: '0.9rem', marginBottom: '0.5rem' }}>{member.email}</p>
-                      {isPrivileged && member.userId !== currentUserId && member.role !== 'OWNER' && (
-                        <button
-                          className="status-inactive profile-status"
-                          style={{ border: 'none', cursor: 'pointer', padding: '0.2rem 0.5rem' }}
-                          onClick={() => handleRemoveMember(member.userId)}
-                        >
-                          Remove
-                        </button>
-                      )}
-                    </article>
-                  ))}
-                </div>
-              )}
-            </section>
-
             <section className="budget-group">
               <h2>Active Budgets</h2>
               {activeBudgets.length === 0 ? (
@@ -505,61 +471,98 @@ function CompanyPage() {
           document.body
         )}
 
-      {/* ADD MEMBER MODAL */}
-      {showAddMember &&
+      {/* SHARE MODAL */}
+      {showShareModal &&
         createPortal(
-          <div className="create-modal-overlay" onClick={() => setShowAddMember(false)} role="presentation">
-            <section className="create-modal" onClick={(event) => event.stopPropagation()}>
-              <div className="create-modal-head">
-                <h3>Add Company Member</h3>
-                <button className="create-modal-close" onClick={() => setShowAddMember(false)} type="button">
-                  x
+          <div className="create-modal-overlay" onClick={() => setShowShareModal(false)} role="presentation">
+            <section className="create-modal share-modal" onClick={(event) => event.stopPropagation()} style={{ width: 'min(100%, 32rem)' }}>
+              <div className="create-modal-head" style={{ marginBottom: '1rem', borderBottom: 'none', paddingBottom: 0 }}>
+                <h3 style={{ fontSize: '1.3rem', fontWeight: 700 }}>Share "{companyName}"</h3>
+                <button className="create-modal-close" onClick={() => setShowShareModal(false)} type="button">
+                  ×
                 </button>
               </div>
 
-              <form className="create-modal-form" onSubmit={handleAddMember}>
-                <label className="field">
-                  <span className="field-label">User Email</span>
+              {error && <p className="dashboard-error" style={{ marginTop: 0, marginBottom: '1rem' }}>{error}</p>}
+
+              {/* Only Privileged users see the "Add People" form */}
+              {isPrivileged && (
+                <form
+                  className="share-add-form"
+                  onSubmit={handleAddMember}
+                  style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', background: 'var(--surface-hover)', padding: '0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--edge)' }}
+                >
                   <input
                     type="email"
                     value={memberEmail}
                     onChange={(event) => setMemberEmail(event.target.value)}
-                    placeholder="Enter user's email address"
-                    autoFocus
+                    placeholder="Add people via email"
                     required
+                    style={{ flex: 1, border: 'none', background: 'transparent', outline: 'none', fontSize: '0.95rem' }}
                   />
-                </label>
-                <label className="field">
-                  <span className="field-label">Role</span>
                   <select
                     value={memberRole}
                     onChange={(event) => setMemberRole(event.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '0.625rem 0.75rem',
-                      border: '1px solid var(--edge)',
-                      borderRadius: '8px',
-                      fontSize: '0.95rem',
-                      fontFamily: 'inherit',
-                      color: 'var(--text-main)',
-                      backgroundColor: 'transparent'
-                    }}
-                    required
+                    style={{ border: 'none', background: 'transparent', outline: 'none', color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 600, paddingRight: '0.25rem' }}
                   >
                     <option value="VIEWER">Viewer</option>
                     <option value="MEMBER">Member</option>
                     <option value="OWNER">Owner</option>
                   </select>
-                </label>
-                <div className="create-modal-actions">
-                  <button className="create-cancel-btn" onClick={() => setShowAddMember(false)} type="button">
-                    Cancel
+                  <button
+                    type="submit"
+                    disabled={isAddingMember}
+                    style={{ background: 'var(--accent)', color: '#fff', border: 'none', padding: '0.4rem 1rem', borderRadius: 'var(--radius-sm)', fontWeight: 600, cursor: isAddingMember ? 'wait' : 'pointer', opacity: isAddingMember ? 0.7 : 1 }}
+                  >
+                    {isAddingMember ? "..." : "Send"}
                   </button>
-                  <button className="create-confirm-btn" type="submit" disabled={isAddingMember}>
-                    {isAddingMember ? "Adding..." : "Add Member"}
-                  </button>
+                </form>
+              )}
+
+              {/* People with access list */}
+              <div className="share-access-list">
+                <h4 style={{ fontSize: '0.9rem', margin: '0 0 0.75rem', color: 'var(--text-main)', fontWeight: 600 }}>People with access</h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', maxHeight: '18rem', overflowY: 'auto', paddingRight: '0.5rem' }}>
+                  {members.map((member) => (
+                    <div key={member.userId} className="share-user-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem', borderRadius: 'var(--radius-sm)', hover: { background: 'var(--surface-hover)' } }}>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <div className="share-avatar" style={{ width: '2.4rem', height: '2.4rem', borderRadius: '50%', background: 'var(--accent-soft)', color: 'var(--accent)', display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: '1.1rem' }}>
+                          {(member.fullName || member.email || "?").charAt(0).toUpperCase()}
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          <strong style={{ fontSize: '0.95rem', color: 'var(--text-main)' }}>
+                            {member.fullName || "User"} {String(member.userId) === String(currentUserId) ? "(you)" : ""}
+                          </strong>
+                          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{member.email}</span>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        {/* Only owners can change other people's roles (but not their own, and not other Owners natively unless explicitly allowed, here we restrict changing other OWNERs) */}
+                        {isPrivileged && member.userId !== currentUserId && member.role !== 'OWNER' ? (
+                          <select
+                            value={member.role}
+                            onChange={(e) => handleChangeRole(member.userId, e.target.value)}
+                            style={{ border: 'none', background: 'transparent', outline: 'none', color: 'var(--text-muted)', fontSize: '0.85rem', cursor: 'pointer', textAlign: 'right' }}
+                          >
+                            <option value="VIEWER">Viewer</option>
+                            <option value="MEMBER">Member</option>
+                            <option value="OWNER">Owner</option>
+                            <option disabled>──────────</option>
+                            <option value="REMOVE" style={{ color: 'var(--danger)' }}>Remove Access</option>
+                          </select>
+                        ) : (
+                          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                            {member.role === 'OWNER' ? 'Owner' : member.role === 'MEMBER' ? 'Member' : 'Viewer'}
+                          </span>
+                        )}
+                      </div>
+
+                    </div>
+                  ))}
                 </div>
-              </form>
+              </div>
             </section>
           </div>,
           document.body

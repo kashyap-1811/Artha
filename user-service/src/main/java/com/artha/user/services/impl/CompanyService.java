@@ -96,12 +96,14 @@ public class CompanyService implements ICompanyService {
             throw new IllegalStateException("OWNER cannot be removed");
         }
 
+        Company targetCompany = membership.getCompany();
+
         membership.getUser().removeUserCompany(membership);
-        membership.getCompany().removeUserCompany(membership);
+        targetCompany.removeUserCompany(membership);
 
         userCompanyRepository.delete(membership);
 
-        return membership.getCompany();
+        return targetCompany;
     }
 
     @Override

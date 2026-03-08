@@ -4,19 +4,18 @@ const dotenv = require('dotenv');
 dotenv.config();
 
 const PORT = parseInt(process.env.PORT, 10) || 8086;
-const EUREKA_HOST = process.env.EUREKA_HOST || 'localhost';
-const EUREKA_PORT = parseInt(process.env.EUREKA_PORT, 10) || 8761;
+const SERVICE_HOST = process.env.SERVICE_HOST || 'notification-service';
 
 const client = new Eureka({
     instance: {
         app: 'NOTIFICATION-SERVICE',
-        hostName: 'localhost',
-        ipAddr: '127.0.0.1',
-        statusPageUrl: `http://localhost:${PORT}/info`,
+        hostName: SERVICE_HOST,
+        ipAddr: SERVICE_HOST,
         port: {
             '$': PORT,
             '@enabled': 'true',
         },
+        statusPageUrl: `http://${SERVICE_HOST}:${PORT}/info`,
         vipAddress: 'NOTIFICATION-SERVICE',
         dataCenterInfo: {
             '@class': 'com.netflix.appinfo.InstanceInfo$DefaultDataCenterInfo',
@@ -24,9 +23,9 @@ const client = new Eureka({
         },
     },
     eureka: {
-        host: EUREKA_HOST,
-        port: EUREKA_PORT,
-        servicePath: '/eureka/apps/'
+        host: process.env.EUREKA_HOST || 'service-registry',
+        port: parseInt(process.env.EUREKA_PORT, 10) || 8761,
+        servicePath: '/eureka/apps/',
     },
 });
 

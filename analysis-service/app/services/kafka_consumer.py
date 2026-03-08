@@ -1,13 +1,14 @@
 import json
 import logging
+import os
 from aiokafka import AIOKafkaConsumer
 import asyncio
 from app.core.config import MONGO_DETAILS
 
 logger = logging.getLogger(__name__)
 
-# Basic settings for connecting to the local Docker Kafka
-KAFKA_BOOTSTRAP_SERVERS = "localhost:9092"
+# Read from env so it works locally (localhost:9092) and inside Docker (kafka:29092)
+KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
 KAFKA_TOPIC = "expense-events"
 
 async def consume_expense_events(app):

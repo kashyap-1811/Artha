@@ -1,4 +1,6 @@
 services:
+
+  # ── Service Registry (Eureka) ────────────────────────────────────────────────
   service-registry:
     build:
       context: ./service-registry
@@ -6,19 +8,14 @@ services:
     container_name: artha-service-registry
     ports:
       - "8761:8761"
-    restart: unless-stopped
-
-  redis:
-    image: redis:7-alpine
-    container_name: artha-redis
-    command: [ "redis-server", "--appendonly", "yes" ]
     healthcheck:
-      test: [ "CMD", "redis-cli", "ping" ]
-      interval: 10s
-      timeout: 3s
+      test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
+      interval: 15s
+      timeout: 5s
       retries: 5
     restart: unless-stopped
 
+  # ── API Gateway ──────────────────────────────────────────────────────────────
   api-gateway:
     build:
       context: ./api-gateway
@@ -26,7 +23,7 @@ services:
     container_name: artha-api-gateway
     depends_on:
       service-registry:
-        condition: service_started
+        condition: service_healthy
       redis:
         condition: service_healthy
     environment:
@@ -38,13 +35,15 @@ services:
       - "8080:8080"
     restart: unless-stopped
 
+  # ── User Service ─────────────────────────────────────────────────────────────
   user-service:
     build:
       context: ./user-service
       dockerfile: Dockerfile
     container_name: artha-user-service
     depends_on:
-      - service-registry
+      service-registry:
+        condition: service_healthy
     environment:
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-registry:8761/eureka/
       SPRING_DEVTOOLS_RESTART_ENABLED: "false"
@@ -52,14 +51,17 @@ services:
       - "8083:8083"
     restart: unless-stopped
 
+  # ── Budget Service ───────────────────────────────────────────────────────────
   budget-service:
     build:
       context: ./budget
       dockerfile: Dockerfile
     container_name: artha-budget-service
     depends_on:
-      - service-registry
-      - user-service
+      service-registry:
+        condition: service_healthy
+      user-service:
+        condition: service_started
     environment:
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-registry:8761/eureka/
       SERVICES_USER_SERVICE_URL: http://user-service:8083
@@ -68,22 +70,74 @@ services:
       - "8081:8081"
     restart: unless-stopped
 
+  # ── Expense Service ──────────────────────────────────────────────────────────
   expense-service:
     build:
       context: ./expense
       dockerfile: Dockerfile
     container_name: artha-expense-service
     depends_on:
-      - service-registry
-      - user-service
+      service-registry:
+        condition: service_healthy
+      user-service:
+        condition: service_started
+      kafka:
+        condition: service_healthy
     environment:
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-registry:8761/eureka/
       SERVICES_USER_SERVICE_URL: http://user-service:8083
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       SPRING_DEVTOOLS_RESTART_ENABLED: "false"
     ports:
       - "8082:8082"
     restart: unless-stopped
 
+  # ── Notification Service ─────────────────────────────────────────────────────
+  notification-service:
+    build:
+      context: ./notification-service
+      dockerfile: Dockerfile
+    container_name: artha-notification-service
+    depends_on:
+      service-registry:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      PORT: 8086
+      MONGODB_URI: ${MONGODB_URI}
+      KAFKA_BROKER: kafka:29092
+      KAFKA_GROUP_ID: notification-service-group
+      EUREKA_HOST: service-registry
+      EUREKA_PORT: 8761
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      NODE_ENV: production
+    ports:
+      - "8086:8086"
+    restart: unless-stopped
+
+  # ── Analysis Service ─────────────────────────────────────────────────────────
+  analysis-service:
+    build:
+      context: ./analysis-service
+      dockerfile: Dockerfile
+    container_name: artha-analysis-service
+    depends_on:
+      service-registry:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      EUREKA_SERVER: http://service-registry:8761/eureka/
+      API_GATEWAY_URL: http://api-gateway:8080
+      MONGO_DETAILS: ${MONGO_DETAILS}
+    ports:
+      - "8084:8084"
+    restart: unless-stopped
+
+  # ── Frontend ─────────────────────────────────────────────────────────────────
   frontend:
     build:
       context: ./artha-frontend
@@ -91,48 +145,90 @@ services:
     container_name: artha-frontend
     depends_on:
       - api-gateway
-      - budget-service
-      - expense-service
+    environment:
+      # Vite's proxy must point to the gateway's Docker hostname.
+      VITE_DEV_PROXY_TARGET: http://api-gateway:8080
     ports:
       - "5173:5173"
     restart: unless-stopped
 
+  # ── Redis ────────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: artha-redis-dev
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  # ── Zookeeper ────────────────────────────────────────────────────────────────
   zookeeper:
     image: confluentinc/cp-zookeeper:7.8.0
     container_name: zookeeper
+    ports:
+      - "2181:2181"
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
-    ports:
-      - "2181:2181"
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "2181"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
     restart: unless-stopped
 
+  # ── Kafka ─────────────────────────────────────────────────────────────────────
   kafka:
     image: confluentinc/cp-kafka:7.8.0
     container_name: kafka
     depends_on:
-      - zookeeper
+      zookeeper:
+        condition: service_healthy
     ports:
       - "9092:9092"
       - "29092:29092"
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      # PLAINTEXT_HOST → reachable from the host machine (localhost:9092)
+      # PLAINTEXT_INTERNAL → reachable from other Docker containers (kafka:29092)
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT_HOST://localhost:9092,PLAINTEXT_INTERNAL://kafka:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT_HOST:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
     restart: unless-stopped
 
+  # ── Kafka UI ──────────────────────────────────────────────────────────────────
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
     container_name: kafka-ui
     depends_on:
-      - kafka
+      kafka:
+        condition: service_healthy
     ports:
       - "8085:8080"
     environment:
-      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_NAME: artha-local
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
       KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
     restart: unless-stopped
+
+volumes:
+  redis-data:
+  kafka-data:

@@ -77,6 +77,23 @@ services:
       KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
     restart: unless-stopped
 
+  mongodb:
+    image: mongo:7
+    container_name: artha-mongodb-dev
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: artha-notifications
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
 volumes:
   redis-data:
   kafka-data:
+  mongo-data:

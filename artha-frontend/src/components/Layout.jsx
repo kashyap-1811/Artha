@@ -1,6 +1,5 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import Navbar from "./Navbar";
 
 function Layout({ children }) {
     const navigate = useNavigate();
@@ -16,7 +15,6 @@ function Layout({ children }) {
 
     return (
         <div className="app-layout">
-            <Navbar />
             <div className="layout-content">{children}</div>
         </div>
     );

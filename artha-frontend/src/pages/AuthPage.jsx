@@ -1,10 +1,13 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { login, signup } from "../api/auth";
+import SplitAuthLayout from "../components/auth/SplitAuthLayout";
+import AnimatedStockChart from "../components/auth/AnimatedStockChart";
+import DarkAuthForm, { DarkInput } from "../components/auth/DarkAuthForm";
 
 function AuthPage() {
   const navigate = useNavigate();
-  const [mode, setMode] = useState("signup");
+  const [mode, setMode] = useState("login"); // Defaulting to login in split screen
   const [form, setForm] = useState({
     fullName: "",
     email: "",
@@ -91,7 +94,7 @@ function AuthPage() {
         fullName: form.fullName.trim()
       });
 
-      navigate("/dashboard");
+      navigate("/dashboard", { state: { justLoggedIn: true } });
     } catch (requestError) {
       setError(requestError.message || "Signup failed. Please try again.");
     } finally {
@@ -116,7 +119,7 @@ function AuthPage() {
         fullName: ""
       });
 
-      navigate("/dashboard");
+      navigate("/dashboard", { state: { justLoggedIn: true } });
     } catch (requestError) {
       setError(requestError.message || "Login failed. Please try again.");
     } finally {
@@ -124,141 +127,87 @@ function AuthPage() {
     }
   }
 
+  function handleGoogleLogin() {
+    console.log("Google login triggered");
+  }
+
   return (
-    <main className="auth-shell">
-      <div className="aurora aurora-top" />
-      <div className="aurora aurora-bottom" />
-
-      <section className="auth-card">
-        <header className="auth-header">
-          <span className="brand-mark" aria-hidden>
-            ?
-          </span>
-          <div className="auth-switch">
-            <button
-              className={`auth-switch-btn ${mode === "signup" ? "active" : ""}`}
-              onClick={() => {
-                resetErrors();
-                setMode("signup");
-              }}
-              type="button"
-            >
-              Sign up
-            </button>
-            <button
-              className={`auth-switch-btn ${mode === "login" ? "active" : ""}`}
-              onClick={() => {
-                resetErrors();
-                setMode("login");
-              }}
-              type="button"
-            >
-              Login
-            </button>
-          </div>
-          <span className="step-count">{mode === "signup" ? "Create account" : "Welcome back"}</span>
-        </header>
-
-        <div className="avatar-wrap">
-          <div className="avatar-core">
-            <div className="avatar-head" />
-            <div className="avatar-body" />
-          </div>
-        </div>
-
-        {mode === "signup" && (
-          <form className="auth-form" onSubmit={handleSignupSubmit}>
-            <label className="field">
-              <span className="field-label">Full Name</span>
-              <input
-                name="fullName"
-                value={form.fullName}
-                onChange={handleSignupFieldChange}
-                placeholder="What should we call you?"
-                autoComplete="name"
-                required
-              />
-            </label>
-
-            <label className="field">
-              <span className="field-label">Email</span>
-              <input
-                name="email"
-                type="email"
-                value={form.email}
-                onChange={handleSignupFieldChange}
-                placeholder="you@example.com"
-                autoComplete="email"
-                required
-              />
-            </label>
-
-            <label className="field">
-              <span className="field-label">Password</span>
-              <input
-                name="password"
-                type="password"
-                value={form.password}
-                onChange={handleSignupFieldChange}
-                placeholder="At least 6 characters"
-                autoComplete="new-password"
-                required
-              />
-            </label>
-
-            <div className="copy-block">
-              <h1>What should we call you?</h1>
-              <p>This helps us personalize your experience.</p>
-            </div>
-
-            <button className="cta" type="submit" disabled={isLoading}>
-              {isLoading ? "Creating account..." : "Get started"}
-            </button>
-          </form>
+    <SplitAuthLayout LeftVisualComponent={<AnimatedStockChart />}>
+      <DarkAuthForm
+        mode={mode}
+        onModeChange={(newMode) => {
+          resetErrors();
+          setMode(newMode);
+        }}
+        title={mode === "signup" ? "Create an account" : "Welcome back"}
+        subtitle={
+          mode === "signup"
+            ? "Sign up to access your global financial dashboard."
+            : "Sign in to your account"
+        }
+        error={error}
+        isLoading={isLoading}
+        onSubmit={mode === "signup" ? handleSignupSubmit : handleLoginSubmit}
+        onGoogleLogin={handleGoogleLogin}
+      >
+        {mode === "signup" ? (
+          <>
+            <DarkInput
+              id="signup_fullName"
+              label="Full Name"
+              name="fullName"
+              value={form.fullName}
+              onChange={handleSignupFieldChange}
+              placeholder="What should we call you?"
+              required
+            />
+            <DarkInput
+               id="signup_email"
+              label="Email"
+              name="email"
+              type="email"
+              value={form.email}
+              onChange={handleSignupFieldChange}
+              placeholder="you@example.com"
+              required
+            />
+            <DarkInput
+               id="signup_password"
+              label="Password"
+              name="password"
+              type="password"
+              value={form.password}
+              onChange={handleSignupFieldChange}
+              placeholder="At least 6 characters"
+              required
+            />
+          </>
+        ) : (
+          <>
+            <DarkInput
+               id="login_email"
+              label="Email"
+              name="email"
+              type="email"
+              value={loginForm.email}
+              onChange={handleLoginFieldChange}
+              placeholder="you@example.com"
+              required
+            />
+            <DarkInput
+               id="login_password"
+              label="Password"
+              name="password"
+              type="password"
+              value={loginForm.password}
+              onChange={handleLoginFieldChange}
+              placeholder="Enter your password"
+              required
+            />
+          </>
         )}
-
-        {mode === "login" && (
-          <form className="auth-form" onSubmit={handleLoginSubmit}>
-            <label className="field">
-              <span className="field-label">Email</span>
-              <input
-                name="email"
-                type="email"
-                value={loginForm.email}
-                onChange={handleLoginFieldChange}
-                placeholder="you@example.com"
-                autoComplete="email"
-                required
-              />
-            </label>
-
-            <label className="field">
-              <span className="field-label">Password</span>
-              <input
-                name="password"
-                type="password"
-                value={loginForm.password}
-                onChange={handleLoginFieldChange}
-                placeholder="Enter your password"
-                autoComplete="current-password"
-                required
-              />
-            </label>
-
-            <div className="copy-block">
-              <h1>Login to Artha</h1>
-              <p>Track budgets, expenses, and approvals from one place.</p>
-            </div>
-
-            <button className="cta" type="submit" disabled={isLoading}>
-              {isLoading ? "Signing in..." : "Login"}
-            </button>
-          </form>
-        )}
-
-        {error && <p className="error-text">{error}</p>}
-      </section>
-    </main>
+      </DarkAuthForm>
+    </SplitAuthLayout>
   );
 }
 

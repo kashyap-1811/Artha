@@ -1,0 +1,64 @@
+.layout {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #0c1220; /* Dark blue background from image sidebar */
+  background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1.5px, transparent 1.5px);
+  background-size: 32px 32px;
+  padding: 2rem;
+  font-family: "Plus Jakarta Sans", "Inter", sans-serif;
+}
+
+.cardWrapper {
+  width: 100%;
+  max-width: 460px;
+  perspective: 1000px;
+}
+
+.card {
+  background: var(--surface, #ffffff);
+  border-radius: 28px;
+  padding: 3rem 2.5rem;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+  position: relative;
+  overflow: hidden;
+  animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.logoMark {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text-main, #1e293b);
+  letter-spacing: -0.03em;
+  margin-bottom: 2rem;
+  justify-content: center;
+}
+
+.dots {
+  display: flex;
+  gap: 4px;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: var(--accent, #3A5BDE);
+}
+.dot:nth-child(2) { opacity: 0.7; }
+.dot:nth-child(3) { opacity: 0.4; }
+
+@keyframes slideUpFade {
+  0% { 
+    opacity: 0; 
+    transform: translateY(30px) scale(0.98); 
+  }
+  100% { 
+    opacity: 1; 
+    transform: translateY(0) scale(1); 
+  }
+}

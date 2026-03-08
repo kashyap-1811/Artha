@@ -17,9 +17,10 @@ public class SecurityConfig {
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .cors(ServerHttpSecurity.CorsSpec::disable)
                 .authorizeExchange(exchange -> exchange
-                        .pathMatchers("/auth/**").permitAll() // Allow auth requests to pass through (will be routed)
-                        .pathMatchers("/users/auth/**").permitAll() // Just in case
-                        .anyExchange().authenticated() // Require auth for everything else
+                        .pathMatchers("/auth/**").permitAll()
+                        .pathMatchers("/users/auth/**").permitAll()
+                        .pathMatchers("/internal/**").permitAll()  // Internal service-to-service calls (no JWT)
+                        .anyExchange().authenticated()
                 )
                 .addFilterAt(jwtAuthenticationFilter, SecurityWebFiltersOrder.AUTHENTICATION)
                 .httpBasic(ServerHttpSecurity.HttpBasicSpec::disable)

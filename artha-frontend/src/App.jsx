@@ -1,17 +1,22 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import Layout from "./components/Layout";
+import Navbar from "./components/layout/Navbar";
+import HomePage from "./pages/HomePage";
 import AuthPage from "./pages/AuthPage";
 import BudgetPage from "./pages/BudgetPage";
 import CompanyPage from "./pages/CompanyPage";
 import DashboardPage from "./pages/DashboardPage";
+import CompaniesPage from "./pages/CompaniesPage";
 import ProfilePage from "./pages/ProfilePage";
 
 function App() {
   return (
-    <Routes>
-      {/* Public Route */}
-      <Route path="/" element={<Navigate to="/auth" replace />} />
-      <Route path="/auth" element={<AuthPage />} />
+    <>
+      <Navbar />
+      <Routes>
+        {/* Public Route */}
+        <Route path="/" element={<HomePage />} />
+        <Route path="/auth" element={<AuthPage />} />
 
       {/* Authenticated Routes wrapped in Layout */}
       <Route
@@ -19,6 +24,14 @@ function App() {
         element={
           <Layout>
             <DashboardPage />
+          </Layout>
+        }
+      />
+      <Route
+        path="/companies"
+        element={
+          <Layout>
+            <CompaniesPage />
           </Layout>
         }
       />
@@ -48,8 +61,9 @@ function App() {
       />
 
       {/* Fallback */}
-      <Route path="*" element={<Navigate to="/auth" replace />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </>
   );
 }
 

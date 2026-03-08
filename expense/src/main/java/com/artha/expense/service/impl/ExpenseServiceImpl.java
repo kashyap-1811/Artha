@@ -8,11 +8,13 @@ import com.artha.expense.entity.Action;
 import com.artha.expense.entity.Expense;
 import com.artha.expense.entity.ExpenseStatus;
 import com.artha.expense.entity.ExpenseType;
+import com.artha.expense.client.BudgetServiceClient;
 import com.artha.expense.mapper.ExpenseMapper;
 import com.artha.expense.repository.ExpenseRepository;
 import com.artha.expense.service.AuthorizationService;
 import com.artha.expense.service.ExpenseService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -26,6 +28,8 @@ public class ExpenseServiceImpl implements ExpenseService {
 
     private final ExpenseRepository expenseRepository;
     private final AuthorizationService authorizationService;
+    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final BudgetServiceClient budgetServiceClient;
 
     // ===================== CREATE =====================
 
@@ -53,7 +57,17 @@ public class ExpenseServiceImpl implements ExpenseService {
 
         Expense saved = expenseRepository.save(expense);
 
-        return ExpenseMapper.toResponse(saved);
+        ExpenseResponse response = ExpenseMapper.toResponse(saved);
+
+        if (status == ExpenseStatus.APPROVED) {
+            String allocationName = budgetServiceClient.getAllocationName(
+                userId, saved.getBudgetId(), saved.getAllocationId()
+            );
+            response.setAllocationName(allocationName);
+            kafkaTemplate.send("expense-events", response);
+        }
+
+        return response;
     }
 
     // ===================== GET BY ID =====================
@@ -142,9 +156,16 @@ public class ExpenseServiceImpl implements ExpenseService {
 
         expense.setStatus(ExpenseStatus.APPROVED);
 
-        return ExpenseMapper.toResponse(
-                expenseRepository.save(expense)
+        Expense saved = expenseRepository.save(expense);
+        ExpenseResponse response = ExpenseMapper.toResponse(saved);
+
+        String allocationName = budgetServiceClient.getAllocationName(
+            userId, saved.getBudgetId(), saved.getAllocationId()
         );
+        response.setAllocationName(allocationName);
+        kafkaTemplate.send("expense-events", response);
+
+        return response;
     }
 
     // ===================== REJECT =====================

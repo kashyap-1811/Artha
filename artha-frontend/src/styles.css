@@ -879,3 +879,11 @@ body {
     padding: 1.45rem 1.55rem 1.55rem;
   }
 }
+
+.share-user-row {
+  transition: var(--transition);
+}
+
+.share-user-row:hover {
+  background: var(--surface-hover);
+}

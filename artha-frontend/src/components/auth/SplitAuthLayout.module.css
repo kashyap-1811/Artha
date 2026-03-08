@@ -1,0 +1,123 @@
+.container {
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f8fafc; /* Light gray/white background matching the photo's overall bright feel */
+  background-image: 
+    radial-gradient(circle at 14% 12%, rgba(59, 130, 246, 0.04), transparent 34%),
+    radial-gradient(circle at 84% 82%, rgba(79, 70, 229, 0.04), transparent 28%),
+    radial-gradient(rgba(0, 0, 0, 0.02) 1.5px, transparent 1.5px);
+  background-size: 100% 100%, 100% 100%, 32px 32px;
+  background-position: 0 0, 0 0, 0 0;
+  padding: 1rem;
+  font-family: "Plus Jakarta Sans", "Inter", sans-serif;
+}
+
+.card {
+  width: 100%;
+  max-width: 64rem; /* max-w-4xl */
+  height: auto;     /* auto height for mobile vertical layout */
+  min-height: 600px;
+  overflow: hidden;
+  border-radius: 1.25rem;
+  display: flex;
+  flex-direction: column; /* Stack vertically on mobile */
+  background-color: #ffffff; /* White card background */
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.05) inset;
+}
+
+@media (min-width: 768px) {
+  .card {
+    flex-direction: row; /* Side-by-side on desktop */
+    height: 600px;
+  }
+}
+
+.leftPane {
+  display: block; /* Show on mobile */
+  width: 100%;    /* Full width on mobile */
+  height: 400px;  /* Fixed height top banner on mobile */
+  position: relative;
+  overflow: hidden;
+  border-bottom: 1px solid rgba(0,0,0, 0.05); /* Border on bottom for mobile stack */
+}
+
+@media (min-width: 768px) {
+  .leftPane {
+    width: 50%;
+    height: 100%;
+    border-right: 1px solid rgba(0,0,0, 0.05);
+    border-bottom: none;
+  }
+}
+
+.visualContainer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, #18181b, #000000); /* Dark black gradient matching screenshot exactly */
+  backdrop-filter: blur(10px);
+}
+
+.overlayText {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.iconWrapper {
+  margin-bottom: 1.5rem;
+}
+
+.brandLogo {
+  height: 8.5rem;
+  width: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 10px 15px rgba(0, 0, 0, 0.3));
+}
+
+.title {
+  font-size: 2.25rem; /* 4xl */
+  font-weight: 800;
+  margin-bottom: 0.5rem;
+  text-align: center;
+  color: transparent;
+  background-clip: text;
+  -webkit-background-clip: text;
+  background-image: linear-gradient(to right, #ffffff, #94a3b8);
+  letter-spacing: -0.02em;
+}
+
+.subtitle {
+  font-size: 0.875rem;
+  text-align: center;
+  color: #94a3b8; /* slate-400 */
+  max-width: 20rem;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.rightPane {
+  width: 100%;
+  padding: 4rem 2rem 2rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start; /* Anchor to top to prevent vertical shifting */
+  background-color: #ffffff; /* Make the form side solid white */
+  position: relative; /* to contain header controls */
+  overflow-y: auto;
+}
+
+@media (min-width: 768px) {
+  .rightPane {
+    width: 50%;
+    padding: 2rem 2.5rem;
+  }
+}

@@ -136,3 +136,46 @@ services:
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
       KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
     restart: unless-stopped
+
+  mongodb:
+    image: mongo:7
+    container_name: artha-mongodb
+    environment:
+      MONGO_INITDB_DATABASE: artha-notifications
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  notification-service:
+    build:
+      context: ./notification-service
+      dockerfile: Dockerfile
+    container_name: artha-notification-service
+    depends_on:
+      - service-registry
+      - kafka
+      - api-gateway
+      - mongodb
+    environment:
+      PORT: 8086
+      MONGODB_URI: ${MONGODB_URI}
+      KAFKA_BROKER: ${KAFKA_BROKER}
+      KAFKA_GROUP_ID: notification-service-group
+      API_GATEWAY_URL: http://api-gateway:8080
+      EUREKA_HOST: service-registry
+      EUREKA_PORT: 8761
+      SMTP_HOST: smtp.gmail.com
+      SMTP_PORT: 587
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+    ports:
+      - "8086:8086"
+    restart: unless-stopped
+
+volumes:
+  mongo-data:

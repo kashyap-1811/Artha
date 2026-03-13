@@ -55,6 +55,21 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         pass
 
+load_dotenv()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Register with Eureka
+    eureka_server = os.getenv("EUREKA_SERVER", "http://localhost:8761/eureka")
+    await eureka_client.init_async(
+        eureka_server=eureka_server,
+        app_name="analysis-service",
+        instance_port=8084
+    )
+    yield
+    # Unregister from Eureka
+    await eureka_client.stop_async()
+
 app = FastAPI(
     title="Analysis Service",
     description="Provides budget and expense analytics",

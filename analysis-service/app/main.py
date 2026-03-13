@@ -60,8 +60,6 @@ app = FastAPI(
     description="Provides budget and expense analytics",
     version="1.0.0",
     lifespan=lifespan
-    version="1.0.0",
-    lifespan=lifespan
 )
 
 app.include_router(analysis.router)

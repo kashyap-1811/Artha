@@ -1,3 +1,5 @@
+import os
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from py_eureka_client import eureka_client
@@ -58,6 +60,8 @@ app = FastAPI(
     description="Provides budget and expense analytics",
     version="1.0.0",
     lifespan=lifespan
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 app.include_router(analysis.router)
@@ -65,3 +69,6 @@ app.include_router(analysis.router)
 @app.get("/")
 def root():
     return {"message": "Analysis Service Running"}
+
+# venv\Scripts\Activate    
+# uvicorn app.main:app --host 0.0.0.0 --port 8084 --reload

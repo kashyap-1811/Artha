@@ -70,6 +70,7 @@ services:
       - "8081:8081"
     restart: unless-stopped
 
+
   # ── Expense Service ──────────────────────────────────────────────────────────
   expense-service:
     build:
@@ -214,6 +215,7 @@ services:
       retries: 5
     restart: unless-stopped
 
+
   # ── Kafka UI ──────────────────────────────────────────────────────────────────
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
@@ -232,3 +234,4 @@ services:
 volumes:
   redis-data:
   kafka-data:
+  

@@ -1,24 +1,59 @@
 import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
-from dotenv import load_dotenv
-import py_eureka_client.eureka_client as eureka_client
+from contextlib import asynccontextmanager
+from py_eureka_client import eureka_client
 from app.routers import analysis
+from motor.motor_asyncio import AsyncIOMotorClient
+from app.core.config import MONGO_DETAILS, EUREKA_SERVER
+import asyncio
+import certifi
+from app.services.kafka_consumer import consume_expense_events
 
-load_dotenv()
+class Database:
+    client: AsyncIOMotorClient = None
+
+db = Database()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Register with Eureka
-    eureka_server = os.getenv("EUREKA_SERVER", "http://localhost:8761/eureka")
-    await eureka_client.init_async(
-        eureka_server=eureka_server,
-        app_name="analysis-service",
-        instance_port=8084
-    )
+    # Connect to MongoDB Atlas
+    print("Connecting to MongoDB Atlas...")
+    db.client = AsyncIOMotorClient(MONGO_DETAILS, tlsCAFile=certifi.where())
+    app.state.mongodb_client = db.client
+    print("Successfully connected to MongoDB Atlas!")
+
+    # Startup: Register with Eureka
+    try:
+        await eureka_client.init_async(
+            eureka_server=EUREKA_SERVER,
+            app_name="analysis-service",
+            instance_port=8084,
+            instance_host="localhost"
+        )
+    except Exception as e:
+        print(f"Eureka init failed (this is non-fatal for local testing): {e}")
+
+    # Start Kafka Consumer in the background
+    kafka_task = asyncio.create_task(consume_expense_events(app))
+        
     yield
-    # Unregister from Eureka
-    await eureka_client.stop_async()
+    
+    # Cancel the Kafka Consumer task gracefully
+    kafka_task.cancel()
+    try:
+        await kafka_task
+    except asyncio.CancelledError:
+        print("Kafka Consumer task cancelled.")
+    
+    # Shutdown: De-register and close DB
+    print("Disconnecting from MongoDB...")
+    db.client.close()
+    
+    try:
+        await eureka_client.stop_async()
+    except Exception as e:
+        pass
 
 app = FastAPI(
     title="Analysis Service",

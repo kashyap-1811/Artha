@@ -70,6 +70,7 @@ services:
       - "8081:8081"
     restart: unless-stopped
 
+
   # ── Expense Service ──────────────────────────────────────────────────────────
   expense-service:
     build:

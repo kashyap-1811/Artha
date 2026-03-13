@@ -215,6 +215,7 @@ services:
       retries: 5
     restart: unless-stopped
 
+
   # ── Kafka UI ──────────────────────────────────────────────────────────────────
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
@@ -233,3 +234,4 @@ services:
 volumes:
   redis-data:
   kafka-data:
+  

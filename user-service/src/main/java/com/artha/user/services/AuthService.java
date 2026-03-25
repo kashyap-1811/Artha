@@ -19,38 +19,28 @@ import org.springframework.stereotype.Service;
 public class AuthService {
 
     private final UserRepository userRepository;
-    private final UserService userService; // Use existing UserService for creation logic (handles Company etc)
+    private final UserService userService;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final AuthenticationManager authenticationManager;
 
     public SignupResponse signup(SignupRequest request) {
-        if (userRepository.existsByEmail(request.getEmail())) {
+        long dbStart = System.currentTimeMillis();
+        boolean exists = userRepository.existsByEmail(request.getEmail());
+        long dbEnd = System.currentTimeMillis();
+        System.out.println("====== DB Execution Time [Auth Signup]: Check Email " + (dbEnd - dbStart) + "ms ======");
+
+        if (exists) {
             throw new RuntimeException("Email already in use");
         }
-
-        // Use UserService.create to handle side effects (Company creation) if any
-        // Assuming UserService.create expects a User object with plain password? 
-        // Wait, UserService.create used to encode password. I removed encoding from it. 
-        // Code in UserService.create now says: "Password should be hashed by API Gateway or Caller".
-        // So I should hash it here OR restore encoding in UserService. 
-        // I will hash it here and pass hashed password to UserService if it expects it, 
-        // OR better: pass plain and let UserService encode?
-        // Let's check UserService again. It currently stores what is given.
-        // So I will encode it here.
 
         User user = User.builder()
                 .fullName(request.getFullName())
                 .email(request.getEmail())
-                .password(request.getPassword()) // Pass plain, let's see. UserService commented out encoding.
+                .password(request.getPassword()) 
                 .active(true)
                 .build();
         
-        // I need to ensure password is encoded. 
-        // Let's rely on UserService to save, but I should set the encoded password on the user object before passing it,
-        // OR modifying UserService to encode it.
-        // Modifying UserService is cleaner as it enforces encoding. 
-        // But for now, I'll encode it here.
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         
         User savedUser = userService.create(user);
@@ -64,8 +54,11 @@ public class AuthService {
                 new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
         );
 
+        long dbStart = System.currentTimeMillis();
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow();
+        long dbEnd = System.currentTimeMillis();
+        System.out.println("====== DB Execution Time [Auth Login]: Find User " + (dbEnd - dbStart) + "ms ======");
         
         String token = jwtUtil.generateAccessToken(user);
         

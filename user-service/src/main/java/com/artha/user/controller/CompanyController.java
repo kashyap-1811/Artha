@@ -35,19 +35,25 @@ public class CompanyController {
             @RequestHeader("X-USER-ID") String ownerUserId,
             @RequestBody CreateCompanyRequest request
     ) {
-        User owner = User.builder()
-                .id(ownerUserId)
-                .build();
+        long serviceStart = System.currentTimeMillis();
+        try {
+            User owner = User.builder()
+                    .id(ownerUserId)
+                    .build();
 
-        Company company = Company.builder()
-                .name(request.getName())
-                .build();
+            Company company = Company.builder()
+                    .name(request.getName())
+                    .build();
 
-        Company created = companyService.createCompanyWithOwner(owner, company);
+            Company created = companyService.createCompanyWithOwner(owner, company);
 
-        return ResponseEntity.ok(
-                CompanyMapper.toResponse(created, ownerUserId)
-        );
+            return ResponseEntity.ok(
+                    CompanyMapper.toResponse(created, ownerUserId)
+            );
+        } finally {
+            long serviceEnd = System.currentTimeMillis();
+            System.out.println("====== Service Execution Time [Create Company]: " + (serviceEnd - serviceStart) + "ms ======");
+        }
     }
 
     /* ---------------- ADD MEMBER ---------------- */
@@ -57,23 +63,29 @@ public class CompanyController {
             @PathVariable String companyId,
             @RequestBody AddMemberRequest request
     ) {
-        User user = User.builder()
-                .id(request.getUserId())
-                .build();
+        long serviceStart = System.currentTimeMillis();
+        try {
+            User user = User.builder()
+                    .id(request.getUserId())
+                    .build();
 
-        Company company = Company.builder()
-                .id(companyId)
-                .build();
+            Company company = Company.builder()
+                    .id(companyId)
+                    .build();
 
-        Company updated = companyService.addMember(
-                user,
-                company,
-                request.getRole()
-        );
+            Company updated = companyService.addMember(
+                    user,
+                    company,
+                    request.getRole()
+            );
 
-        return ResponseEntity.ok(
-                CompanyMapper.toResponse(updated, resolveOwnerId(updated.getId()))
-        );
+            return ResponseEntity.ok(
+                    CompanyMapper.toResponse(updated, resolveOwnerId(updated.getId()))
+            );
+        } finally {
+            long serviceEnd = System.currentTimeMillis();
+            System.out.println("====== Service Execution Time [Add Member]: " + (serviceEnd - serviceStart) + "ms ======");
+        }
     }
 
     /* ---------------- REMOVE MEMBER ---------------- */
@@ -83,14 +95,20 @@ public class CompanyController {
             @PathVariable String companyId,
             @PathVariable String userId
     ) {
-        User user = User.builder().id(userId).build();
-        Company company = Company.builder().id(companyId).build();
+        long serviceStart = System.currentTimeMillis();
+        try {
+            User user = User.builder().id(userId).build();
+            Company company = Company.builder().id(companyId).build();
 
-        Company updated = companyService.removeMember(user, company);
+            Company updated = companyService.removeMember(user, company);
 
-        return ResponseEntity.ok(
-                CompanyMapper.toResponse(updated, resolveOwnerId(updated.getId()))
-        );
+            return ResponseEntity.ok(
+                    CompanyMapper.toResponse(updated, resolveOwnerId(updated.getId()))
+            );
+        } finally {
+            long serviceEnd = System.currentTimeMillis();
+            System.out.println("====== Service Execution Time [Remove Member]: " + (serviceEnd - serviceStart) + "ms ======");
+        }
     }
 
     /* ---------------- CHANGE ROLE ---------------- */
@@ -101,31 +119,37 @@ public class CompanyController {
             @PathVariable String userId,
             @RequestParam String role
     ) {
-        User user = User.builder().id(userId).build();
-        Company company = Company.builder().id(companyId).build();
+        long serviceStart = System.currentTimeMillis();
+        try {
+            User user = User.builder().id(userId).build();
+            Company company = Company.builder().id(companyId).build();
 
-        companyService.changeRole(
-                user,
-                company,
-                Enum.valueOf(
-                        com.artha.user.entity.UserCompanyRole.class,
-                        role
-                )
-        );
+            companyService.changeRole(
+                    user,
+                    company,
+                    Enum.valueOf(
+                            com.artha.user.entity.UserCompanyRole.class,
+                            role
+                    )
+            );
 
-        com.artha.user.entity.UserCompany updatedMembership = userCompanyRepository
-                .findByUser_IdAndCompany_Id(userId, companyId)
-                .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("User is not a member of this company"));
+            com.artha.user.entity.UserCompany updatedMembership = userCompanyRepository
+                    .findByUser_IdAndCompany_Id(userId, companyId)
+                    .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("User is not a member of this company"));
 
-        return ResponseEntity.ok(
-                CompanyMemberResponse.builder()
-                        .userId(updatedMembership.getUser().getId())
-                        .fullName(updatedMembership.getUser().getFullName())
-                        .email(updatedMembership.getUser().getEmail())
-                        .role(updatedMembership.getRole())
-                        .active(updatedMembership.getUser().isActive())
-                        .build()
-        );
+            return ResponseEntity.ok(
+                    CompanyMemberResponse.builder()
+                            .userId(updatedMembership.getUser().getId())
+                            .fullName(updatedMembership.getUser().getFullName())
+                            .email(updatedMembership.getUser().getEmail())
+                            .role(updatedMembership.getRole())
+                            .active(updatedMembership.getUser().isActive())
+                            .build()
+            );
+        } finally {
+            long serviceEnd = System.currentTimeMillis();
+            System.out.println("====== Service Execution Time [Change Member Role]: " + (serviceEnd - serviceStart) + "ms ======");
+        }
     }
 
     /* ---------------- LIST USER COMPANIES ---------------- */
@@ -134,31 +158,49 @@ public class CompanyController {
     public ResponseEntity<List<UserCompanyResponse>> getMyCompanies(
             @RequestHeader("X-USER-ID") String userId
     ) {
-        List<UserCompanyResponse> response =
-                userCompanyRepository
-                        .findByUser_IdAndActiveTrue(userId)
-                        .stream()
-                        .map(UserCompanyMapper::toResponse)
-                        .toList();
+        long serviceStart = System.currentTimeMillis();
+        try {
+            List<UserCompanyResponse> response =
+                    userCompanyRepository
+                            .findByUser_IdAndActiveTrue(userId)
+                            .stream()
+                            .map(UserCompanyMapper::toResponse)
+                            .toList();
 
-        return ResponseEntity.ok(response);
+            return ResponseEntity.ok(response);
+        } finally {
+            long serviceEnd = System.currentTimeMillis();
+            System.out.println("====== Service Execution Time [Get My Companies]: " + (serviceEnd - serviceStart) + "ms ======");
+        }
     }
 
     @GetMapping("/my/personal")
     public ResponseEntity<CompanyResponse> getMyPersonalCompany(
             @RequestHeader("X-USER-ID") String userId
     ) {
-        Company personalCompany = userService.ensurePersonalCompany(userId);
-        return ResponseEntity.ok(
-                CompanyMapper.toResponse(personalCompany, resolveOwnerId(personalCompany.getId()))
-        );
+        long serviceStart = System.currentTimeMillis();
+        try {
+            Company personalCompany = userService.ensurePersonalCompany(userId);
+            return ResponseEntity.ok(
+                    CompanyMapper.toResponse(personalCompany, resolveOwnerId(personalCompany.getId()))
+            );
+        } finally {
+            long serviceEnd = System.currentTimeMillis();
+            System.out.println("====== Service Execution Time [Get My Personal Company]: " + (serviceEnd - serviceStart) + "ms ======");
+        }
     }
 
     @GetMapping("/{companyId}/members")
     public List<CompanyMemberResponse> getCompanyMembers(
             @PathVariable String companyId
     ) {
-        return companyService.getCompanyMembers(companyId);
+        long serviceStart = System.currentTimeMillis();
+        try {
+            return companyService.getCompanyMembers(companyId);
+        } finally {
+            long serviceEnd = System.currentTimeMillis();
+            System.out.println("====== Service Execution Time [Get Company Members]: " + (serviceEnd - serviceStart) + "ms ======");
+        }
     }
 
     /* ---------------- GET MEMBER ROLE (Internal) ---------------- */
@@ -168,10 +210,16 @@ public class CompanyController {
             @PathVariable String companyId,
             @PathVariable String userId
     ) {
-        com.artha.user.entity.UserCompany uc = userCompanyRepository
-                .findByUser_IdAndCompany_Id(userId, companyId)
-                .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("User is not a member of this company"));
-        return ResponseEntity.ok(uc.getRole());
+        long serviceStart = System.currentTimeMillis();
+        try {
+            com.artha.user.entity.UserCompany uc = userCompanyRepository
+                    .findByUser_IdAndCompany_Id(userId, companyId)
+                    .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("User is not a member of this company"));
+            return ResponseEntity.ok(uc.getRole());
+        } finally {
+            long serviceEnd = System.currentTimeMillis();
+            System.out.println("====== Service Execution Time [Get Member Role]: " + (serviceEnd - serviceStart) + "ms ======");
+        }
     }
 
     private String resolveOwnerId(String companyId) {

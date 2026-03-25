@@ -2,18 +2,24 @@ package com.artha.budget.repository;
 
 import com.artha.budget.entity.Budget;
 import com.artha.budget.entity.BudgetStatus;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface BudgetRepository extends JpaRepository<Budget, UUID> {
+
+    @EntityGraph(attributePaths = {"allocations"})
+    Optional<Budget> findById(UUID id);
 
     /**
      * Get active budget for a company
      * (At most ONE active budget should exist)
      */
+    @EntityGraph(attributePaths = {"allocations"})
     List<Budget> findAllByCompanyIdAndStatus(
             String companyId,
             BudgetStatus status
@@ -33,5 +39,6 @@ public interface BudgetRepository extends JpaRepository<Budget, UUID> {
     /**
      * Fetch all budgets for company (history)
      */
+    @EntityGraph(attributePaths = {"allocations"})
     List<Budget> findAllByCompanyIdOrderByStartDateDesc(String companyId);
 }

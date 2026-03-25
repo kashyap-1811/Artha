@@ -22,16 +22,34 @@ public class AuthController {
 
     @PostMapping("/signup")
     public ResponseEntity<SignupResponse> signup(@RequestBody SignupRequest request) {
-        return ResponseEntity.ok(authService.signup(request));
+        long serviceStart = System.currentTimeMillis();
+        try {
+            return ResponseEntity.ok(authService.signup(request));
+        } finally {
+            long serviceEnd = System.currentTimeMillis();
+            System.out.println("====== Service Execution Time [Auth Signup]: " + (serviceEnd - serviceStart) + "ms ======");
+        }
     }
 
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest request) {
-        return ResponseEntity.ok(authService.login(request));
+        long serviceStart = System.currentTimeMillis();
+        try {
+            return ResponseEntity.ok(authService.login(request));
+        } finally {
+            long serviceEnd = System.currentTimeMillis();
+            System.out.println("====== Service Execution Time [Auth Login]: " + (serviceEnd - serviceStart) + "ms ======");
+        }
     }
 
     @GetMapping("/hello")
     public ResponseEntity<String> hello() {
-        return ResponseEntity.ok("hello from user-service");
+        long serviceStart = System.currentTimeMillis();
+        try {
+            return ResponseEntity.ok("hello from user-service");
+        } finally {
+            long serviceEnd = System.currentTimeMillis();
+            System.out.println("====== Service Execution Time [Auth Hello]: " + (serviceEnd - serviceStart) + "ms ======");
+        }
     }
 }

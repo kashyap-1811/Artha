@@ -9,25 +9,31 @@ const kafka = new Kafka({
 const consumer = kafka.consumer({ groupId: process.env.KAFKA_GROUP_ID || 'notification-service-group' });
 
 const startExpenseConsumer = async () => {
-    try {
-        await consumer.connect();
-        await consumer.subscribe({ topic: 'expense-events', fromBeginning: true });
+    const connectAndRun = async () => {
+        try {
+            await consumer.connect();
+            await consumer.subscribe({ topic: 'expense-events', fromBeginning: true });
 
-        console.log('Kafka Consumer connected and subscribed to expense-events');
+            console.log('Kafka Consumer connected and subscribed to expense-events');
 
-        await consumer.run({
-            eachMessage: async ({ topic, partition, message }) => {
-                try {
-                    const eventData = JSON.parse(message.value.toString());
-                    await notificationService.handleExpenseEvent(eventData);
-                } catch (err) {
-                    console.error('Error processing Kafka message:', err);
-                }
-            },
-        });
-    } catch (error) {
-        console.error('Error starting Kafka consumer:', error);
-    }
+            await consumer.run({
+                eachMessage: async ({ topic, partition, message }) => {
+                    try {
+                        const eventData = JSON.parse(message.value.toString());
+                        await notificationService.handleExpenseEvent(eventData);
+                    } catch (err) {
+                        console.error('Error processing Kafka message:', err);
+                    }
+                },
+            });
+        } catch (error) {
+            console.error('Error starting Kafka consumer. Retrying in 10s...', error.message);
+            setTimeout(connectAndRun, 10000);
+        }
+    };
+
+    // Kick off the connection attempt
+    connectAndRun();
 };
 
 module.exports = { startExpenseConsumer };

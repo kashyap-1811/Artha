@@ -22,27 +22,34 @@ public class UserService implements IUserService {
 
     public User create(User user) {
 
-        if (userRepository.existsByEmail(user.getEmail())) {
+        long dbCheckStart = System.currentTimeMillis();
+        boolean exists = userRepository.existsByEmail(user.getEmail());
+        long dbCheckEnd = System.currentTimeMillis();
+        
+        if (exists) {
             throw new IllegalStateException("Email already registered");
         }
 
-        // Password should be hashed by API Gateway or Caller before reaching here if needed,
-        // OR simply stored as is if this service assumes trusted input.
-        // For now, we store as provided (assuming Gateway hashed it or we don't handle auth here).
-
+        long dbSaveStart = System.currentTimeMillis();
         User savedUser = userRepository.save(user);
+        long dbSaveEnd = System.currentTimeMillis();
+        System.out.println("====== DB Execution Time [Create User]: Check " + (dbCheckEnd - dbCheckStart) + "ms, Save " + (dbSaveEnd - dbSaveStart) + "ms ======");
+
         ensurePersonalCompany(savedUser.getId());
         return savedUser;
     }
 
     @Override
     public Company ensurePersonalCompany(String userId) {
+        long dbStart1 = System.currentTimeMillis();
         User persistedUser = userRepository.findById(userId)
                 .orElseThrow(() ->
                         new EntityNotFoundException("User not found: " + userId)
                 );
+        long dbEnd1 = System.currentTimeMillis();
 
-        return userCompanyRepository
+        long dbStart2 = System.currentTimeMillis();
+        Company result = userCompanyRepository
                 .findFirstByUser_IdAndCompany_TypeAndActiveTrue(
                         persistedUser.getId(),
                         CompanyType.PERSONAL
@@ -68,6 +75,9 @@ public class UserService implements IUserService {
 
                     return personalCompany;
                 });
+        long dbEnd2 = System.currentTimeMillis();
+        System.out.println("====== DB Execution Time [Ensure Personal Company]: User lookup " + (dbEnd1 - dbStart1) + "ms, Company setup " + (dbEnd2 - dbStart2) + "ms ======");
+        return result;
     }
 
     @Override
@@ -77,40 +87,62 @@ public class UserService implements IUserService {
             throw new IllegalStateException("User ID must be provided");
         }
 
+        long dbFindStart = System.currentTimeMillis();
         User existing = userRepository.findById(user.getId())
                 .orElseThrow(() ->
                         new EntityNotFoundException("User not found: " + user.getId())
                 );
+        long dbFindEnd = System.currentTimeMillis();
 
         existing.setFullName(user.getFullName());
         existing.setActive(user.isActive());
 
-        return userRepository.save(existing);
+        long dbSaveStart = System.currentTimeMillis();
+        User saved = userRepository.save(existing);
+        long dbSaveEnd = System.currentTimeMillis();
+        System.out.println("====== DB Execution Time [Update User]: Find " + (dbFindEnd - dbFindStart) + "ms, Save " + (dbSaveEnd - dbSaveStart) + "ms ======");
+
+        return saved;
     }
 
     @Override
     public User getById(String id) {
-        return userRepository.findById(id)
+        long dbStart = System.currentTimeMillis();
+        User user = userRepository.findById(id)
                 .orElseThrow(() ->
                         new EntityNotFoundException("User not found: " + id)
                 );
+        long dbEnd = System.currentTimeMillis();
+        System.out.println("====== DB Execution Time [Get User By ID]: " + (dbEnd - dbStart) + "ms ======");
+        return user;
     }
 
     @Override
     public User getByEmail(String email) {
-        return userRepository.findByEmail(email)
+        long dbStart = System.currentTimeMillis();
+        User user = userRepository.findByEmail(email)
                 .orElseThrow(() ->
                         new EntityNotFoundException("User not found with email: " + email)
                 );
+        long dbEnd = System.currentTimeMillis();
+        System.out.println("====== DB Execution Time [Get User By Email]: " + (dbEnd - dbStart) + "ms ======");
+        return user;
     }
 
     @Override
     public void delete(String id) {
 
-        if (!userRepository.existsById(id)) {
+        long dbCheckStart = System.currentTimeMillis();
+        boolean exists = userRepository.existsById(id);
+        long dbCheckEnd = System.currentTimeMillis();
+
+        if (!exists) {
             throw new EntityNotFoundException("User not found: " + id);
         }
 
+        long dbDeleteStart = System.currentTimeMillis();
         userRepository.deleteById(id);
+        long dbDeleteEnd = System.currentTimeMillis();
+        System.out.println("====== DB Execution Time [Delete User]: Check " + (dbCheckEnd - dbCheckStart) + "ms, Delete " + (dbDeleteEnd - dbDeleteStart) + "ms ======");
     }
 }

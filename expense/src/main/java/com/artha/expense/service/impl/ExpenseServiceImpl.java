@@ -55,7 +55,10 @@ public class ExpenseServiceImpl implements ExpenseService {
 
         Expense expense = ExpenseMapper.toEntity(request, status);
 
+        long dbStart = System.currentTimeMillis();
         Expense saved = expenseRepository.save(expense);
+        long dbEnd = System.currentTimeMillis();
+        System.out.println("====== DB Execution Time [Add Expense]: " + (dbEnd - dbStart) + "ms ======");
 
         ExpenseResponse response = ExpenseMapper.toResponse(saved);
 
@@ -74,11 +77,13 @@ public class ExpenseServiceImpl implements ExpenseService {
 
     @Override
     public ExpenseResponse getExpense(String userId, UUID expenseId) {
-
+        long dbStart = System.currentTimeMillis();
         Expense expense = expenseRepository.findById(expenseId)
                 .orElseThrow(() ->
                         new ResourceNotFoundException("Expense not found with id: " + expenseId)
                 );
+        long dbEnd = System.currentTimeMillis();
+        System.out.println("====== DB Execution Time [Get Expense By ID]: " + (dbEnd - dbStart) + "ms ======");
 
         authorizationService.checkPermission(userId, expense.getCompanyId(), Action.VIEW_EXPENSE);
 
@@ -92,8 +97,12 @@ public class ExpenseServiceImpl implements ExpenseService {
 
         authorizationService.checkPermission(userId, companyId, Action.VIEW_EXPENSE);
 
-        return expenseRepository.findByCompanyId(companyId)
-                .stream()
+        long dbStart = System.currentTimeMillis();
+        List<Expense> expenses = expenseRepository.findByCompanyId(companyId);
+        long dbEnd = System.currentTimeMillis();
+        System.out.println("====== DB Execution Time [Get Company Expenses]: " + (dbEnd - dbStart) + "ms ======");
+
+        return expenses.stream()
                 .map(ExpenseMapper::toResponse)
                 .collect(Collectors.toList());
     }
@@ -103,11 +112,11 @@ public class ExpenseServiceImpl implements ExpenseService {
     @Override
     public List<ExpenseResponse> getExpensesByBudgetId(String userId, UUID budgetId) {
 
-        // Need the companyId to check permissions.
-        // We fetch the list first. Wait, if list is empty we can't get companyId?
-        // Let's get the list first. If empty, return empty list (doesn't matter).
-        // If not empty, check permission on the companyId of the first item.
+        long dbStart = System.currentTimeMillis();
         List<Expense> expenses = expenseRepository.findByBudgetId(budgetId);
+        long dbEnd = System.currentTimeMillis();
+        System.out.println("====== DB Execution Time [Get Expenses By Budget]: " + (dbEnd - dbStart) + "ms ======");
+
         if (expenses.isEmpty()) {
             return List.of();
         }
@@ -125,7 +134,11 @@ public class ExpenseServiceImpl implements ExpenseService {
     @Override
     public List<ExpenseResponse> getExpensesByAllocationId(String userId, UUID allocationId) {
 
+        long dbStart = System.currentTimeMillis();
         List<Expense> expenses = expenseRepository.findByAllocationId(allocationId);
+        long dbEnd = System.currentTimeMillis();
+        System.out.println("====== DB Execution Time [Get Expenses By Allocation]: " + (dbEnd - dbStart) + "ms ======");
+
         if (expenses.isEmpty()) {
             return List.of();
         }
@@ -143,10 +156,12 @@ public class ExpenseServiceImpl implements ExpenseService {
     @Override
     public ExpenseResponse approveExpense(String userId, UUID expenseId) {
 
+        long dbFindStart = System.currentTimeMillis();
         Expense expense = expenseRepository.findById(expenseId)
                 .orElseThrow(() ->
                         new ResourceNotFoundException("Expense not found with id: " + expenseId)
                 );
+        long dbFindEnd = System.currentTimeMillis();
 
         authorizationService.checkPermission(userId, expense.getCompanyId(), Action.UPDATE_EXPENSE);
 
@@ -156,7 +171,11 @@ public class ExpenseServiceImpl implements ExpenseService {
 
         expense.setStatus(ExpenseStatus.APPROVED);
 
+        long dbSaveStart = System.currentTimeMillis();
         Expense saved = expenseRepository.save(expense);
+        long dbSaveEnd = System.currentTimeMillis();
+        System.out.println("====== DB Execution Time [Approve Expense]: Find " + (dbFindEnd - dbFindStart) + "ms, Save " + (dbSaveEnd - dbSaveStart) + "ms ======");
+
         ExpenseResponse response = ExpenseMapper.toResponse(saved);
 
         String allocationName = budgetServiceClient.getAllocationName(
@@ -173,10 +192,12 @@ public class ExpenseServiceImpl implements ExpenseService {
     @Override
     public ExpenseResponse rejectExpense(String userId, UUID expenseId) {
 
+        long dbFindStart = System.currentTimeMillis();
         Expense expense = expenseRepository.findById(expenseId)
                 .orElseThrow(() ->
                         new ResourceNotFoundException("Expense not found with id: " + expenseId)
                 );
+        long dbFindEnd = System.currentTimeMillis();
 
         authorizationService.checkPermission(userId, expense.getCompanyId(), Action.UPDATE_EXPENSE);
 
@@ -186,26 +207,28 @@ public class ExpenseServiceImpl implements ExpenseService {
 
         expense.setStatus(ExpenseStatus.REJECTED);
 
-        return ExpenseMapper.toResponse(
-                expenseRepository.save(expense)
-        );
+        long dbSaveStart = System.currentTimeMillis();
+        Expense saved = expenseRepository.save(expense);
+        long dbSaveEnd = System.currentTimeMillis();
+        System.out.println("====== DB Execution Time [Reject Expense]: Find " + (dbFindEnd - dbFindStart) + "ms, Save " + (dbSaveEnd - dbSaveStart) + "ms ======");
+
+        return ExpenseMapper.toResponse(saved);
     }
 
     @Override
     public BudgetExpenseSummaryResponse getBudgetSummary(String userId, UUID budgetId) {
 
-        // Note: Ideally we'd look up the budget's companyId first, but we don't have a direct Budget client here.
-        // We will attempt to get expenses by budgetId.
+        long dbStart = System.currentTimeMillis();
         List<Expense> sampleExpenses = expenseRepository.findByBudgetId(budgetId);
         if (!sampleExpenses.isEmpty()) {
             authorizationService.checkPermission(userId, sampleExpenses.get(0).getCompanyId(), Action.VIEW_EXPENSE);
-        } else {
-            // Cannot reliably determine companyId from empty expenses. If budget is completely empty of expenses, returning 0 summary is safe.
         }
 
         BigDecimal approved = expenseRepository.sumApprovedByBudgetId(budgetId);
         BigDecimal pending = expenseRepository.sumPendingByBudgetId(budgetId);
         BigDecimal rejected = expenseRepository.sumRejectedByBudgetId(budgetId);
+        long dbEnd = System.currentTimeMillis();
+        System.out.println("====== DB Execution Time [Get Budget Summary]: " + (dbEnd - dbStart) + "ms ======");
 
         return new BudgetExpenseSummaryResponse(
                 budgetId,

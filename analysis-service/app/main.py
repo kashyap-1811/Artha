@@ -8,6 +8,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from app.core.config import MONGO_DETAILS, EUREKA_SERVER
 import asyncio
 import certifi
+from dotenv import load_dotenv
 from app.services.kafka_consumer import consume_expense_events
 
 class Database:

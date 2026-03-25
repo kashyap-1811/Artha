@@ -23,7 +23,13 @@ public class ExpenseController {
             @RequestHeader("X-User-Id") String userId,
             @RequestBody CreateExpenseRequest request
     ) {
-        return expenseService.createExpense(userId, request);
+        long serviceStart = System.currentTimeMillis();
+        try {
+            return expenseService.createExpense(userId, request);
+        } finally {
+            long serviceEnd = System.currentTimeMillis();
+            System.out.println("====== Service Execution Time [Add Expense]: " + (serviceEnd - serviceStart) + "ms ======");
+        }
     }
 
     // ===================== GET BY ID =====================
@@ -31,7 +37,13 @@ public class ExpenseController {
     public ExpenseResponse getExpense(
             @RequestHeader("X-User-Id") String userId,
             @PathVariable UUID id) {
-        return expenseService.getExpense(userId, id);
+        long serviceStart = System.currentTimeMillis();
+        try {
+            return expenseService.getExpense(userId, id);
+        } finally {
+            long serviceEnd = System.currentTimeMillis();
+            System.out.println("====== Service Execution Time [Get Expense By ID]: " + (serviceEnd - serviceStart) + "ms ======");
+        }
     }
 
     // ===================== GET BY COMPANY =====================
@@ -40,7 +52,13 @@ public class ExpenseController {
             @RequestHeader("X-User-Id") String userId,
             @RequestParam String companyId
     ) {
-        return expenseService.getCompanyExpenses(userId, companyId);
+        long serviceStart = System.currentTimeMillis();
+        try {
+            return expenseService.getCompanyExpenses(userId, companyId);
+        } finally {
+            long serviceEnd = System.currentTimeMillis();
+            System.out.println("====== Service Execution Time [Get Company Expenses]: " + (serviceEnd - serviceStart) + "ms ======");
+        }
     }
 
     // ===================== GET BY BUDGET =====================
@@ -49,7 +67,13 @@ public class ExpenseController {
             @RequestHeader("X-User-Id") String userId,
             @PathVariable UUID budgetId
     ) {
-        return expenseService.getExpensesByBudgetId(userId, budgetId);
+        long serviceStart = System.currentTimeMillis();
+        try {
+            return expenseService.getExpensesByBudgetId(userId, budgetId);
+        } finally {
+            long serviceEnd = System.currentTimeMillis();
+            System.out.println("====== Service Execution Time [Get Expenses By Budget]: " + (serviceEnd - serviceStart) + "ms ======");
+        }
     }
 
     // ===================== GET BY ALLOCATION =====================
@@ -58,7 +82,13 @@ public class ExpenseController {
             @RequestHeader("X-User-Id") String userId,
             @PathVariable UUID allocationId
     ) {
-        return expenseService.getExpensesByAllocationId(userId, allocationId);
+        long serviceStart = System.currentTimeMillis();
+        try {
+            return expenseService.getExpensesByAllocationId(userId, allocationId);
+        } finally {
+            long serviceEnd = System.currentTimeMillis();
+            System.out.println("====== Service Execution Time [Get Expenses By Allocation]: " + (serviceEnd - serviceStart) + "ms ======");
+        }
     }
 
     // ===================== APPROVE =====================
@@ -66,7 +96,13 @@ public class ExpenseController {
     public ExpenseResponse approveExpense(
             @RequestHeader("X-User-Id") String userId,
             @PathVariable UUID id) {
-        return expenseService.approveExpense(userId, id);
+        long serviceStart = System.currentTimeMillis();
+        try {
+            return expenseService.approveExpense(userId, id);
+        } finally {
+            long serviceEnd = System.currentTimeMillis();
+            System.out.println("====== Service Execution Time [Approve Expense]: " + (serviceEnd - serviceStart) + "ms ======");
+        }
     }
 
     // ===================== REJECT =====================
@@ -74,7 +110,13 @@ public class ExpenseController {
     public ExpenseResponse rejectExpense(
             @RequestHeader("X-User-Id") String userId,
             @PathVariable UUID id) {
-        return expenseService.rejectExpense(userId, id);
+        long serviceStart = System.currentTimeMillis();
+        try {
+            return expenseService.rejectExpense(userId, id);
+        } finally {
+            long serviceEnd = System.currentTimeMillis();
+            System.out.println("====== Service Execution Time [Reject Expense]: " + (serviceEnd - serviceStart) + "ms ======");
+        }
     }
 
     @GetMapping("/budget/{budgetId}/summary")
@@ -82,7 +124,13 @@ public class ExpenseController {
             @RequestHeader("X-User-Id") String userId,
             @PathVariable UUID budgetId
     ) {
-        return expenseService.getBudgetSummary(userId, budgetId);
+        long serviceStart = System.currentTimeMillis();
+        try {
+            return expenseService.getBudgetSummary(userId, budgetId);
+        } finally {
+            long serviceEnd = System.currentTimeMillis();
+            System.out.println("====== Service Execution Time [Get Budget Summary]: " + (serviceEnd - serviceStart) + "ms ======");
+        }
     }
 
     // ===================== CHART =====================

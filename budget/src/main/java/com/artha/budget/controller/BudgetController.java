@@ -37,16 +37,22 @@ public class BudgetController {
             @RequestHeader("X-User-Id") String userId,
             @RequestBody CreateBudgetRequestDTO request
     ) {
-        Budget budget = budgetService.createBudget(
-                userId,
-                request.getCompanyId(),
-                request.getName(),
-                request.getTotalAmount(),
-                request.getStartDate(),
-                request.getEndDate()
-        );
+        long serviceStart = System.currentTimeMillis();
+        try {
+            Budget budget = budgetService.createBudget(
+                    userId,
+                    request.getCompanyId(),
+                    request.getName(),
+                    request.getTotalAmount(),
+                    request.getStartDate(),
+                    request.getEndDate()
+            );
 
-        return BudgetMapper.toBudgetResponse(budget);
+            return BudgetMapper.toBudgetResponse(budget);
+        } finally {
+            long serviceEnd = System.currentTimeMillis();
+            System.out.println("====== Service Execution Time [Create Budget]: " + (serviceEnd - serviceStart) + "ms ======");
+        }
     }
 
     /**
@@ -58,10 +64,16 @@ public class BudgetController {
             @RequestHeader("X-User-Id") String userId,
             @RequestParam String companyId
     ) {
-        List<Budget> activeBudgets = budgetService.getActiveBudget(userId, companyId);
-        return activeBudgets.stream()
-                .map(BudgetMapper::toBudgetResponse)
-                .collect(Collectors.toList());
+        long serviceStart = System.currentTimeMillis();
+        try {
+            List<Budget> activeBudgets = budgetService.getActiveBudget(userId, companyId);
+            return activeBudgets.stream()
+                    .map(BudgetMapper::toBudgetResponse)
+                    .collect(Collectors.toList());
+        } finally {
+            long serviceEnd = System.currentTimeMillis();
+            System.out.println("====== Service Execution Time [Get Active Budget]: " + (serviceEnd - serviceStart) + "ms ======");
+        }
     }
 
     /**
@@ -73,10 +85,16 @@ public class BudgetController {
             @RequestHeader("X-User-Id") String userId,
             @RequestParam String companyId
     ) {
-        return budgetService.getAllBudgets(userId, companyId)
-                .stream()
-                .map(BudgetMapper::toBudgetResponse)
-                .collect(Collectors.toList());
+        long serviceStart = System.currentTimeMillis();
+        try {
+            return budgetService.getAllBudgets(userId, companyId)
+                    .stream()
+                    .map(BudgetMapper::toBudgetResponse)
+                    .collect(Collectors.toList());
+        } finally {
+            long serviceEnd = System.currentTimeMillis();
+            System.out.println("====== Service Execution Time [Get All Budgets]: " + (serviceEnd - serviceStart) + "ms ======");
+        }
     }
 
     /**
@@ -89,7 +107,13 @@ public class BudgetController {
             @RequestHeader("X-User-Id") String userId,
             @PathVariable UUID budgetId
     ) {
-        budgetService.closeBudget(userId, budgetId);
+        long serviceStart = System.currentTimeMillis();
+        try {
+            budgetService.closeBudget(userId, budgetId);
+        } finally {
+            long serviceEnd = System.currentTimeMillis();
+            System.out.println("====== Service Execution Time [Close Budget]: " + (serviceEnd - serviceStart) + "ms ======");
+        }
     }
 
     /* ===================== Allocations ===================== */
@@ -105,16 +129,22 @@ public class BudgetController {
             @PathVariable UUID budgetId,
             @RequestBody AddAllocationRequestDTO request
     ) {
-        BudgetCategoryAllocation allocation =
-                budgetService.addCategoryAllocation(
-                        userId,
-                        budgetId,
-                        request.getCategoryName(),
-                        request.getAllocatedAmount(),
-                        request.getAlertThreshold()
-                );
+        long serviceStart = System.currentTimeMillis();
+        try {
+            BudgetCategoryAllocation allocation =
+                    budgetService.addCategoryAllocation(
+                            userId,
+                            budgetId,
+                            request.getCategoryName(),
+                            request.getAllocatedAmount(),
+                            request.getAlertThreshold()
+                    );
 
-        return BudgetMapper.toAllocationResponse(allocation);
+            return BudgetMapper.toAllocationResponse(allocation);
+        } finally {
+            long serviceEnd = System.currentTimeMillis();
+            System.out.println("====== Service Execution Time [Add Allocation]: " + (serviceEnd - serviceStart) + "ms ======");
+        }
     }
 
     /**
@@ -128,7 +158,13 @@ public class BudgetController {
             @PathVariable UUID budgetId,
             @PathVariable UUID allocationId
     ) {
-        budgetService.removeCategoryAllocation(userId, budgetId, allocationId);
+        long serviceStart = System.currentTimeMillis();
+        try {
+            budgetService.removeCategoryAllocation(userId, budgetId, allocationId);
+        } finally {
+            long serviceEnd = System.currentTimeMillis();
+            System.out.println("====== Service Execution Time [Remove Allocation]: " + (serviceEnd - serviceStart) + "ms ======");
+        }
     }
 
     /**
@@ -141,11 +177,16 @@ public class BudgetController {
             @PathVariable UUID budgetId,
             @PathVariable UUID allocationId,
             @RequestBody UpdateAllocationRequestDTO request) {
+        long serviceStart = System.currentTimeMillis();
+        try {
+            BudgetCategoryAllocation allocation =
+                    budgetService.updateAllocation(userId, budgetId, allocationId, request);
 
-        BudgetCategoryAllocation allocation =
-                budgetService.updateAllocation(userId, budgetId, allocationId, request);
-
-        return BudgetMapper.toAllocationResponse(allocation);
+            return BudgetMapper.toAllocationResponse(allocation);
+        } finally {
+            long serviceEnd = System.currentTimeMillis();
+            System.out.println("====== Service Execution Time [Update Allocation]: " + (serviceEnd - serviceStart) + "ms ======");
+        }
     }
 
     /**
@@ -157,9 +198,14 @@ public class BudgetController {
             @RequestHeader("X-User-Id") String userId,
             @PathVariable UUID budgetId,
             @RequestBody UpdateBudgetRequestDTO request) {
-
-        Budget budget = budgetService.updateBudget(userId, budgetId, request);
-        return BudgetMapper.toBudgetResponse(budget);
+        long serviceStart = System.currentTimeMillis();
+        try {
+            Budget budget = budgetService.updateBudget(userId, budgetId, request);
+            return BudgetMapper.toBudgetResponse(budget);
+        } finally {
+            long serviceEnd = System.currentTimeMillis();
+            System.out.println("====== Service Execution Time [Update Budget]: " + (serviceEnd - serviceStart) + "ms ======");
+        }
     }
 
     /**
@@ -171,7 +217,13 @@ public class BudgetController {
     public void removeBudget(
             @RequestHeader("X-User-Id") String userId,
             @PathVariable UUID budgetId) {
-        budgetService.removeBudget(userId, budgetId);
+        long serviceStart = System.currentTimeMillis();
+        try {
+            budgetService.removeBudget(userId, budgetId);
+        } finally {
+            long serviceEnd = System.currentTimeMillis();
+            System.out.println("====== Service Execution Time [Remove Budget]: " + (serviceEnd - serviceStart) + "ms ======");
+        }
     }
 
     @GetMapping("/{budgetId}/details")
@@ -179,6 +231,12 @@ public class BudgetController {
             @RequestHeader("X-User-Id") String userId,
             @PathVariable UUID budgetId
     ) {
-        return budgetService.getAllDetailOfBudget(userId, budgetId);
+        long serviceStart = System.currentTimeMillis();
+        try {
+            return budgetService.getAllDetailOfBudget(userId, budgetId);
+        } finally {
+            long serviceEnd = System.currentTimeMillis();
+            System.out.println("====== Service Execution Time [Get All Detail Of Budget]: " + (serviceEnd - serviceStart) + "ms ======");
+        }
     }
 }

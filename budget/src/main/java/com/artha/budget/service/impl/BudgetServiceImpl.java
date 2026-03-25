@@ -62,6 +62,7 @@ public class BudgetServiceImpl implements BudgetService {
             throw new IllegalArgumentException("Total amount must be greater than zero");
         }
 
+        long dbStart = System.currentTimeMillis();
         // Overlap check
         boolean overlapping = budgetRepository
                 .existsByCompanyIdAndStatusAndStartDateLessThanEqualAndEndDateGreaterThanEqual(
@@ -86,6 +87,8 @@ public class BudgetServiceImpl implements BudgetService {
                 .build();
 
         Budget saved = budgetRepository.save(budget);
+        long dbEnd = System.currentTimeMillis();
+        System.out.println("====== DB Execution Time [Create Budget]: " + (dbEnd - dbStart) + "ms ======");
 
         audit(userId, saved.getId(), BudgetAction.CREATE);
         return saved;
@@ -95,31 +98,43 @@ public class BudgetServiceImpl implements BudgetService {
     public List<Budget> getActiveBudget(String userId, String companyId) {
         authorizationService.checkPermission(userId, companyId, Action.VIEW_BUDGET);
 
-        return budgetRepository
-                .findAllByCompanyIdAndStatus(companyId, BudgetStatus.ACTIVE)
-                .stream()
-                .toList();
+        long dbStart = System.currentTimeMillis();
+        List<Budget> budgets = budgetRepository.findAllByCompanyIdAndStatus(companyId, BudgetStatus.ACTIVE);
+        long dbEnd = System.currentTimeMillis();
+        System.out.println("====== DB Execution Time [Get Active Budget]: " + (dbEnd - dbStart) + "ms ======");
+
+        return budgets.stream().toList();
     }
 
     @Override
     public List<Budget> getAllBudgets(String userId, String companyId) {
         authorizationService.checkPermission(userId, companyId, Action.VIEW_BUDGET);
-        return budgetRepository.findAllByCompanyIdOrderByStartDateDesc(companyId);
+
+        long dbStart = System.currentTimeMillis();
+        List<Budget> budgets = budgetRepository.findAllByCompanyIdOrderByStartDateDesc(companyId);
+        long dbEnd = System.currentTimeMillis();
+        System.out.println("====== DB Execution Time [Get All Budgets]: " + (dbEnd - dbStart) + "ms ======");
+
+        return budgets;
     }
 
     @Override
     public void closeBudget(String userId, UUID budgetId) {
+        long dbStart = System.currentTimeMillis();
         Budget budget = budgetRepository.findById(budgetId)
                 .orElseThrow(() -> new ResourceNotFoundException("Budget not found"));
 
         authorizationService.checkPermission(userId, budget.getCompanyId(), Action.UPDATE_BUDGET);
 
         if (budget.getStatus() == BudgetStatus.CLOSED) {
+            System.out.println("====== DB Execution Time [Close Budget]: " + (System.currentTimeMillis() - dbStart) + "ms ======");
             return;
         }
 
         budget.setStatus(BudgetStatus.CLOSED);
         budgetRepository.save(budget);
+        long dbEnd = System.currentTimeMillis();
+        System.out.println("====== DB Execution Time [Close Budget]: " + (dbEnd - dbStart) + "ms ======");
 
         audit(userId, budgetId, BudgetAction.CLOSE);
     }
@@ -134,6 +149,7 @@ public class BudgetServiceImpl implements BudgetService {
             BigDecimal allocatedAmount,
             Integer alertThreshold
     ) {
+        long dbStart = System.currentTimeMillis();
         Budget budget = budgetRepository.findById(budgetId)
                 .orElseThrow(() -> new ResourceNotFoundException("Budget not found"));
 
@@ -152,6 +168,8 @@ public class BudgetServiceImpl implements BudgetService {
         }
 
         BigDecimal currentAllocated = allocationRepository.sumAllocatedAmountByBudgetId(budgetId);
+        if (currentAllocated == null) currentAllocated = BigDecimal.ZERO;
+        
         BigDecimal newTotal = currentAllocated.add(allocatedAmount);
 
         if (newTotal.compareTo(budget.getTotalAmount()) > 0) {
@@ -167,6 +185,8 @@ public class BudgetServiceImpl implements BudgetService {
         // Set the parent reference natively instead of cascading the whole budget
         allocation.setBudget(budget);
         BudgetCategoryAllocation savedAllocation = allocationRepository.save(allocation);
+        long dbEnd = System.currentTimeMillis();
+        System.out.println("====== DB Execution Time [Add Category Allocation]: " + (dbEnd - dbStart) + "ms ======");
 
         audit(userId, budgetId, BudgetAction.ADD_ALLOCATION);
         return savedAllocation;
@@ -174,6 +194,7 @@ public class BudgetServiceImpl implements BudgetService {
 
     @Override
     public void removeCategoryAllocation(String userId, UUID budgetId, UUID allocationId) {
+        long dbStart = System.currentTimeMillis();
         Budget budget = budgetRepository.findById(budgetId)
                 .orElseThrow(() -> new ResourceNotFoundException("Budget not found"));
 
@@ -188,6 +209,8 @@ public class BudgetServiceImpl implements BudgetService {
 
         budget.removeAllocation(allocation);
         budgetRepository.save(budget);
+        long dbEnd = System.currentTimeMillis();
+        System.out.println("====== DB Execution Time [Remove Category Allocation]: " + (dbEnd - dbStart) + "ms ======");
 
         audit(userId, budgetId, BudgetAction.REMOVE_ALLOCATION);
     }
@@ -199,6 +222,7 @@ public class BudgetServiceImpl implements BudgetService {
             UUID allocationId,
             UpdateAllocationRequestDTO request) {
 
+        long dbStart = System.currentTimeMillis();
         BudgetCategoryAllocation allocation =
                 allocationRepository.findById(allocationId)
                         .orElseThrow(() -> new ResourceNotFoundException("Allocation not found"));
@@ -215,6 +239,7 @@ public class BudgetServiceImpl implements BudgetService {
 
         BigDecimal totalOtherAllocations =
                 allocationRepository.sumAllocatedAmountByBudgetExcludingId(budgetId, allocationId);
+        if (totalOtherAllocations == null) totalOtherAllocations = BigDecimal.ZERO;
 
         if (totalOtherAllocations.add(request.getAllocatedAmount())
                 .compareTo(allocation.getBudget().getTotalAmount()) > 0) {
@@ -226,6 +251,8 @@ public class BudgetServiceImpl implements BudgetService {
         allocation.setAlertThreshold(request.getAlertThreshold());
 
         BudgetCategoryAllocation saved = allocationRepository.save(allocation);
+        long dbEnd = System.currentTimeMillis();
+        System.out.println("====== DB Execution Time [Update Allocation]: " + (dbEnd - dbStart) + "ms ======");
 
         audit(userId, budgetId, BudgetAction.UPDATE_ALLOCATION);
         return saved;
@@ -233,6 +260,7 @@ public class BudgetServiceImpl implements BudgetService {
 
     @Override
     public Budget updateBudget(String userId, UUID budgetId, UpdateBudgetRequestDTO request) {
+        long dbStart = System.currentTimeMillis();
         Budget budget = budgetRepository.findById(budgetId)
                 .orElseThrow(() -> new ResourceNotFoundException("Budget not found"));
 
@@ -240,6 +268,7 @@ public class BudgetServiceImpl implements BudgetService {
 
         BigDecimal totalAllocated =
                 allocationRepository.sumAllocatedAmountByBudgetId(budgetId);
+        if (totalAllocated == null) totalAllocated = BigDecimal.ZERO;
 
         if (request.getTotalAmount().compareTo(totalAllocated) < 0) {
             throw new RuntimeException("Total budget cannot be less than allocated amount");
@@ -250,6 +279,8 @@ public class BudgetServiceImpl implements BudgetService {
         budget.setEndDate(request.getEndDate());
 
         Budget saved = budgetRepository.save(budget);
+        long dbEnd = System.currentTimeMillis();
+        System.out.println("====== DB Execution Time [Update Budget]: " + (dbEnd - dbStart) + "ms ======");
 
         audit(userId, budgetId, BudgetAction.UPDATE);
         return saved;
@@ -257,6 +288,7 @@ public class BudgetServiceImpl implements BudgetService {
 
     @Override
     public void removeBudget(String userId, UUID budgetId) {
+        long dbStart = System.currentTimeMillis();
         Budget budget = budgetRepository.findById(budgetId)
                 .orElseThrow(() -> new ResourceNotFoundException("Budget not found"));
 
@@ -268,14 +300,19 @@ public class BudgetServiceImpl implements BudgetService {
 
         budget.setStatus(BudgetStatus.CLOSED);
         budgetRepository.save(budget);
+        long dbEnd = System.currentTimeMillis();
+        System.out.println("====== DB Execution Time [Remove Budget]: " + (dbEnd - dbStart) + "ms ======");
 
         audit(userId, budgetId, BudgetAction.DELETE);
     }
 
     @Override
     public BudgetResponseDTO getAllDetailOfBudget(String userId, UUID budgetId) {
+        long dbStart = System.currentTimeMillis();
         Budget budget = budgetRepository.findById(budgetId)
                 .orElseThrow(() -> new ResourceNotFoundException("Budget not found"));
+        long dbEnd = System.currentTimeMillis();
+        System.out.println("====== DB Execution Time [Get All Detail Of Budget]: " + (dbEnd - dbStart) + "ms ======");
 
         authorizationService.checkPermission(userId, budget.getCompanyId(), Action.VIEW_BUDGET);
 

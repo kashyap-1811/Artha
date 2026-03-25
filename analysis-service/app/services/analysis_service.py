@@ -2,8 +2,11 @@ from fastapi import HTTPException
 from app.core.config import API_GATEWAY_URL
 from motor.motor_asyncio import AsyncIOMotorClient
 import requests
+import time
 
 async def fetch_company_health_data(company_id: str, headers: dict, db_client: AsyncIOMotorClient) -> dict:
+    
+    ext_start = time.time()
     # Use internal gateway route
     budgets_resp = requests.get(
         f"{API_GATEWAY_URL}/internal/budget/api/budgets/all",
@@ -12,6 +15,7 @@ async def fetch_company_health_data(company_id: str, headers: dict, db_client: A
         timeout=5
     )
     budgets = budgets_resp.json() if budgets_resp.json() and budgets_resp.status_code == 200 else []
+    ext_end = time.time()
     
     total_budget = 0.0
     category_map = {}
@@ -26,6 +30,7 @@ async def fetch_company_health_data(company_id: str, headers: dict, db_client: A
             category_map[cat_name]["allocated"] += allocated
 
     # Next, get the cached expenses from MongoDB Atlas
+    db_start = time.time()
     db = db_client.get_database("artha_analysis")
     collection = db.get_collection("budget_expenses")
     
@@ -41,6 +46,8 @@ async def fetch_company_health_data(company_id: str, headers: dict, db_client: A
             if cat_name not in category_map:
                 category_map[cat_name] = {"name": cat_name, "allocated": 0.0, "spent": 0.0}
             category_map[cat_name]["spent"] += amount
+    db_end = time.time()
+    print(f"====== DB Execution Time [Fetch Company Health Data]: API Call {int((ext_end - ext_start) * 1000)}ms, MongoDB fetch {int((db_end - db_start) * 1000)}ms ======")
 
     health_score = "On Track"
     if total_budget > 0:
@@ -60,6 +67,7 @@ async def fetch_company_health_data(company_id: str, headers: dict, db_client: A
     }
 
 async def fetch_budget_analysis_data(budget_id: str, headers: dict, db_client: AsyncIOMotorClient) -> dict:
+    ext_start = time.time()
     # Use internal gateway route
     budget_resp = requests.get(
         f"{API_GATEWAY_URL}/internal/budget/api/budgets/{budget_id}/details",
@@ -70,6 +78,7 @@ async def fetch_budget_analysis_data(budget_id: str, headers: dict, db_client: A
         print(f"FAILED TO FETCH BUDGET FROM GATEWAY: {budget_resp.status_code} {budget_resp.text}")
         raise HTTPException(status_code=404, detail="Budget not found")
     budget = budget_resp.json()
+    ext_end = time.time()
 
     total_amount = float(budget.get("totalAmount", 0))
     allocations = budget.get("allocations", [])
@@ -85,9 +94,12 @@ async def fetch_budget_analysis_data(budget_id: str, headers: dict, db_client: A
         }
 
     # Get cached expenses from Mongo Atlas
+    db_start = time.time()
     db = db_client.get_database("artha_analysis")
     collection = db.get_collection("budget_expenses")
     doc = await collection.find_one({"budget_id": budget_id})
+    db_end = time.time()
+    print(f"====== DB Execution Time [Fetch Budget Analysis Data]: API Call {int((ext_end - ext_start) * 1000)}ms, MongoDB fetch {int((db_end - db_start) * 1000)}ms ======")
     
     total_expense = doc.get("total_approved_amount", 0.0) if doc else 0.0
     expense_history = doc.get("expense_history", []) if doc else []
@@ -124,6 +136,7 @@ async def fetch_budget_analysis_data(budget_id: str, headers: dict, db_client: A
     }
 
 async def fetch_active_budget_analysis_data(company_id: str, headers: dict, db_client: AsyncIOMotorClient) -> dict:
+    ext_start = time.time()
     # Use internal gateway route
     budgets_resp = requests.get(
         f"{API_GATEWAY_URL}/internal/budget/api/budgets/active",
@@ -132,6 +145,7 @@ async def fetch_active_budget_analysis_data(company_id: str, headers: dict, db_c
         timeout=5
     )
     budgets = budgets_resp.json() if budgets_resp.status_code == 200 else []
+    ext_end = time.time()
 
     if not budgets:
         return {
@@ -144,8 +158,16 @@ async def fetch_active_budget_analysis_data(company_id: str, headers: dict, db_c
             "health_score": "No Active Budget"
         }
 
+    db_start = time.time()
     db = db_client.get_database("artha_analysis")
     collection = db.get_collection("budget_expenses")
+
+    # Bulk fetch all expenses for active budgets in a single request to avoid N+1 queries
+    budget_ids = [b.get("id") for b in budgets if b.get("id")]
+    cursor = collection.find({"budget_id": {"$in": budget_ids}})
+    docs_by_budget = {}
+    async for doc in cursor:
+        docs_by_budget[doc["budget_id"]] = doc
 
     budget_analyses = []
     overall_budget = 0.0
@@ -157,7 +179,7 @@ async def fetch_active_budget_analysis_data(company_id: str, headers: dict, db_c
         total_amount = float(budget.get("totalAmount", 0))
         overall_budget += total_amount
 
-        doc = await collection.find_one({"budget_id": budget_id})
+        doc = docs_by_budget.get(budget_id)
         budget_expense = doc.get("total_approved_amount", 0.0) if doc else 0.0
         overall_expense += budget_expense
 
@@ -206,6 +228,8 @@ async def fetch_active_budget_analysis_data(company_id: str, headers: dict, db_c
             "health_score": health,
             "category_breakdown": list(category_map.values())
         })
+    db_end = time.time()
+    print(f"====== DB Execution Time [Fetch Active Budget Analysis Data]: API Call {int((ext_end - ext_start) * 1000)}ms, MongoDB fetches {int((db_end - db_start) * 1000)}ms ======")
 
     overall_health = "On Track"
     if overall_budget > 0:
@@ -228,6 +252,7 @@ async def fetch_active_budget_analysis_data(company_id: str, headers: dict, db_c
 async def fetch_category_breakdown(company_id: str, db_client: AsyncIOMotorClient) -> dict:
     import pandas as pd
 
+    db_start = time.time()
     db = db_client.get_database("artha_analysis")
     collection = db.get_collection("budget_expenses")
 
@@ -241,6 +266,8 @@ async def fetch_category_breakdown(company_id: str, db_client: AsyncIOMotorClien
             amount = float(exp.get("amount", 0.0))
             if amount > 0:
                 all_expenses.append({"category": category, "amount": amount})
+    db_end = time.time()
+    print(f"====== DB Execution Time [Fetch Category Breakdown]: MongoDB fetch {int((db_end - db_start) * 1000)}ms ======")
 
     if not all_expenses:
         return {
@@ -286,6 +313,7 @@ async def fetch_spending_trend(company_id: str, db_client: AsyncIOMotorClient) -
     import pandas as pd
     from datetime import datetime
 
+    db_start = time.time()
     db = db_client.get_database("artha_analysis")
     collection = db.get_collection("budget_expenses")
 
@@ -304,6 +332,8 @@ async def fetch_spending_trend(company_id: str, db_client: AsyncIOMotorClient) -
                 else:
                     date_str = str(date_raw)
                 all_expenses.append({"date": date_str, "amount": amount})
+    db_end = time.time()
+    print(f"====== DB Execution Time [Fetch Spending Trend]: MongoDB fetch {int((db_end - db_start) * 1000)}ms ======")
 
     if not all_expenses:
         return {
@@ -377,6 +407,7 @@ async def fetch_spending_trend(company_id: str, db_client: AsyncIOMotorClient) -
 async def fetch_top_spenders(budget_id: str, db_client: AsyncIOMotorClient) -> dict:
     import pandas as pd
 
+    db_start = time.time()
     db = db_client.get_database("artha_analysis")
     collection = db.get_collection("budget_expenses")
 
@@ -384,6 +415,8 @@ async def fetch_top_spenders(budget_id: str, db_client: AsyncIOMotorClient) -> d
     
     # Fetch expense history strictly for this exact budget_id
     doc = await collection.find_one({"budget_id": budget_id})
+    db_end = time.time()
+    print(f"====== DB Execution Time [Fetch Top Spenders]: MongoDB fetch {int((db_end - db_start) * 1000)}ms ======")
     
     if doc:
         expense_history = doc.get("expense_history", [])
@@ -428,5 +461,3 @@ async def fetch_top_spenders(budget_id: str, db_client: AsyncIOMotorClient) -> d
         "total_budget_spent": total_spent,
         "top_spenders": top_spenders
     }
-
-

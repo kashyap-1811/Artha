@@ -136,3 +136,17 @@ export async function getBudgetSummary(budgetId) {
 
     return response.json();
 }
+
+export async function getExpenseChart(companyId, days = 30) {
+    const query = new URLSearchParams({ companyId, days });
+    const response = await fetch(`${API_BASE_URL}${EXPENSES_BASE_PATH}/chart?${query.toString()}`, {
+        method: "GET",
+        headers: getAuthHeaders()
+    });
+
+    if (!response.ok) {
+        throw new Error(await parseErrorMessage(response));
+    }
+
+    return response.json();
+}

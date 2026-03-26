@@ -14,9 +14,9 @@ function Layout({ children }) {
     }, [navigate]);
 
     return (
-        <div className="app-layout">
-            <div className="layout-content">{children}</div>
-        </div>
+        <>
+            {children}
+        </>
     );
 }
 

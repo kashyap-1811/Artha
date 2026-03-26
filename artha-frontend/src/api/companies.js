@@ -111,3 +111,16 @@ export async function changeMemberRole(companyId, userId, role) {
 
   return response.json();
 }
+
+export async function getMyPersonalCompany() {
+  const response = await fetch(`${API_BASE_URL}${COMPANIES_BASE_PATH}/my/personal`, {
+    method: "GET",
+    headers: getAuthHeaders()
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseErrorMessage(response));
+  }
+
+  return response.json();
+}

@@ -1,5 +1,7 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import tailwindcss from "tailwindcss";
+import autoprefixer from "autoprefixer";
 
 // In Docker: injected via docker-compose environment.
 // Locally:   falls back to localhost (where api-gateway runs in dev).
@@ -20,6 +22,11 @@ export default defineConfig({
       "/expense": { target: proxyTarget, changeOrigin: true, secure: false },
       "/analysis": { target: proxyTarget, changeOrigin: true, secure: false },
       "/notification": { target: proxyTarget, changeOrigin: true, secure: false },
+    },
+  },
+  css: {
+    postcss: {
+      plugins: [tailwindcss(), autoprefixer()],
     },
   },
 });

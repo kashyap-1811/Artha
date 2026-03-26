@@ -23,20 +23,10 @@ html,
 body,
 #root {
   min-height: 100%;
+  margin: 0;
+  padding: 0;
 }
 
-/* --- App Layout --- */
-.app-layout {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-}
-
-.layout-content {
-  flex: 1;
-  padding-top: 64px;
-  /* Space for sticky navbar */
-}
 
 /* --- Navbar --- */
 .app-navbar {
@@ -530,79 +520,138 @@ body {
 .create-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(255, 250, 245, 0.55);
-  backdrop-filter: blur(2px);
+  background: rgba(15, 23, 42, 0.35);
+  backdrop-filter: blur(6px);
   display: grid;
   place-items: center;
-  z-index: 1000;
+  z-index: 2000;
   padding: 1rem;
 }
 
 .create-modal {
   width: min(100%, 28rem);
-  border: 1px solid rgba(173, 101, 70, 0.2);
-  border-radius: 1.2rem;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(253, 248, 246, 0.99));
-  padding: 1rem;
-  box-shadow: 0 24px 54px rgba(100, 50, 30, 0.1);
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 1.5rem;
+  padding: 1.75rem;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.15);
 }
 
 .create-modal-head {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.75rem;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
 }
 
 .create-modal-head h3 {
   margin: 0;
-  font-size: 1.2rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #0f172a;
 }
 
 .create-modal-close {
-  border: 0;
-  width: 2rem;
-  height: 2rem;
-  border-radius: 999px;
-  background: rgba(220, 140, 110, 0.2);
-  color: var(--text-main);
-  font-weight: 700;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  color: #64748b;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
+  transition: all 0.2s;
+}
+
+.create-modal-close:hover {
+  background: #e2e8f0;
+  color: #0f172a;
 }
 
 .create-modal-form {
-  display: grid;
-  gap: 0.78rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.create-modal .field span.field-label {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.2rem;
+}
+
+.create-modal .field input,
+.create-modal .field select {
+  background: #f8fafc !important;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  padding: 0.85rem 1rem;
+  font-size: 0.95rem;
+  color: #0f172a !important;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.create-modal .field input:focus,
+.create-modal .field select:focus {
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
 }
 
 .create-modal-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 0.55rem;
-}
-
-.create-cancel-btn,
-.create-confirm-btn {
-  border: 0;
-  border-radius: 0.75rem;
-  padding: 0.65rem 0.85rem;
-  cursor: pointer;
-  font-weight: 700;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
 }
 
 .create-cancel-btn {
-  background: rgba(180, 120, 100, 0.1);
-  color: var(--text-main);
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  color: #64748b;
+  padding: 0.62rem 1.2rem;
+  border-radius: 0.75rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.create-cancel-btn:hover {
+  background: #e2e8f0;
+  color: #0f172a;
 }
 
 .create-confirm-btn {
-  background: #e68c65;
-  color: #ffffff;
+  background: linear-gradient(135deg, #3b82f6, #4f46e5);
+  border: none;
+  color: #fff;
+  padding: 0.62rem 1.4rem;
+  border-radius: 0.75rem;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 14px rgba(79, 70, 229, 0.25);
+  font-family: inherit;
+}
+
+.create-confirm-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(79, 70, 229, 0.35);
 }
 
 .create-confirm-btn:disabled {
-  opacity: 0.75;
+  opacity: 0.65;
   cursor: wait;
 }
 

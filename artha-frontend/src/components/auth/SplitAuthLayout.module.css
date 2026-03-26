@@ -4,13 +4,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #f8fafc; /* Light gray/white background matching the photo's overall bright feel */
-  background-image: 
-    radial-gradient(circle at 14% 12%, rgba(59, 130, 246, 0.04), transparent 34%),
-    radial-gradient(circle at 84% 82%, rgba(79, 70, 229, 0.04), transparent 28%),
-    radial-gradient(rgba(0, 0, 0, 0.02) 1.5px, transparent 1.5px);
-  background-size: 100% 100%, 100% 100%, 32px 32px;
-  background-position: 0 0, 0 0, 0 0;
+  background-color: rgba(248, 250, 252, 0.82); 
   padding: 1rem;
   font-family: "Plus Jakarta Sans", "Inter", sans-serif;
 }

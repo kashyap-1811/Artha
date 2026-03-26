@@ -132,4 +132,14 @@ public class ExpenseController {
             System.out.println("====== Service Execution Time [Get Budget Summary]: " + (serviceEnd - serviceStart) + "ms ======");
         }
     }
+
+    // ===================== CHART =====================
+    @GetMapping("/chart")
+    public List<com.artha.expense.dto.CategoryExpenseDTO> getExpenseChart(
+            @RequestHeader("X-User-Id") String userId,
+            @RequestParam String companyId,
+            @RequestParam(defaultValue = "30") int days
+    ) {
+        return expenseService.getExpenseChart(userId, companyId, days);
+    }
 }

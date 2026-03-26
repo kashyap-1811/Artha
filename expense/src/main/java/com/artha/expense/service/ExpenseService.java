@@ -6,6 +6,7 @@ import com.artha.expense.dto.ExpenseResponse;
 
 import java.util.List;
 import java.util.UUID;
+import com.artha.expense.dto.CategoryExpenseDTO;
 
 public interface ExpenseService {
 
@@ -24,4 +25,6 @@ public interface ExpenseService {
     ExpenseResponse rejectExpense(String userId, UUID expenseId);
 
     BudgetExpenseSummaryResponse getBudgetSummary(String userId, UUID budgetId);
+
+    List<CategoryExpenseDTO> getExpenseChart(String userId, String companyId, int days);
 }

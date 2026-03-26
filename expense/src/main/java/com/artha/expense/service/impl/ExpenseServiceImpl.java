@@ -3,6 +3,7 @@ package com.artha.expense.service.impl;
 import com.artha.expense.dto.BudgetExpenseSummaryResponse;
 import com.artha.expense.dto.CreateExpenseRequest;
 import com.artha.expense.exception.ResourceNotFoundException;
+import com.artha.expense.dto.CategoryExpenseDTO;
 import com.artha.expense.dto.ExpenseResponse;
 import com.artha.expense.entity.Action;
 import com.artha.expense.entity.Expense;
@@ -213,5 +214,39 @@ public class ExpenseServiceImpl implements ExpenseService {
                 pending,
                 rejected
         );
+    }
+
+    @Override
+    public List<CategoryExpenseDTO> getExpenseChart(String userId, String companyId, int days) {
+        authorizationService.checkPermission(userId, companyId, Action.VIEW_EXPENSE);
+
+        java.time.LocalDate endDate = java.time.LocalDate.now();
+        java.time.LocalDate startDate = endDate.minusDays(days - 1); // e.g., if days=30, minus 29 so total 30 days inclusive
+
+        List<Expense> expenses = expenseRepository.findByCompanyIdAndSpentDateBetweenAndStatus(
+                companyId, startDate, endDate, ExpenseStatus.APPROVED
+        );
+
+        java.util.Map<UUID, BigDecimal> grouped = expenses.stream()
+                .collect(Collectors.groupingBy(
+                        Expense::getAllocationId,
+                        Collectors.mapping(
+                                Expense::getAmount,
+                                Collectors.reducing(BigDecimal.ZERO, BigDecimal::add)
+                        )
+                ));
+
+        return grouped.entrySet().stream()
+                .map(e -> {
+                    String catName = "Unknown";
+                    try {
+                        UUID budgetId = expenses.stream()
+                                .filter(ex -> ex.getAllocationId().equals(e.getKey()))
+                                .findFirst().get().getBudgetId();
+                        catName = budgetServiceClient.getAllocationName(userId, budgetId, e.getKey());
+                    } catch (Exception ex) {}
+                    return new CategoryExpenseDTO(catName, e.getValue());
+                })
+                .collect(Collectors.toList());
     }
 }

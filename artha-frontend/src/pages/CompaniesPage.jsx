@@ -1,17 +1,28 @@
 import { useEffect, useMemo, useState } from "react";
-import { createPortal } from "react-dom";
-import { useNavigate, NavLink } from "react-router-dom";
+import { useNavigate, useLocation, NavLink } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
+import confetti from "canvas-confetti";
 import {
-  Building2, Plus, TrendingUp, Clock,
-  ArrowUpRight, X, LayoutDashboard,
-  Wallet, BarChart2, Settings, Menu,
+  Building2, TrendingUp, Bell, AlertTriangle,
+  Sparkles, X, LayoutDashboard,
+  Wallet, BarChart2, Settings, Menu, ChevronRight, ArrowUpRight,
+  Star, CreditCard, BookOpen
 } from "lucide-react";
-import { createCompany, getMyCompanies } from "../api/companies";
+import { getMyCompanies } from "../api/companies";
 import { getUserById } from "../api/users";
 import styles from "./DashboardPage.module.css";
 
-/* ── Wavy Stat Card ── */
+function getGreeting() {
+  const h = new Date().getHours();
+  if (h < 12) return "Good morning";
+  if (h < 17) return "Good afternoon";
+  return "Good evening";
+}
+
+function getDateString() {
+  return new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+}
+
 function StatCard({ icon: Icon, label, value, colorClass, badge }) {
   return (
     <motion.div
@@ -34,31 +45,6 @@ function StatCard({ icon: Icon, label, value, colorClass, badge }) {
   );
 }
 
-/* ── Company Tile ── */
-function CompanyTile({ company, onClick }) {
-  const initials = company.companyName.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2);
-  return (
-    <motion.button
-      className={styles.companyTile}
-      onClick={onClick}
-      type="button"
-      whileHover={{ x: 4 }}
-      transition={{ type: "spring", stiffness: 300, damping: 20 }}
-    >
-      <div className={styles.tileAvatar}>{initials}</div>
-      <div className={styles.tileInfo}>
-        <strong>{company.companyName}</strong>
-        <span>{company.companyType || "Organization"}</span>
-      </div>
-      <div className={`${styles.tileRole} ${company.role === "OWNER" ? styles.roleOwner : ""}`}>
-        {company.role}
-      </div>
-      <ArrowUpRight size={15} className={styles.tileArrow} />
-    </motion.button>
-  );
-}
-
-/* ── Sidebar Nav Link ── */
 function SideNavItem({ icon: Icon, label, to, onClick }) {
   return (
     <NavLink
@@ -72,20 +58,34 @@ function SideNavItem({ icon: Icon, label, to, onClick }) {
   );
 }
 
-export default function CompaniesPage() {
+export default function DashboardPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [companies, setCompanies] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isCreating, setIsCreating] = useState(false);
-  const [error, setError] = useState("");
-  const [showCreate, setShowCreate] = useState(false);
-  const [companyName, setCompanyName] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const user = useMemo(() => {
     try { return JSON.parse(localStorage.getItem("artha_user") || "{}"); }
     catch { return {}; }
   }, []);
+  const [userName, setUserName] = useState(user.fullName || "");
+
+  /* Confetti */
+  useEffect(() => {
+    if (!location.state?.justLoggedIn) return;
+    const duration = 3000, end = Date.now() + duration;
+    const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 9999 };
+    const rand = (a, b) => Math.random() * (b - a) + a;
+    const iv = setInterval(() => {
+      const left = end - Date.now();
+      if (left <= 0) return clearInterval(iv);
+      const count = 50 * (left / duration);
+      confetti({ ...defaults, particleCount: count, origin: { x: rand(0.1, 0.3), y: -0.2 } });
+      confetti({ ...defaults, particleCount: count, origin: { x: rand(0.7, 0.9), y: -0.2 } });
+    }, 250);
+    window.history.replaceState({}, document.title);
+  }, [location.state]);
 
   /* Auth + data */
   useEffect(() => {
@@ -101,47 +101,24 @@ export default function CompaniesPage() {
         ]);
         setCompanies(Array.isArray(companyData) ? companyData : []);
         if (profile?.fullName) {
+          setUserName(profile.fullName);
           try {
             const cur = JSON.parse(localStorage.getItem("artha_user") || "{}");
             localStorage.setItem("artha_user", JSON.stringify({ ...cur, fullName: profile.fullName }));
           } catch { /* ignore */ }
         }
-      } catch (e) { setError(e.message || "Failed to load."); }
+      } catch { /* silent */ }
       finally { setIsLoading(false); }
     }
     load();
   }, [navigate, user.fullName]);
 
-  /* Escape modal */
-  useEffect(() => {
-    if (!showCreate) return;
-    const onKey = (e) => { if (e.key === "Escape") setShowCreate(false); };
-    document.body.style.overflow = "hidden";
-    window.addEventListener("keydown", onKey);
-    return () => { document.body.style.overflow = ""; window.removeEventListener("keydown", onKey); };
-  }, [showCreate]);
-
-  async function handleCreate(e) {
-    e.preventDefault();
-    const name = companyName.trim();
-    if (!name) { setError("Please enter a name."); return; }
-    setIsCreating(true); setError("");
-    try {
-      const created = await createCompany(name);
-      setCompanies((prev) => [
-        { companyId: created.id, companyName: created.name, companyType: created.type, role: "OWNER" },
-        ...prev,
-      ]);
-      setCompanyName(""); setShowCreate(false);
-    } catch (e) { setError(e.message || "Failed."); }
-    finally { setIsCreating(false); }
-  }
-
   const sideNavLinks = [
     { icon: LayoutDashboard, label: "Dashboard", to: "/dashboard" },
     { icon: Building2,       label: "Companies",  to: "/companies" },
-    { icon: Wallet,          label: "Budget",     to: "/companies" },
-    { icon: BarChart2,       label: "Expenses",   to: "/companies" },
+      { icon: Star, label: "Features", to: "/" },
+    { icon: CreditCard, label: "Pricing", to: "/pricing" },
+    { icon: BookOpen, label: "Blog", to: "/blog" },
   ];
 
   const ownedCount  = companies.filter((c) => c.role === "OWNER").length;
@@ -158,7 +135,6 @@ export default function CompaniesPage() {
               onClick={() => setSidebarOpen(false)} />
           )}
         </AnimatePresence>
-
         <aside className={`${styles.sidebar} ${sidebarOpen ? styles.sidebarOpen : ""}`}>
           <div className={styles.sidebarBrand}>
             <div className={styles.brandCircle}>A</div>
@@ -180,39 +156,42 @@ export default function CompaniesPage() {
 
       {/* ═══ MAIN CONTENT ═══ */}
       <main className={styles.mainContent}>
+        {/* Top bar */}
         <div className={styles.topBar}>
           <button type="button" className={styles.hamburger} onClick={() => setSidebarOpen(true)}>
             <Menu size={22} />
           </button>
           <div className={styles.topBarLeft}>
-            <p className={styles.greetingLabel}>Companies</p>
-            <h1 className={styles.greetingTitle}>Your <span className={styles.userName}>Organizations</span></h1>
+            <p className={styles.greetingLabel}>{getDateString()}</p>
+            <h1 className={styles.greetingTitle}>
+              {getGreeting()}, <span className={styles.userName}>{userName || "there"}</span>
+              <Sparkles size={20} className={styles.sparkle} />
+            </h1>
           </div>
-          <button type="button" className={styles.createBtn} onClick={() => setShowCreate(true)}>
-            <Plus size={15} /> New Company
-          </button>
         </div>
 
-        {/* Stat Cards */}
+        {/* ── STAT CARDS ── */}
         <div className={styles.statsRow}>
           <StatCard icon={Building2}  label="Total Companies" value={isLoading ? "–" : companies.length} colorClass="cardBlue"   badge={companies.length > 0 ? "Active" : undefined} />
           <StatCard icon={TrendingUp} label="Owned"           value={isLoading ? "–" : ownedCount}       colorClass="cardGreen" />
-          <StatCard icon={Clock}      label="Member of"       value={isLoading ? "–" : memberCount}      colorClass="cardPurple" />
+          <StatCard icon={Bell}       label="Alerts"          value="0"                                   colorClass="cardAmber"  badge="All Clear" />
+          <StatCard icon={AlertTriangle} label="Member of"   value={isLoading ? "–" : memberCount}       colorClass="cardPurple" />
         </div>
 
-        {/* Companies Panel */}
+        {/* ── CONTENT GRID ── */}
         <div className={styles.contentGrid}>
+          {/* Recent Companies Panel */}
           <motion.div className={styles.panel}
             initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
             <div className={styles.panelHeader}>
               <div>
-                <h2 className={styles.panelTitle}>All Companies</h2>
-                <p className={styles.panelSub}>
-                  {isLoading ? "Loading…" : `${companies.length} organization${companies.length !== 1 ? "s" : ""}`}
-                </p>
+                <h2 className={styles.panelTitle}>Recent Companies</h2>
+                <p className={styles.panelSub}>Quick access to your organizations</p>
               </div>
+              <button type="button" className={styles.viewAllBtn} onClick={() => navigate("/companies")}>
+                View All <ChevronRight size={14} />
+              </button>
             </div>
-            {error && <p className={styles.errorText}>{error}</p>}
             {isLoading ? (
               <div className={styles.skeletonList}>
                 {[1, 2, 3].map((i) => <div key={i} className={styles.skeleton} />)}
@@ -220,58 +199,44 @@ export default function CompaniesPage() {
             ) : companies.length === 0 ? (
               <div className={styles.emptyState}>
                 <Building2 size={38} className={styles.emptyIcon} />
-                <p>No companies yet.</p>
-                <button type="button" className={styles.createBtn} onClick={() => setShowCreate(true)}>
-                  <Plus size={13} /> Create your first
-                </button>
+                <p>No companies yet. <button type="button" className={styles.inlineLink} onClick={() => navigate("/companies")}>Create one →</button></p>
               </div>
             ) : (
               <div className={styles.companyList}>
-                {companies.map((c) => (
-                  <CompanyTile key={c.companyId} company={c}
-                    onClick={() => navigate(`/company/${c.companyId}`, { state: { companyName: c.companyName } })} />
-                ))}
+                {companies.slice(0, 5).map((c) => {
+                  const initials = c.companyName.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2);
+                  return (
+                    <motion.button key={c.companyId} className={styles.companyTile} type="button"
+                      whileHover={{ x: 4 }} transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                      onClick={() => navigate(`/company/${c.companyId}`, { state: { companyName: c.companyName } })}>
+                      <div className={styles.tileAvatar}>{initials}</div>
+                      <div className={styles.tileInfo}>
+                        <strong>{c.companyName}</strong>
+                        <span>{c.companyType || "Organization"}</span>
+                      </div>
+                      <div className={`${styles.tileRole} ${c.role === "OWNER" ? styles.roleOwner : ""}`}>{c.role}</div>
+                      <ArrowUpRight size={15} className={styles.tileArrow} />
+                    </motion.button>
+                  );
+                })}
               </div>
             )}
           </motion.div>
+
+          {/* Right Panel */}
+          <div className={styles.rightPanel}>
+            {/* Alerts */}
+            <motion.div className={styles.panel}
+              initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+              <h2 className={styles.panelTitle}>Alerts</h2>
+              <div className={styles.alertItem}>
+                <AlertTriangle size={15} className={styles.alertIcon} />
+                <p className={styles.alertText}>All systems healthy. No pending alerts!</p>
+              </div>
+            </motion.div>
+          </div>
         </div>
       </main>
-
-      {/* ═══ CREATE MODAL ═══ */}
-      {showCreate && createPortal(
-        <AnimatePresence>
-          <motion.div className={styles.overlay} onClick={() => setShowCreate(false)} role="presentation"
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <motion.div className={styles.modal} onClick={(e) => e.stopPropagation()}
-              initial={{ opacity: 0, y: 30, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 20, scale: 0.95 }}
-              transition={{ type: "spring", stiffness: 260, damping: 22 }}>
-              <div className={styles.modalHeader}>
-                <h3>Create Company</h3>
-                <button type="button" className={styles.modalClose} onClick={() => setShowCreate(false)}>
-                  <X size={18} />
-                </button>
-              </div>
-              <form className={styles.modalForm} onSubmit={handleCreate}>
-                <label className={styles.modalField}>
-                  <span>Company Name</span>
-                  <input value={companyName} onChange={(e) => setCompanyName(e.target.value)}
-                    placeholder="e.g. Acme Corp" autoFocus required />
-                </label>
-                {error && <p className={styles.errorText}>{error}</p>}
-                <div className={styles.modalActions}>
-                  <button type="button" className={styles.cancelBtn} onClick={() => setShowCreate(false)}>Cancel</button>
-                  <button type="submit" className={styles.confirmBtn} disabled={isCreating}>
-                    {isCreating ? "Creating…" : "Create"}
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          </motion.div>
-        </AnimatePresence>,
-        document.body
-      )}
     </div>
   );
 }

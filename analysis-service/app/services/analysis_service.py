@@ -295,9 +295,14 @@ async def fetch_spending_trend(company_id: str, db_client: AsyncIOMotorClient) -
     async for doc in collection.find({"company_id": company_id}):
         expense_history = doc.get("expense_history", [])
         for exp in expense_history:
-            date_str = exp.get("date")
+            date_raw = exp.get("date")
             amount = float(exp.get("amount", 0.0))
-            if date_str and amount > 0:
+            if date_raw and amount > 0:
+                # Java LocalDate often serializes to [YYYY, MM, DD] in JSON
+                if isinstance(date_raw, list) and len(date_raw) >= 3:
+                    date_str = f"{date_raw[0]}-{date_raw[1]:02d}-{date_raw[2]:02d}"
+                else:
+                    date_str = str(date_raw)
                 all_expenses.append({"date": date_str, "amount": amount})
 
     if not all_expenses:

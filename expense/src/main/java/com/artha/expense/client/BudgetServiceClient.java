@@ -20,7 +20,7 @@ public class BudgetServiceClient {
     private static final Logger log = LoggerFactory.getLogger(BudgetServiceClient.class);
     private final RestTemplate restTemplate;
 
-    @Value("${services.budget-service.url:http://localhost:8080}")
+    @Value("${API_GATEWAY_URL:http://api-gateway}")
     private String budgetServiceUrl;
 
     public BudgetServiceClient(RestTemplate restTemplate) {

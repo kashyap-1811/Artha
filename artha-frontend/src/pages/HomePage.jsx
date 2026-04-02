@@ -232,44 +232,44 @@ const COMPANY_ACTIONS = [
 
 const PRICING_TIERS = [
   {
-      name: "Creator",
-      icon: <Pencil className="w-6 h-6" />,
-      price: 0,
-      description: "Perfect for financial exploration",
-      color: "#f59e0b",
-      features: [
-          "1 Personal Company",
-          "5 Budget Categories",
-          "Basic Analytics",
-          "Community Support",
-      ],
+    name: "Creator",
+    icon: <Pencil className="w-6 h-6" />,
+    price: 0,
+    description: "Perfect for financial exploration",
+    color: "#f59e0b",
+    features: [
+      "1 Personal Company",
+      "5 Budget Categories",
+      "Basic Analytics",
+      "Community Support",
+    ],
   },
   {
-      name: "Professional",
-      icon: <Star className="w-6 h-6" />,
-      price: 49,
-      description: "For serious business control",
-      color: "#3b82f6",
-      features: [
-          "5 Managed Companies",
-          "Unlimited Categories",
-          "Real-time Email Alerts",
-          "AI Health Scoring",
-      ],
-      popular: true,
+    name: "Professional",
+    icon: <Star className="w-6 h-6" />,
+    price: 49,
+    description: "For serious business control",
+    color: "#3b82f6",
+    features: [
+      "5 Managed Companies",
+      "Unlimited Categories",
+      "Real-time Email Alerts",
+      "AI Health Scoring",
+    ],
+    popular: true,
   },
   {
-      name: "Enterprise",
-      icon: <Sparkles className="w-6 h-6" />,
-      price: 199,
-      description: "For scaling global teams",
-      color: "#8b5cf6",
-      features: [
-          "Unlimited Everything",
-          "Priority API Access",
-          "Dedicated Success Manager",
-          "SAML / SSO Integration",
-      ],
+    name: "Enterprise",
+    icon: <Sparkles className="w-6 h-6" />,
+    price: 199,
+    description: "For scaling global teams",
+    color: "#8b5cf6",
+    features: [
+      "Unlimited Everything",
+      "Priority API Access",
+      "Dedicated Success Manager",
+      "SAML / SSO Integration",
+    ],
   },
 ];
 
@@ -408,7 +408,7 @@ export default function HomePage() {
             <motion.button
               whileHover={{ scale: 1.05, boxShadow: "0 10px 32px rgba(79,70,229,0.3)" }}
               whileTap={{ scale: 0.97 }}
-              onClick={() => navigate("/auth")}
+              onClick={() => navigate("/dashboard")}
               style={{
                 background: "linear-gradient(135deg, #3b82f6, #4f46e5)",
                 color: "#fff", border: "none", borderRadius: 999,
@@ -503,7 +503,7 @@ export default function HomePage() {
                 key={i}
                 style={{
                   position: "sticky",
-                  top: 50 + i * 20, 
+                  top: 50 + i * 20,
                   zIndex: 10 + i,
                   marginBottom: "1.5rem",
                   transform: `scale(${1 - (CARDS.length - 1 - i) * 0.012})`,
@@ -584,12 +584,12 @@ export default function HomePage() {
 
         {/* ── PRICING SECTION ── */}
         <section id="pricing" style={{ padding: "4rem 0", background: "transparent", position: "relative", overflow: "hidden" }}>
-           <CreativePricing 
-              tag="Artha Growth Plans"
-              title="Secure Your Financial Future"
-              description="Transparent pricing for teams of all sizes. No hidden fees, just pure fiscal intelligence."
-              tiers={PRICING_TIERS} 
-           />
+          <CreativePricing
+            tag="Artha Growth Plans"
+            title="Secure Your Financial Future"
+            description="Transparent pricing for teams of all sizes. No hidden fees, just pure fiscal intelligence."
+            tiers={PRICING_TIERS}
+          />
         </section>
 
         {/* ── FINAL CTA ── */}

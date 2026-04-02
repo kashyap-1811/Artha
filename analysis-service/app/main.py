@@ -10,6 +10,18 @@ import asyncio
 import certifi
 from dotenv import load_dotenv
 from app.services.kafka_consumer import consume_expense_events
+import socket
+
+def get_local_ip():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(('10.255.255.255', 1))
+        IP = s.getsockname()[0]
+    except Exception:
+        IP = '127.0.0.1'
+    finally:
+        s.close()
+    return IP
 
 class Database:
     client: AsyncIOMotorClient = None
@@ -26,11 +38,13 @@ async def lifespan(app: FastAPI):
 
     # Startup: Register with Eureka
     try:
+        host_ip = get_local_ip()
         await eureka_client.init_async(
             eureka_server=EUREKA_SERVER,
             app_name="analysis-service",
             instance_port=8084,
-            instance_host="localhost"
+            instance_host=host_ip,
+            instance_id=f"{host_ip}:analysis-service:8084"
         )
     except Exception as e:
         print(f"Eureka init failed (this is non-fatal for local testing): {e}")

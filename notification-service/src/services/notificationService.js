@@ -1,8 +1,60 @@
 const axios = require('axios');
 const Notification = require('../models/Notification');
-const { sendMail } = require('../config/mailer');
+const { sendEmail } = require('./emailService');
 
 const API_GATEWAY_URL = process.env.API_GATEWAY_URL || 'http://localhost:8080';
+
+// ─── Company Member Email Builder ────────────────────────────────────────────────
+const buildCompanyEmailHtml = ({ eventType, companyName, userFullName, newRole }) => {
+    let headline, subheadline, icon, color;
+    
+    if (eventType === 'MEMBER_ADDED') {
+        headline = 'Welcome to the Team!';
+        subheadline = `You have been added to ${companyName} as a ${newRole}.`;
+        icon = '👋';
+        color = '#4CAF50';
+    } else if (eventType === 'MEMBER_REMOVED') {
+        headline = 'Membership Revoked';
+        subheadline = `You have been removed from ${companyName}.`;
+        icon = '🚪';
+        color = '#e53935';
+    } else if (eventType === 'ROLE_CHANGED') {
+        headline = 'Role Updated';
+        subheadline = `Your role in ${companyName} has been changed to ${newRole}.`;
+        icon = '🔄';
+        color = '#2196F3';
+    }
+
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>${headline}</title>
+</head>
+<body style="margin:0;padding:0;background:#1a1a2e;font-family:'Segoe UI',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#1a1a2e;padding:32px 0;">
+    <tr><td align="center">
+      <table width="480" cellpadding="0" cellspacing="0" style="border-radius:16px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.5);background:#16213e;">
+        <tr>
+          <td style="padding:40px 28px;text-align:center;">
+             <p style="margin:0 0 12px;font-size:42px;">${icon}</p>
+             <h1 style="margin:0 0 12px;font-size:26px;font-weight:800;color:${color};">${headline}</h1>
+             <p style="margin:0 0 24px;font-size:16px;color:#e0e0e0;line-height:1.6;">
+               Hello ${userFullName},<br/><br/>
+               ${subheadline}
+             </p>
+             <p style="margin:0;font-size:14px;color:#8899aa;line-height:1.6;">
+               Log in to the dashboard to view your current company access.
+             </p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+};
 
 // ─── HTML Email Builder ────────────────────────────────────────────────────────
 const buildEmailHtml = ({ type, categoryName, budgetName, alertThreshold, spentPercentage, allocatedAmount, totalSpent }) => {
@@ -215,7 +267,7 @@ class NotificationService {
 
             const html = buildEmailHtml({ type, categoryName, budgetName, alertThreshold, spentPercentage, allocatedAmount, totalSpent });
 
-            await sendMail(email, subject, html);
+            await sendEmail(email, subject, null, html);
 
             const newNotification = new Notification({ userId, companyId, budgetId, allocationId, type });
             await newNotification.save();
@@ -228,6 +280,31 @@ class NotificationService {
             } else {
                 console.error('Error triggering alert:', error);
             }
+        }
+    }
+
+    async handleCompanyEvent(companyEvent) {
+        try {
+            console.log('Processing company event:', companyEvent);
+            const { eventType, companyId, companyName, targetUserId, targetUserEmail, targetUserFullName, newRole } = companyEvent;
+
+            let subject = 'Artha Update';
+            if (eventType === 'MEMBER_ADDED') subject = `You've been added to ${companyName}`;
+            else if (eventType === 'MEMBER_REMOVED') subject = `Update regarding ${companyName}`;
+            else if (eventType === 'ROLE_CHANGED') subject = `Role updated in ${companyName}`;
+
+            const html = buildCompanyEmailHtml({
+                eventType,
+                companyName,
+                userFullName: targetUserFullName,
+                newRole
+            });
+
+            await sendEmail(targetUserEmail, subject, null, html);
+            console.log(`Successfully sent ${eventType} email to ${targetUserEmail}`);
+
+        } catch (error) {
+            console.error('Error handling company event:', error.message);
         }
     }
 }

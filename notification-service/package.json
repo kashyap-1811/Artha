@@ -13,14 +13,14 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@sendgrid/mail": "^8.1.6",
     "axios": "^1.13.6",
     "dotenv": "^17.4.0",
     "dotenv-expand": "^12.0.3",
     "eureka-js-client": "^4.5.0",
     "express": "^5.2.1",
     "kafkajs": "^2.2.4",
-    "mongoose": "^9.2.4",
-    "nodemailer": "^8.0.1"
+    "mongoose": "^9.2.4"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"

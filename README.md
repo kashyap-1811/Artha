@@ -12,6 +12,7 @@
 - [Services](#services)
 - [Getting Started](#getting-started)
 - [Run with Docker Compose](#run-with-docker-compose)
+- [Event-Driven Flow](#event-driven-flow)
 - [API Overview](#api-overview)
 
 ---
@@ -25,7 +26,8 @@
 - **Approval Workflow** — Company owners can approve or reject pending expenses submitted by members.
 - **Expense History** — Past expenses are grouped by month for easy review.
 - **Budget Progress Visualization** — A progress bar shows total spending vs. the budget limit, and highlights when the budget is near or over its cap (> 90 %).
-- **Budget Alert Notifications** — Automated emails are sent to company owners when category spending reaches a configurable threshold (default 80 %) or exceeds 100 % of the allocated amount. Alerts are deduplicated — each alert type is sent only once per allocation.
+- **Budget Alert Notifications** — Automated emails are sent to company owners when category spending reaches a configurable threshold (default 80 %) or exceeds 100 % of the allocated amount. Alerts are deduplicated — each alert type is sent only once per allocation. Emails are delivered via **SendGrid**.
+- **Company Membership Notifications** — When a member is added to, removed from, or has their role changed in a company, a personalised HTML email is sent to the affected user via SendGrid. These events are published to the `company-events` Kafka topic and consumed by the Notification Service asynchronously.
 - **Analytics Dashboard** — A dedicated Python service computes complex financial metrics on top of event-sourced data cached in MongoDB Atlas:
   - *Company Health Score* — classifies a company as **On Track**, **At Risk**, or **Over Budget**.
   - *Category Breakdown* — company-wide spending aggregated by category with percentages, ready for Pie/Donut charts.
@@ -33,7 +35,7 @@
   - *Top Spenders Leaderboard* — ranks allocations by total spend for a specific budget.
   - *Active Budget Analysis* — aggregated view across all active budgets of a company.
 - **Redis Rate Limiting** — The API Gateway enforces per-user (or per-IP) rate limits using Redis to protect all backend services from abuse.
-- **Event-Driven CQRS Architecture** — Expense approval events are published to Apache Kafka. The Analysis Service and Notification Service consume these events asynchronously, enabling O(1) dashboard reads and real-time email alerts without blocking the core request path.
+- **Event-Driven CQRS Architecture** — Expense and company membership events are published to Apache Kafka (`expense-events` and `company-events` topics). The Analysis Service and Notification Service consume these events asynchronously, enabling O(1) dashboard reads and real-time email alerts without blocking the core request path.
 
 ---
 
@@ -64,8 +66,9 @@ Artha follows a microservices architecture coordinated through a service registr
                     └─────────────────────────────────────┘       │
                                                                   │
                     expense approved ──►┌──────────────────────┐  │
-                                        │   Apache Kafka       │─ ┘
-                                        │  (expense-events)    │
+                    membership changed ─►│   Apache Kafka       │─ ┘
+                                        │  expense-events      │
+                                        │  company-events      │
                                         └──────────┬───────────┘
                                                    │
                                ┌───────────────────▼──────────────────┐
@@ -73,8 +76,9 @@ Artha follows a microservices architecture coordinated through a service registr
                     ┌──────────▼──────────┐            ┌──────────────▼───────┐
                     │  analysis-service   │            │ notification-service │
                     │  Kafka consumer     │            │  Kafka consumer      │
-                    │  → MongoDB Atlas    │            │  → MongoDB Atlas     │
-                    │    (CQRS cache)     │            │  → Email via SMTP    │
+                    │  (expense-events)   │            │  (expense-events +   │
+                    │  → MongoDB Atlas    │            │   company-events)    │
+                    │    (CQRS cache)     │            │  → Email via SendGrid│
                     └─────────────────────┘            └──────────────────────┘
 ```
 
@@ -89,7 +93,7 @@ All Java/Spring Boot services register with the Eureka service registry. The Pyt
 | Frontend | React 19, React Router 7, Vite, Recharts |
 | Backend (Java) | Java 17, Spring Boot 3.2.5, Spring Cloud 2023.0.1 |
 | Analysis (Python) | Python 3.11, FastAPI, Uvicorn |
-| Notification (Node.js) | Node.js, Express, KafkaJS, Nodemailer |
+| Notification (Node.js) | Node.js, Express, KafkaJS, SendGrid (@sendgrid/mail) |
 | Service Discovery | Spring Cloud Netflix Eureka, eureka-js-client |
 | API Gateway | Spring Cloud Gateway, Redis (rate limiting) |
 | Security | Spring Security, JWT (jjwt 0.12.6), OAuth 2.0 (Google) |
@@ -113,7 +117,7 @@ All Java/Spring Boot services register with the Eureka service registry. The Pyt
 | `budget` | 8081 | Java / Spring Boot | Fiscal budget CRUD and category allocation management |
 | `expense` | 8082 | Java / Spring Boot | Expense submission, listing, approval/rejection, Kafka event publishing |
 | `analysis-service` | 8084 | Python / FastAPI | Analytics engine — health scores, category breakdown, spending trends, leaderboard |
-| `notification-service` | 8086 | Node.js / Express | Event-driven email alerts — budget threshold & exceeded notifications |
+| `notification-service` | 8086 | Node.js / Express | Event-driven email alerts via SendGrid — budget threshold & exceeded notifications, plus company membership change emails |
 | `artha-frontend` | 5173 | React / Vite | React SPA — dashboards, modals, forms |
 
 ### Supporting Infrastructure
@@ -121,7 +125,7 @@ All Java/Spring Boot services register with the Eureka service registry. The Pyt
 | Component | Port | Description |
 |---|---|---|
 | Redis | 6379 | In-memory store for API Gateway rate limiting |
-| Apache Kafka | 9092 | Message broker for `expense-events` topic |
+| Apache Kafka | 9092 | Message broker for `expense-events` and `company-events` topics |
 | Zookeeper | 2181 | Kafka coordination service |
 | Kafka UI | 8085 | Web UI for monitoring Kafka topics and consumer groups |
 | MongoDB Atlas | cloud | NoSQL store for analysis cache (`artha_analysis` DB) and notification deduplication |
@@ -240,6 +244,8 @@ The Notification Service will:
 - Register with Eureka as `NOTIFICATION-SERVICE` on port 8086.
 - Connect to MongoDB Atlas for notification deduplication.
 - Start a Kafka consumer on the `expense-events` topic, and send HTML email alerts to company owners when category spending reaches the alert threshold or exceeds 100 %.
+- Start a Kafka consumer on the `company-events` topic, and send personalised HTML emails to users when they are added to, removed from, or have their role changed in a company.
+- Deliver all emails via **SendGrid** — set `SENDGRID_API_KEY` and `FROM_EMAIL` in your environment (see `.env.example`).
 
 ### 6. Start the Frontend
 
@@ -255,6 +261,8 @@ The app will be available at `http://localhost:5173`.
 
 ## Event-Driven Flow
 
+### Expense Approval
+
 When a company owner **approves an expense**, the following pipeline executes:
 
 ```
@@ -268,6 +276,22 @@ expense-service  ──publish──►  Kafka topic: expense-events
    • Increments total_approved_amount           • Sends THRESHOLD_ALERT email if ≥ 80%
    • Appends to expense_history array           • Sends EXCEED_ALERT email if ≥ 100%
    → Dashboard reads are now O(1)              • Deduplicates alerts in MongoDB
+```
+
+### Company Membership Changes
+
+When a company owner **adds, removes, or changes the role of a member**, the following pipeline executes:
+
+```
+user-service  ──publish──►  Kafka topic: company-events
+                                   │
+                                   ▼
+                      notification-service consumer
+                      • Determines event type:
+                        - MEMBER_ADDED   → sends "Welcome to the Team!" email
+                        - MEMBER_REMOVED → sends "Membership Revoked" email
+                        - ROLE_CHANGED   → sends "Role Updated" email
+                      • Personalised HTML email sent to the affected user via SendGrid
 ```
 
 ---
@@ -288,9 +312,14 @@ All requests (except auth endpoints) must include an `Authorization: Bearer <tok
 
 | Method | Endpoint | Service | Description |
 |---|---|---|---|
-| POST | `/api/companies` | user-service | Create a company |
-| GET | `/api/companies/my` | user-service | List companies for the current user |
-| GET | `/api/companies/{companyId}/members` | user-service | Get members of a company |
+| POST | `/api/companies` | user-service | Create a business company |
+| GET | `/api/companies/my` | user-service | List all companies for the current user |
+| GET | `/api/companies/my/personal` | user-service | Get the current user's personal company |
+| GET | `/api/companies/{companyId}/members` | user-service | Get all members of a company |
+| GET | `/api/companies/{companyId}/members/{userId}` | user-service | Get a specific member's role |
+| POST | `/api/companies/{companyId}/members` | user-service | Add a member to a company — triggers `company-events` Kafka event |
+| DELETE | `/api/companies/{companyId}/members/{userId}` | user-service | Remove a member from a company — triggers `company-events` Kafka event |
+| PUT | `/api/companies/{companyId}/members/{userId}/role` | user-service | Change a member's role — triggers `company-events` Kafka event |
 
 ### Budget Management
 
@@ -310,6 +339,7 @@ All requests (except auth endpoints) must include an `Authorization: Bearer <tok
 | POST | `/api/expenses` | expense | Submit a new expense |
 | GET | `/api/expenses?companyId=` | expense | List all expenses for a company |
 | GET | `/api/expenses/allocation/{allocationId}` | expense | Get all expenses for a specific allocation |
+| GET | `/api/expenses/chart?companyId=&days=` | expense | Get approved spending totals grouped by category (for charts) |
 | POST | `/api/expenses/{expenseId}/approve` | expense | Approve a pending expense (owner only) — triggers Kafka event |
 | POST | `/api/expenses/{expenseId}/reject` | expense | Reject a pending expense (owner only) |
 

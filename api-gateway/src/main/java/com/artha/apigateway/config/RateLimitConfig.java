@@ -8,6 +8,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.util.StringUtils;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.net.InetSocketAddress;
 
@@ -15,6 +16,9 @@ import java.net.InetSocketAddress;
 public class RateLimitConfig {
 
     private final JwtUtil jwtUtil;
+
+    @Value("${rate-limiting.enabled:true}")
+    private boolean isRateLimitingEnabled;
 
     public RateLimitConfig(JwtUtil jwtUtil) {
         this.jwtUtil = jwtUtil;
@@ -26,13 +30,17 @@ public class RateLimitConfig {
     }
 
     private Mono<String> resolveKey(ServerWebExchange exchange) {
+        if (!isRateLimitingEnabled) {
+            return Mono.empty(); // Bypasses rate limiting
+        }
+
         String userIdHeader = exchange.getRequest().getHeaders().getFirst("X-User-Id");
         if (StringUtils.hasText(userIdHeader)) {
             return Mono.just("user-id:" + userIdHeader);
         }
 
         String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
-        if (StringUtils.hasText(authHeader) && authHeader.startsWith("Bearer ")) {
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
             String token = authHeader.substring(7);
             if (jwtUtil.validateToken(token)) {
                 String userId = jwtUtil.getUserIdFromToken(token);

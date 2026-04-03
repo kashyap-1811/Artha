@@ -83,6 +83,12 @@
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
 
+        <!-- ✅ Prometheus Metrics -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
+
         <!-- Test -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -95,15 +101,11 @@
             <scope>test</scope>
         </dependency>
 
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-devtools</artifactId>
-            <scope>runtime</scope>
-        </dependency>
+        <!-- DevTools removed: causes unreliable auto-restarts with Spring Cloud Gateway -->
 
     </dependencies>
 
-    <!-- ✅ Spring Cloud Version Management -->
+    <!-- Spring Cloud Version Management -->
     <dependencyManagement>
         <dependencies>
             <dependency>

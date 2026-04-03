@@ -140,29 +140,7 @@ All Java/Spring Boot services register with the Eureka service registry. The Pyt
 
 ### Environment Variables
 
-Before starting, configure the following environment variables (via `.env` files or your shell) for the services that require them:
-
-**analysis-service** (`.env` in `analysis-service/`):
-```
-MONGO_DETAILS=mongodb+srv://<user>:<password>@<cluster>.mongodb.net
-API_GATEWAY_URL=http://localhost:8080
-EUREKA_SERVER=http://localhost:8761/eureka/
-```
-
-**notification-service** (`.env` in `notification-service/`):
-```
-MONGO_URI=mongodb+srv://<user>:<password>@<cluster>.mongodb.net/artha_notifications
-KAFKA_BROKER=localhost:9092
-KAFKA_GROUP_ID=notification-service-group
-API_GATEWAY_URL=http://localhost:8080
-EUREKA_HOST=localhost
-EUREKA_PORT=8761
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=your-email@gmail.com
-SMTP_PASS=your-app-password
-PORT=8086
-```
+Refer to the `.env.example` and `application.yaml.example` files in each service for required environment variables and configuration details.
 
 ---
 

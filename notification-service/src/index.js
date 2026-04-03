@@ -3,6 +3,7 @@ const dotenv = require('dotenv');
 const connectDB = require('./config/db');
 const eurekaClient = require('./config/eureka');
 const { startExpenseConsumer } = require('./consumers/expenseConsumer');
+const { startCompanyConsumer } = require('./consumers/companyConsumer');
 
 // Load environment variables
 dotenv.config();
@@ -42,6 +43,7 @@ const startServer = async () => {
 
         // Start Kafka Consumer
         await startExpenseConsumer();
+        await startCompanyConsumer();
 
     } catch (error) {
         console.error('Failed to start notification-service:', error);

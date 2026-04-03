@@ -251,25 +251,37 @@ public class ExpenseServiceImpl implements ExpenseService {
         );
 
         java.util.Map<UUID, BigDecimal> grouped = expenses.stream()
+                .filter(ex -> ex.getAllocationId() != null)
                 .collect(Collectors.groupingBy(
                         Expense::getAllocationId,
                         Collectors.mapping(
-                                Expense::getAmount,
+                                ex -> ex.getAmount() != null ? ex.getAmount() : BigDecimal.ZERO,
                                 Collectors.reducing(BigDecimal.ZERO, BigDecimal::add)
                         )
                 ));
 
         return grouped.entrySet().stream()
-                .map(e -> {
-                    String catName = "Unknown";
-                    try {
-                        UUID budgetId = expenses.stream()
-                                .filter(ex -> ex.getAllocationId().equals(e.getKey()))
-                                .findFirst().get().getBudgetId();
-                        catName = budgetServiceClient.getAllocationName(userId, budgetId, e.getKey());
-                    } catch (Exception ex) {}
-                    return new CategoryExpenseDTO(catName, e.getValue());
-                })
+                .collect(Collectors.toMap(
+                        e -> {
+                            String catName = "Unknown";
+                            try {
+                                UUID budgetId = expenses.stream()
+                                        .filter(ex -> java.util.Objects.equals(ex.getAllocationId(), e.getKey()))
+                                        .findFirst()
+                                        .map(Expense::getBudgetId)
+                                        .orElse(null);
+                                String resolvedName = budgetServiceClient.getAllocationName(userId, budgetId, e.getKey());
+                                if (resolvedName != null) {
+                                    catName = resolvedName;
+                                }
+                            } catch (Exception ex) {}
+                            return catName;
+                        },
+                        java.util.Map.Entry::getValue,
+                        BigDecimal::add
+                ))
+                .entrySet().stream()
+                .map(e -> new CategoryExpenseDTO(e.getKey(), e.getValue()))
                 .collect(Collectors.toList());
     }
 }

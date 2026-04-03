@@ -1,6 +1,7 @@
 package com.artha.user.services.impl;
 
 import com.artha.user.dto.userCompany.CompanyMemberResponse;
+import com.artha.user.dto.event.CompanyMemberEvent;
 import com.artha.user.entity.*;
 import com.artha.user.repository.CompanyRepository;
 import com.artha.user.repository.UserCompanyRepository;
@@ -9,6 +10,7 @@ import com.artha.user.services.ICompanyService;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -21,6 +23,7 @@ public class CompanyService implements ICompanyService {
     private final UserRepository userRepository;
     private final CompanyRepository companyRepository;
     private final UserCompanyRepository userCompanyRepository;
+    private final KafkaTemplate<String, Object> kafkaTemplate;
 
     @Override
     public Company createCompanyWithOwner(User owner, Company company) {
@@ -97,6 +100,17 @@ public class CompanyService implements ICompanyService {
 
         System.out.println("====== DB Execution Time [Add Member]: LookupUser " + (dbEnd1 - dbStart1) + "ms, LookupComp " + (dbEnd2 - dbStart2) + "ms, Check " + (dbEnd3 - dbStart3) + "ms, Save " + (dbEnd4 - dbStart4) + "ms ======");
 
+        CompanyMemberEvent event = CompanyMemberEvent.builder()
+                .eventType("MEMBER_ADDED")
+                .companyId(persistedCompany.getId())
+                .companyName(persistedCompany.getName())
+                .targetUserId(persistedUser.getId())
+                .targetUserEmail(persistedUser.getEmail())
+                .targetUserFullName(persistedUser.getFullName())
+                .newRole(role)
+                .build();
+        kafkaTemplate.send("company-events", event);
+
         return persistedCompany;
     }
 
@@ -116,6 +130,17 @@ public class CompanyService implements ICompanyService {
         }
 
         Company targetCompany = membership.getCompany();
+
+        CompanyMemberEvent event = CompanyMemberEvent.builder()
+                .eventType("MEMBER_REMOVED")
+                .companyId(targetCompany.getId())
+                .companyName(targetCompany.getName())
+                .targetUserId(membership.getUser().getId())
+                .targetUserEmail(membership.getUser().getEmail())
+                .targetUserFullName(membership.getUser().getFullName())
+                .newRole(null) // role doesn't matter when removed
+                .build();
+        kafkaTemplate.send("company-events", event);
 
         membership.getUser().removeUserCompany(membership);
         targetCompany.removeUserCompany(membership);
@@ -167,6 +192,17 @@ public class CompanyService implements ICompanyService {
         userCompanyRepository.save(membership);
         long dbEnd3 = System.currentTimeMillis();
         System.out.println("====== DB Execution Time [Change Role]: Find " + (dbEnd1 - dbStart1) + "ms, Save " + (dbEnd3 - dbStart3) + "ms ======");
+
+        CompanyMemberEvent event = CompanyMemberEvent.builder()
+                .eventType("ROLE_CHANGED")
+                .companyId(company.getId())
+                .companyName(membership.getCompany().getName())
+                .targetUserId(membership.getUser().getId())
+                .targetUserEmail(membership.getUser().getEmail())
+                .targetUserFullName(membership.getUser().getFullName())
+                .newRole(newRole)
+                .build();
+        kafkaTemplate.send("company-events", event);
 
         return membership.getCompany();
     }

@@ -1,0 +1,28 @@
+spring.application.name=user-service
+server.port=8083
+eureka.client.service-url.defaultZone=${EUREKA_SERVER_URL:http://localhost:8761/eureka}
+jwt.secret=<YOUR_SECRET>
+
+# Neon PostgreSQL
+spring.datasource.url=<YOUR_URL>
+spring.datasource.username=<YOUR_USERNAME>
+spring.datasource.password=<YOUR_PASSWORD>
+spring.datasource.driver-class-name=org.postgresql.Driver
+
+# HikariCP
+spring.datasource.hikari.maximum-pool-size=5
+spring.datasource.hikari.max-lifetime=540000
+spring.datasource.hikari.idle-timeout=300000
+spring.datasource.hikari.keepalive-time=45000
+
+# JPA / Hibernate
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=true
+spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect
+
+spring.devtools.restart.enabled=true
+spring.devtools.restart.poll-interval=2s
+spring.devtools.restart.quiet-period=1s
+
+# Eureka configuration to allow multi-device network testing
+eureka.instance.prefer-ip-address=true

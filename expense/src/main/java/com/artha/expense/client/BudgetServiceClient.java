@@ -9,6 +9,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.core.ParameterizedTypeReference;
 
 import java.util.List;
 import java.util.Map;
@@ -40,9 +41,10 @@ public class BudgetServiceClient {
             headers.set("X-User-Id", userId);
             HttpEntity<Void> entity = new HttpEntity<>(headers);
 
-            ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.GET, entity, Map.class);
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                Object rawAllocations = response.getBody().get("allocations");
+            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(url, HttpMethod.GET, entity, new ParameterizedTypeReference<Map<String, Object>>() {});
+            Map<String, Object> body = response.getBody();
+            if (response.getStatusCode().is2xxSuccessful() && body != null) {
+                Object rawAllocations = body.get("allocations");
                 if (rawAllocations instanceof List<?> allocations) {
                     for (Object a : allocations) {
                         if (a instanceof Map<?, ?> alloc) {

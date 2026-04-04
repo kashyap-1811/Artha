@@ -9,7 +9,7 @@ from app.core.config import MONGO_DETAILS, EUREKA_SERVER
 import asyncio
 import certifi
 from dotenv import load_dotenv
-from app.services.kafka_consumer import consume_expense_events
+from app.services.kafka_consumer import consume_expense_events, consume_budget_events
 import socket
 
 def get_local_ip():
@@ -49,17 +49,20 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"Eureka init failed (this is non-fatal for local testing): {e}")
 
-    # Start Kafka Consumer in the background
-    kafka_task = asyncio.create_task(consume_expense_events(app))
+    # Start Kafka Consumers in the background
+    expense_task = asyncio.create_task(consume_expense_events(app))
+    budget_task = asyncio.create_task(consume_budget_events(app))
         
     yield
     
-    # Cancel the Kafka Consumer task gracefully
-    kafka_task.cancel()
+    # Cancel the Kafka Consumer tasks gracefully
+    expense_task.cancel()
+    budget_task.cancel()
     try:
-        await kafka_task
-    except asyncio.CancelledError:
-        print("Kafka Consumer task cancelled.")
+        await asyncio.gather(expense_task, budget_task, return_exceptions=True)
+    except Exception:
+        pass
+    print("Kafka Consumers stopped.")
     
     # Shutdown: De-register and close DB
     print("Disconnecting from MongoDB...")

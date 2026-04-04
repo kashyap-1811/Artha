@@ -37,5 +37,9 @@ public class ExpenseResponse {
 
     private Boolean warning;
 
+    private String action; // CREATED, UPDATED, DELETED
+
+    private BigDecimal oldAmount; // For updates
+
     private LocalDateTime createdAt;
 }

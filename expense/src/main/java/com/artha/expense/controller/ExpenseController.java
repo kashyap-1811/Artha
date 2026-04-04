@@ -148,4 +148,21 @@ public class ExpenseController {
             System.out.println("====== Service Execution Time [Get Expense Chart]: " + (serviceEnd - serviceStart) + "ms ======");
         }
     }
+
+    @PutMapping("/{id}")
+    public ExpenseResponse updateExpense(
+            @RequestHeader("X-User-Id") String userId,
+            @PathVariable UUID id,
+            @RequestBody CreateExpenseRequest request
+    ) {
+        return expenseService.updateExpense(userId, id, request);
+    }
+
+    @DeleteMapping("/{id}")
+    public void deleteExpense(
+            @RequestHeader("X-User-Id") String userId,
+            @PathVariable UUID id
+    ) {
+        expenseService.deleteExpense(userId, id);
+    }
 }

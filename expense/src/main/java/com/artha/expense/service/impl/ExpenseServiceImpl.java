@@ -68,6 +68,7 @@ public class ExpenseServiceImpl implements ExpenseService {
                 userId, saved.getBudgetId(), saved.getAllocationId()
             );
             response.setAllocationName(allocationName);
+            response.setAction("CREATED");
             kafkaTemplate.send("expense-events", response);
         }
 
@@ -183,6 +184,7 @@ public class ExpenseServiceImpl implements ExpenseService {
             userId, saved.getBudgetId(), saved.getAllocationId()
         );
         response.setAllocationName(allocationName);
+        response.setAction("CREATED");
         kafkaTemplate.send("expense-events", response);
 
         return response;
@@ -283,5 +285,53 @@ public class ExpenseServiceImpl implements ExpenseService {
                 .entrySet().stream()
                 .map(e -> new CategoryExpenseDTO(e.getKey(), e.getValue()))
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public ExpenseResponse updateExpense(String userId, UUID expenseId, CreateExpenseRequest request) {
+        Expense expense = expenseRepository.findById(expenseId)
+                .orElseThrow(() -> new ResourceNotFoundException("Expense not found"));
+
+        authorizationService.checkPermission(userId, expense.getCompanyId(), Action.UPDATE_EXPENSE);
+
+        BigDecimal oldAmount = expense.getAmount();
+        ExpenseStatus oldStatus = expense.getStatus();
+
+        expense.setAmount(request.getAmount());
+        expense.setReference(request.getReference());
+        expense.setSpentDate(request.getSpentDate());
+        expense.setType(request.getType());
+
+        Expense saved = expenseRepository.save(expense);
+        ExpenseResponse response = ExpenseMapper.toResponse(saved);
+
+        if (saved.getStatus() == ExpenseStatus.APPROVED) {
+            response.setAction("UPDATED");
+            response.setOldAmount(oldStatus == ExpenseStatus.APPROVED ? oldAmount : BigDecimal.ZERO);
+            
+            String allocationName = budgetServiceClient.getAllocationName(
+                userId, saved.getBudgetId(), saved.getAllocationId()
+            );
+            response.setAllocationName(allocationName);
+            kafkaTemplate.send("expense-events", response);
+        }
+
+        return response;
+    }
+
+    @Override
+    public void deleteExpense(String userId, UUID expenseId) {
+        Expense expense = expenseRepository.findById(expenseId)
+                .orElseThrow(() -> new ResourceNotFoundException("Expense not found"));
+
+        authorizationService.checkPermission(userId, expense.getCompanyId(), Action.DELETE_EXPENSE);
+
+        expenseRepository.delete(expense);
+
+        if (expense.getStatus() == ExpenseStatus.APPROVED) {
+            ExpenseResponse response = ExpenseMapper.toResponse(expense);
+            response.setAction("DELETED");
+            kafkaTemplate.send("expense-events", response);
+        }
     }
 }

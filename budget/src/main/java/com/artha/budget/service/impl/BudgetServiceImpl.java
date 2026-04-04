@@ -13,6 +13,9 @@ import com.artha.budget.service.AuthorizationService;
 import com.artha.budget.service.BudgetService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import com.artha.budget.dto.event.AllocationEvent;
+import com.artha.budget.dto.event.BudgetEvent;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -29,6 +32,7 @@ public class BudgetServiceImpl implements BudgetService {
     private final BudgetCategoryAllocationRepository allocationRepository;
     private final BudgetAuditLogRepository auditLogRepository;
     private final AuthorizationService authorizationService;
+    private final KafkaTemplate<String, Object> kafkaTemplate;
 
     /* ===================== Audit Helper ===================== */
 
@@ -91,6 +95,17 @@ public class BudgetServiceImpl implements BudgetService {
         System.out.println("====== DB Execution Time [Create Budget]: " + (dbEnd - dbStart) + "ms ======");
 
         audit(userId, saved.getId(), BudgetAction.CREATE);
+
+        // Push to Kafka
+        kafkaTemplate.send("budget-events", BudgetEvent.builder()
+                .id(saved.getId())
+                .companyId(saved.getCompanyId())
+                .name(saved.getName())
+                .totalAmount(saved.getTotalAmount())
+                .status(saved.getStatus())
+                .action("CREATED")
+                .build());
+
         return saved;
     }
 
@@ -137,6 +152,15 @@ public class BudgetServiceImpl implements BudgetService {
         System.out.println("====== DB Execution Time [Close Budget]: " + (dbEnd - dbStart) + "ms ======");
 
         audit(userId, budgetId, BudgetAction.CLOSE);
+
+        kafkaTemplate.send("budget-events", BudgetEvent.builder()
+                .id(budget.getId())
+                .companyId(budget.getCompanyId())
+                .name(budget.getName())
+                .totalAmount(budget.getTotalAmount())
+                .status(budget.getStatus())
+                .action("CLOSED")
+                .build());
     }
 
     /* ===================== Allocations ===================== */
@@ -189,6 +213,16 @@ public class BudgetServiceImpl implements BudgetService {
         System.out.println("====== DB Execution Time [Add Category Allocation]: " + (dbEnd - dbStart) + "ms ======");
 
         audit(userId, budgetId, BudgetAction.ADD_ALLOCATION);
+
+        kafkaTemplate.send("budget-events", AllocationEvent.builder()
+                .id(savedAllocation.getId())
+                .budgetId(budgetId)
+                .categoryName(savedAllocation.getCategoryName())
+                .allocatedAmount(savedAllocation.getAllocatedAmount())
+                .alertThreshold(savedAllocation.getAlertThreshold())
+                .action("CREATED")
+                .build());
+
         return savedAllocation;
     }
 
@@ -213,6 +247,12 @@ public class BudgetServiceImpl implements BudgetService {
         System.out.println("====== DB Execution Time [Remove Category Allocation]: " + (dbEnd - dbStart) + "ms ======");
 
         audit(userId, budgetId, BudgetAction.REMOVE_ALLOCATION);
+
+        kafkaTemplate.send("budget-events", AllocationEvent.builder()
+                .id(allocationId)
+                .budgetId(budgetId)
+                .action("DELETED")
+                .build());
     }
 
     @Override
@@ -255,6 +295,16 @@ public class BudgetServiceImpl implements BudgetService {
         System.out.println("====== DB Execution Time [Update Allocation]: " + (dbEnd - dbStart) + "ms ======");
 
         audit(userId, budgetId, BudgetAction.UPDATE_ALLOCATION);
+
+        kafkaTemplate.send("budget-events", AllocationEvent.builder()
+                .id(saved.getId())
+                .budgetId(budgetId)
+                .categoryName(saved.getCategoryName())
+                .allocatedAmount(saved.getAllocatedAmount())
+                .alertThreshold(saved.getAlertThreshold())
+                .action("UPDATED")
+                .build());
+
         return saved;
     }
 
@@ -283,6 +333,16 @@ public class BudgetServiceImpl implements BudgetService {
         System.out.println("====== DB Execution Time [Update Budget]: " + (dbEnd - dbStart) + "ms ======");
 
         audit(userId, budgetId, BudgetAction.UPDATE);
+
+        kafkaTemplate.send("budget-events", BudgetEvent.builder()
+                .id(saved.getId())
+                .companyId(saved.getCompanyId())
+                .name(saved.getName())
+                .totalAmount(saved.getTotalAmount())
+                .status(saved.getStatus())
+                .action("UPDATED")
+                .build());
+
         return saved;
     }
 
@@ -304,6 +364,12 @@ public class BudgetServiceImpl implements BudgetService {
         System.out.println("====== DB Execution Time [Remove Budget]: " + (dbEnd - dbStart) + "ms ======");
 
         audit(userId, budgetId, BudgetAction.DELETE);
+
+        kafkaTemplate.send("budget-events", BudgetEvent.builder()
+                .id(budget.getId())
+                .companyId(budget.getCompanyId())
+                .action("DELETED")
+                .build());
     }
 
     @Override

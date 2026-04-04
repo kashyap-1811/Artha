@@ -27,4 +27,8 @@ public interface ExpenseService {
     BudgetExpenseSummaryResponse getBudgetSummary(String userId, UUID budgetId);
 
     List<CategoryExpenseDTO> getExpenseChart(String userId, String companyId, int days);
+
+    ExpenseResponse updateExpense(String userId, UUID expenseId, CreateExpenseRequest request);
+
+    void deleteExpense(String userId, UUID expenseId);
 }

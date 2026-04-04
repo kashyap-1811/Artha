@@ -66,7 +66,7 @@ Artha follows a microservices architecture coordinated through a service registr
                     └─────────────────────────────────────┘       │
                                                                   │
                     expense approved ──►┌──────────────────────┐  │
-                    membership changed ─►│   Apache Kafka       │─ ┘
+                    membership changed─►│   Apache Kafka       │─ ┘
                                         │  expense-events      │
                                         │  company-events      │
                                         └──────────┬───────────┘
@@ -170,9 +170,9 @@ This starts:
 | `budget-service` | http://localhost:8081 |
 | `expense-service` | http://localhost:8082 |
 | `frontend` | http://localhost:5173 |
-| `redis` | localhost:6379 |
-| `kafka` | localhost:9092 |
-| `zookeeper` | localhost:2181 |
+| `redis` | http://localhost:6379 |
+| `kafka` | http://localhost:9092 |
+| `zookeeper` | http://localhost:2181 |
 | `kafka-ui` | http://localhost:8085 |
 
 To stop all containers:

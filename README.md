@@ -35,7 +35,7 @@
   - *Top Spenders Leaderboard* — ranks allocations by total spend for a specific budget.
   - *Active Budget Analysis* — aggregated view across all active budgets of a company.
 - **Redis Rate Limiting** — The API Gateway enforces per-user (or per-IP) rate limits using Redis to protect all backend services from abuse.
-- **Event-Driven CQRS Architecture** — Expense and company membership events are published to Apache Kafka (`expense-events` and `company-events` topics). The Analysis Service and Notification Service consume these events asynchronously, enabling O(1) dashboard reads and real-time email alerts without blocking the core request path.
+- **Event-Driven CQRS Architecture** — Expense, budget, and company membership events are published to Apache Kafka (`expense-events`, `budget-events`, and `company-events` topics). The Analysis Service and Notification Service consume these events asynchronously, enabling O(1) dashboard reads and real-time email alerts without blocking the core request path.
 
 ---
 
@@ -66,8 +66,9 @@ Artha follows a microservices architecture coordinated through a service registr
                     └─────────────────────────────────────┘       │
                                                                   │
                     expense approved ──►┌──────────────────────┐  │
-                    membership changed─►│   Apache Kafka       │─ ┘
-                                        │  expense-events      │
+                    budget created   ──►│   Apache Kafka       │─ ┘
+                    membership changed─►│  expense-events      │
+                                        │  budget-events       │
                                         │  company-events      │
                                         └──────────┬───────────┘
                                                    │
@@ -76,9 +77,10 @@ Artha follows a microservices architecture coordinated through a service registr
                     ┌──────────▼──────────┐            ┌──────────────▼───────┐
                     │  analysis-service   │            │ notification-service │
                     │  Kafka consumer     │            │  Kafka consumer      │
-                    │  (expense-events)   │            │  (expense-events +   │
-                    │  → MongoDB Atlas    │            │   company-events)    │
-                    │    (CQRS cache)     │            │  → Email via SendGrid│
+                    │  (expense-events +  │            │  (expense-events +   │
+                    │   budget-events)    │            │   company-events)    │
+                    │  → MongoDB Atlas    │            │  → Email via SendGrid│
+                    │    (CQRS cache)     │            │                      │
                     └─────────────────────┘            └──────────────────────┘
 ```
 
@@ -125,7 +127,7 @@ All Java/Spring Boot services register with the Eureka service registry. The Pyt
 | Component | Port | Description |
 |---|---|---|
 | Redis | 6379 | In-memory store for API Gateway rate limiting |
-| Apache Kafka | 9092 | Message broker for `expense-events` and `company-events` topics |
+| Apache Kafka | 9092 | Message broker for `expense-events`, `budget-events`, and `company-events` topics |
 | Zookeeper | 2181 | Kafka coordination service |
 | Kafka UI | 8085 | Web UI for monitoring Kafka topics and consumer groups |
 | MongoDB Atlas | cloud | NoSQL store for analysis cache (`artha_analysis` DB) and notification deduplication |
@@ -292,6 +294,24 @@ user-service  ──publish──►  Kafka topic: company-events
                         - MEMBER_REMOVED → sends "Membership Revoked" email
                         - ROLE_CHANGED   → sends "Role Updated" email
                       • Personalised HTML email sent to the affected user via SendGrid
+```
+
+### Budget Lifecycle Events
+
+When a company owner **creates, updates, or deletes a budget or category allocation**, the following pipeline executes:
+
+```
+budget-service  ──publish──►  Kafka topic: budget-events
+                                      │
+                                      ▼
+                         analysis-service consumer
+                         • Upserts budget and allocation metadata
+                           into the budget_metadata collection
+                         • On allocation UPDATED: propagates
+                           categoryName changes across expense history
+                         • On allocation DELETED: marks matching
+                           expenses as "Uncategorized" in MongoDB
+                         → Dashboard reads use up-to-date allocation metadata
 ```
 
 ---

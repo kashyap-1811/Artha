@@ -3,71 +3,154 @@ import logging
 import os
 from aiokafka import AIOKafkaConsumer
 import asyncio
-from app.core.config import MONGO_DETAILS
 
 logger = logging.getLogger(__name__)
 
-# Read from env so it works locally (localhost:9092) and inside Docker (kafka:29092)
 KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
-KAFKA_TOPIC = "expense-events"
+EXPENSE_TOPIC = "expense-events"
+BUDGET_TOPIC = "budget-events"
 
 async def consume_expense_events(app):
-    """
-    Background Kafka consumer task.
-    Listens to 'expense-events' and updates standard MongoDB Atlas analysis collections.
-    """
     while True:
         try:
             consumer = AIOKafkaConsumer(
-                KAFKA_TOPIC,
+                EXPENSE_TOPIC,
                 bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
-                group_id="analysis-group",
+                group_id="analysis-expense-group",
                 value_deserializer=lambda v: json.loads(v.decode('utf-8')) if v else None
             )
 
             await consumer.start()
-            logger.info(f"Started Kafka Consumer on {KAFKA_BOOTSTRAP_SERVERS}, topic: {KAFKA_TOPIC}")
+            logger.info(f"Started Expense Consumer on {KAFKA_BOOTSTRAP_SERVERS}, topic: {EXPENSE_TOPIC}")
 
             try:
-                # We need the motor client that was initialized in main.py
                 db = app.state.mongodb_client.get_database("artha_analysis")
                 collection = db.get_collection("budget_expenses")
 
                 async for msg in consumer:
                     expense_data = msg.value
-                    logger.info(f"Received Expense Event: {expense_data}")
+                    if not expense_data: continue
+                    
+                    action = expense_data.get("action", "CREATED")
+                    budget_id = expense_data.get("budgetId")
+                    company_id = expense_data.get("companyId")
+                    expense_id = expense_data.get("id")
+                    allocation_id = expense_data.get("allocationId")
+                    amount = expense_data.get("amount", 0.0)
+                    allocation_name = expense_data.get("allocationName") or "Uncategorized"
 
-                    # CQRS pattern -> We store pre-calculated or grouped data for instant reads later
-                    if expense_data and "budgetId" in expense_data and "companyId" in expense_data:
-                        
-                        # The Java expense-service now resolves allocationName before publishing to kafka.
-                        allocation_name = expense_data.get("allocationName") or "Uncategorized"
-                        logger.info(f"Processing expense: allocationName={allocation_name}, amount={expense_data.get('amount')}")
+                    if not budget_id or not company_id: continue
 
-                        # Upsert record so that the frontend can fetch this blazing fast
+                    if action == "CREATED":
                         await collection.update_one(
-                            {"budget_id": expense_data["budgetId"], "company_id": expense_data["companyId"]},
+                            {"budget_id": budget_id, "company_id": company_id},
                             {
-                                "$inc": {"total_approved_amount": expense_data.get("amount", 0.0)},
+                                "$inc": {"total_approved_amount": amount},
                                 "$push": {
                                     "expense_history": {
-                                        "expense_id": expense_data.get("id"),
+                                        "expense_id": expense_id,
+                                        "allocation_id": allocation_id,
                                         "category": allocation_name,
-                                        "amount": expense_data.get("amount"),
+                                        "amount": amount,
                                         "date": expense_data.get("spentDate")
                                     }
                                 }
                             },
                             upsert=True
                         )
-                        logger.info(f"Cached expense for budget {expense_data['budgetId']} with category '{allocation_name}'")
+                    elif action == "UPDATED":
+                        old_amount = expense_data.get("oldAmount", 0.0)
+                        diff = amount - old_amount
+                        await collection.update_one(
+                            {"budget_id": budget_id, "company_id": company_id, "expense_history.expense_id": expense_id},
+                            {
+                                "$inc": {"total_approved_amount": diff},
+                                "$set": {
+                                    "expense_history.$.amount": amount,
+                                    "expense_history.$.allocation_id": allocation_id,
+                                    "expense_history.$.category": allocation_name,
+                                    "expense_history.$.date": expense_data.get("spentDate")
+                                }
+                            }
+                        )
+                    elif action == "DELETED":
+                        await collection.update_one(
+                            {"budget_id": budget_id, "company_id": company_id},
+                            {
+                                "$inc": {"total_approved_amount": -amount},
+                                "$pull": {"expense_history": {"expense_id": expense_id}}
+                            }
+                        )
             finally:
                 await consumer.stop()
-                logger.info("Kafka Consumer stopped.")
-
         except asyncio.CancelledError:
-            logger.info("Kafka Consumer shutdown gracefully.")
             break
         except Exception as e:
-            logger.error(f"Error connecting to Kafka (is it running?): {e}. Retrying in 10s...")
+            logger.error(f"Expense Consumer error: {e}")
+            await asyncio.sleep(10)
+
+async def consume_budget_events(app):
+    while True:
+        try:
+            consumer = AIOKafkaConsumer(
+                BUDGET_TOPIC,
+                bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
+                group_id="analysis-budget-group",
+                value_deserializer=lambda v: json.loads(v.decode('utf-8')) if v else None
+            )
+
+            await consumer.start()
+            logger.info(f"Started Budget Consumer on {KAFKA_BOOTSTRAP_SERVERS}, topic: {BUDGET_TOPIC}")
+
+            try:
+                db = app.state.mongodb_client.get_database("artha_analysis")
+                metadata_coll = db.get_collection("budget_metadata")
+                expenses_coll = db.get_collection("budget_expenses")
+
+                async for msg in consumer:
+                    event = msg.value
+                    if not event: continue
+                    
+                    action = event.get("action")
+                    event_id = event.get("id")
+                    
+                    # Distinguish between Budget and Allocation by checking for 'budgetId' and 'categoryName'
+                    is_allocation = "budgetId" in event and "categoryName" in event
+
+                    if action == "DELETED":
+                        await metadata_coll.delete_one({"id": event_id})
+                        
+                        # If an allocation is deleted, we might want to clear allocation_id from history
+                        if is_allocation:
+                            budget_id = event.get("budgetId")
+                            await expenses_coll.update_one(
+                                {"budget_id": budget_id},
+                                {"$set": {"expense_history.$[elem].category": "Uncategorized", "expense_history.$[elem].allocation_id": None}},
+                                array_filters=[{"elem.allocation_id": event_id}]
+                            )
+                    else:
+                        await metadata_coll.update_one(
+                            {"id": event_id},
+                            {"$set": event},
+                            upsert=True
+                        )
+                        
+                        # Handle Name Change Propagation for Allocations
+                        if is_allocation and action == "UPDATED":
+                            budget_id = event.get("budgetId")
+                            new_name = event.get("categoryName")
+                            logger.info(f"Propagating allocation name change: {event_id} -> {new_name}")
+                            
+                            # Update all matching history items for this budget
+                            await expenses_coll.update_one(
+                                {"budget_id": budget_id},
+                                {"$set": {"expense_history.$[elem].category": new_name}},
+                                array_filters=[{"elem.allocation_id": event_id}]
+                            )
+            finally:
+                await consumer.stop()
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            logger.error(f"Budget Consumer error: {e}")
             await asyncio.sleep(10)

@@ -15,6 +15,9 @@ import com.artha.expense.repository.ExpenseRepository;
 import com.artha.expense.service.AuthorizationService;
 import com.artha.expense.service.ExpenseService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
@@ -25,12 +28,14 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ExpenseServiceImpl implements ExpenseService {
 
     private final ExpenseRepository expenseRepository;
     private final AuthorizationService authorizationService;
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final BudgetServiceClient budgetServiceClient;
+    private final CacheManager cacheManager;
 
     // ===================== CREATE =====================
 
@@ -60,6 +65,9 @@ public class ExpenseServiceImpl implements ExpenseService {
         Expense saved = expenseRepository.save(expense);
         long dbEnd = System.currentTimeMillis();
         System.out.println("====== DB Execution Time [Add Expense]: " + (dbEnd - dbStart) + "ms ======");
+
+        log.info("Evicting cache for companyId: {} due to expense creation", saved.getCompanyId());
+        evictCompanyCaches(saved.getCompanyId(), saved.getBudgetId());
 
         ExpenseResponse response = ExpenseMapper.toResponse(saved);
 
@@ -95,8 +103,9 @@ public class ExpenseServiceImpl implements ExpenseService {
     // ===================== GET COMPANY EXPENSES =====================
 
     @Override
+    @Cacheable(value = "company_expenses", key = "#companyId")
     public List<ExpenseResponse> getCompanyExpenses(String userId, String companyId) {
-
+        log.info("Cache miss for getCompanyExpenses, companyId: {}", companyId);
         authorizationService.checkPermission(userId, companyId, Action.VIEW_EXPENSE);
 
         long dbStart = System.currentTimeMillis();
@@ -178,6 +187,9 @@ public class ExpenseServiceImpl implements ExpenseService {
         long dbSaveEnd = System.currentTimeMillis();
         System.out.println("====== DB Execution Time [Approve Expense]: Find " + (dbFindEnd - dbFindStart) + "ms, Save " + (dbSaveEnd - dbSaveStart) + "ms ======");
 
+        log.info("Evicting cache for companyId: {} due to expense approval", saved.getCompanyId());
+        evictCompanyCaches(saved.getCompanyId(), saved.getBudgetId());
+
         ExpenseResponse response = ExpenseMapper.toResponse(saved);
 
         String allocationName = budgetServiceClient.getAllocationName(
@@ -215,12 +227,16 @@ public class ExpenseServiceImpl implements ExpenseService {
         long dbSaveEnd = System.currentTimeMillis();
         System.out.println("====== DB Execution Time [Reject Expense]: Find " + (dbFindEnd - dbFindStart) + "ms, Save " + (dbSaveEnd - dbSaveStart) + "ms ======");
 
+        log.info("Evicting cache for companyId: {} due to expense rejection", saved.getCompanyId());
+        evictCompanyCaches(saved.getCompanyId(), saved.getBudgetId());
+
         return ExpenseMapper.toResponse(saved);
     }
 
     @Override
+    @Cacheable(value = "budget_summary", key = "#budgetId")
     public BudgetExpenseSummaryResponse getBudgetSummary(String userId, UUID budgetId) {
-
+        log.info("Cache miss for getBudgetSummary, budgetId: {}", budgetId);
         long dbStart = System.currentTimeMillis();
         List<Expense> sampleExpenses = expenseRepository.findByBudgetId(budgetId);
         if (!sampleExpenses.isEmpty()) {
@@ -242,7 +258,9 @@ public class ExpenseServiceImpl implements ExpenseService {
     }
 
     @Override
+    @Cacheable(value = "company_expense_chart", key = "#companyId")
     public List<CategoryExpenseDTO> getExpenseChart(String userId, String companyId, int days) {
+        log.info("Cache miss for getExpenseChart, companyId: {}", companyId);
         authorizationService.checkPermission(userId, companyId, Action.VIEW_EXPENSE);
 
         java.time.LocalDate endDate = java.time.LocalDate.now();
@@ -303,6 +321,10 @@ public class ExpenseServiceImpl implements ExpenseService {
         expense.setType(request.getType());
 
         Expense saved = expenseRepository.save(expense);
+        
+        log.info("Evicting cache for companyId: {} due to expense update", saved.getCompanyId());
+        evictCompanyCaches(saved.getCompanyId(), saved.getBudgetId());
+
         ExpenseResponse response = ExpenseMapper.toResponse(saved);
 
         if (saved.getStatus() == ExpenseStatus.APPROVED) {
@@ -327,11 +349,31 @@ public class ExpenseServiceImpl implements ExpenseService {
         authorizationService.checkPermission(userId, expense.getCompanyId(), Action.DELETE_EXPENSE);
 
         expenseRepository.delete(expense);
+        
+        log.info("Evicting cache for companyId: {} due to expense deletion", expense.getCompanyId());
+        evictCompanyCaches(expense.getCompanyId(), expense.getBudgetId());
 
         if (expense.getStatus() == ExpenseStatus.APPROVED) {
             ExpenseResponse response = ExpenseMapper.toResponse(expense);
             response.setAction("DELETED");
             kafkaTemplate.send("expense-events", response);
         }
+    }
+
+    private void evictCompanyCaches(String companyId, UUID budgetId) {
+        if (cacheManager == null) return;
+        
+        var expensesCache = cacheManager.getCache("company_expenses");
+        if (expensesCache != null) expensesCache.evict(companyId);
+        
+        var chartCache = cacheManager.getCache("company_expense_chart");
+        if (chartCache != null) chartCache.evict(companyId);
+        
+        if (budgetId != null) {
+            var summaryCache = cacheManager.getCache("budget_summary");
+            if (summaryCache != null) summaryCache.evict(budgetId);
+        }
+        
+        log.info("Finished local cache eviction for companyId: {}", companyId);
     }
 }

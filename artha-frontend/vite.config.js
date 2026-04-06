@@ -16,7 +16,8 @@ export default defineConfig({
     proxy: {
       // All backend traffic goes through the api-gateway (auth, users, budget, expense, analysis...)
       "/api": { target: proxyTarget, changeOrigin: true, secure: false },
-      "/auth": { target: proxyTarget, changeOrigin: true, secure: false },
+      "/auth/login": { target: proxyTarget, changeOrigin: true, secure: false },
+      "/auth/signup": { target: proxyTarget, changeOrigin: true, secure: false },
       "/users": { target: proxyTarget, changeOrigin: true, secure: false },
       "/budget": { target: proxyTarget, changeOrigin: true, secure: false },
       "/expense": { target: proxyTarget, changeOrigin: true, secure: false },

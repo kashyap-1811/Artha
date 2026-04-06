@@ -16,7 +16,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/budgets")
@@ -66,10 +65,7 @@ public class BudgetController {
     ) {
         long serviceStart = System.currentTimeMillis();
         try {
-            List<Budget> activeBudgets = budgetService.getActiveBudget(userId, companyId);
-            return activeBudgets.stream()
-                    .map(BudgetMapper::toBudgetResponse)
-                    .collect(Collectors.toList());
+            return budgetService.getActiveBudget(userId, companyId);
         } finally {
             long serviceEnd = System.currentTimeMillis();
             System.out.println("====== Service Execution Time [Get Active Budget]: " + (serviceEnd - serviceStart) + "ms ======");
@@ -87,10 +83,7 @@ public class BudgetController {
     ) {
         long serviceStart = System.currentTimeMillis();
         try {
-            return budgetService.getAllBudgets(userId, companyId)
-                    .stream()
-                    .map(BudgetMapper::toBudgetResponse)
-                    .collect(Collectors.toList());
+            return budgetService.getAllBudgets(userId, companyId);
         } finally {
             long serviceEnd = System.currentTimeMillis();
             System.out.println("====== Service Execution Time [Get All Budgets]: " + (serviceEnd - serviceStart) + "ms ======");

@@ -3,6 +3,7 @@ import logging
 import os
 from aiokafka import AIOKafkaConsumer
 import asyncio
+from app.core.cache import clear_analysis_cache
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +82,10 @@ async def consume_expense_events(app):
                                 "$pull": {"expense_history": {"expense_id": expense_id}}
                             }
                         )
+                    
+                    # Invalidate Cache
+                    await clear_analysis_cache(app.state.redis, company_id=company_id, budget_id=budget_id)
+                    
             finally:
                 await consumer.stop()
         except asyncio.CancelledError:
@@ -114,13 +119,12 @@ async def consume_budget_events(app):
                     action = event.get("action")
                     event_id = event.get("id")
                     
-                    # Distinguish between Budget and Allocation by checking for 'budgetId' and 'categoryName'
+                    # Distinguish between Budget and Allocation
                     is_allocation = "budgetId" in event and "categoryName" in event
 
                     if action == "DELETED":
                         await metadata_coll.delete_one({"id": event_id})
                         
-                        # If an allocation is deleted, we might want to clear allocation_id from history
                         if is_allocation:
                             budget_id = event.get("budgetId")
                             await expenses_coll.update_one(
@@ -128,6 +132,9 @@ async def consume_budget_events(app):
                                 {"$set": {"expense_history.$[elem].category": "Uncategorized", "expense_history.$[elem].allocation_id": None}},
                                 array_filters=[{"elem.allocation_id": event_id}]
                             )
+                            await clear_analysis_cache(app.state.redis, budget_id=budget_id)
+                        else:
+                            await clear_analysis_cache(app.state.redis, budget_id=event_id)
                     else:
                         await metadata_coll.update_one(
                             {"id": event_id},
@@ -135,18 +142,24 @@ async def consume_budget_events(app):
                             upsert=True
                         )
                         
+                        # Clear caches for this budget/company
+                        company_id = event.get("companyId")
+                        await clear_analysis_cache(app.state.redis, company_id=company_id)
+                        if not is_allocation: 
+                            await clear_analysis_cache(app.state.redis, budget_id=event_id)
+                        
                         # Handle Name Change Propagation for Allocations
                         if is_allocation and action == "UPDATED":
                             budget_id = event.get("budgetId")
                             new_name = event.get("categoryName")
                             logger.info(f"Propagating allocation name change: {event_id} -> {new_name}")
                             
-                            # Update all matching history items for this budget
                             await expenses_coll.update_one(
                                 {"budget_id": budget_id},
                                 {"$set": {"expense_history.$[elem].category": new_name}},
                                 array_filters=[{"elem.allocation_id": event_id}]
                             )
+                            await clear_analysis_cache(app.state.redis, budget_id=budget_id)
             finally:
                 await consumer.stop()
         except asyncio.CancelledError:

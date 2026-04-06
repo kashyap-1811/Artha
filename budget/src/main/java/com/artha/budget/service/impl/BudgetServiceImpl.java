@@ -13,8 +13,12 @@ import com.artha.budget.service.AuthorizationService;
 import com.artha.budget.service.BudgetService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import com.artha.budget.dto.event.AllocationEvent;
 import com.artha.budget.dto.event.BudgetEvent;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.CacheManager;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
@@ -22,10 +26,12 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 @Transactional
+@Slf4j
 public class BudgetServiceImpl implements BudgetService {
 
     private final BudgetRepository budgetRepository;
@@ -33,6 +39,7 @@ public class BudgetServiceImpl implements BudgetService {
     private final BudgetAuditLogRepository auditLogRepository;
     private final AuthorizationService authorizationService;
     private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final CacheManager cacheManager;
 
     /* ===================== Audit Helper ===================== */
 
@@ -47,6 +54,7 @@ public class BudgetServiceImpl implements BudgetService {
     /* ===================== Budget ===================== */
 
     @Override
+    @CacheEvict(value = {"company_budgets", "company_budgets_list"}, key = "#companyId")
     public Budget createBudget(
             String userId,
             String companyId,
@@ -110,7 +118,9 @@ public class BudgetServiceImpl implements BudgetService {
     }
 
     @Override
-    public List<Budget> getActiveBudget(String userId, String companyId) {
+    @Cacheable(value = "company_budgets", key = "#companyId")
+    public List<BudgetResponseDTO> getActiveBudget(String userId, String companyId) {
+        log.info("Cache miss for getActiveBudget, companyId: {}", companyId);
         authorizationService.checkPermission(userId, companyId, Action.VIEW_BUDGET);
 
         long dbStart = System.currentTimeMillis();
@@ -118,11 +128,15 @@ public class BudgetServiceImpl implements BudgetService {
         long dbEnd = System.currentTimeMillis();
         System.out.println("====== DB Execution Time [Get Active Budget]: " + (dbEnd - dbStart) + "ms ======");
 
-        return budgets.stream().toList();
+        return budgets.stream()
+                .map(BudgetMapper::toBudgetResponse)
+                .collect(Collectors.toList());
     }
 
     @Override
-    public List<Budget> getAllBudgets(String userId, String companyId) {
+    @Cacheable(value = "company_budgets_list", key = "#companyId")
+    public List<BudgetResponseDTO> getAllBudgets(String userId, String companyId) {
+        log.info("Cache miss for getAllBudgets, companyId: {}", companyId);
         authorizationService.checkPermission(userId, companyId, Action.VIEW_BUDGET);
 
         long dbStart = System.currentTimeMillis();
@@ -130,7 +144,9 @@ public class BudgetServiceImpl implements BudgetService {
         long dbEnd = System.currentTimeMillis();
         System.out.println("====== DB Execution Time [Get All Budgets]: " + (dbEnd - dbStart) + "ms ======");
 
-        return budgets;
+        return budgets.stream()
+                .map(BudgetMapper::toBudgetResponse)
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -148,6 +164,10 @@ public class BudgetServiceImpl implements BudgetService {
 
         budget.setStatus(BudgetStatus.CLOSED);
         budgetRepository.save(budget);
+        
+        log.info("Evicting cache for companyId: {} due to budget closure", budget.getCompanyId());
+        evictCompanyCaches(budget.getCompanyId());
+
         long dbEnd = System.currentTimeMillis();
         System.out.println("====== DB Execution Time [Close Budget]: " + (dbEnd - dbStart) + "ms ======");
 
@@ -209,6 +229,10 @@ public class BudgetServiceImpl implements BudgetService {
         // Set the parent reference natively instead of cascading the whole budget
         allocation.setBudget(budget);
         BudgetCategoryAllocation savedAllocation = allocationRepository.save(allocation);
+        
+        log.info("Evicting cache for companyId: {} due to allocation addition", budget.getCompanyId());
+        evictCompanyCaches(budget.getCompanyId());
+
         long dbEnd = System.currentTimeMillis();
         System.out.println("====== DB Execution Time [Add Category Allocation]: " + (dbEnd - dbStart) + "ms ======");
 
@@ -243,6 +267,10 @@ public class BudgetServiceImpl implements BudgetService {
 
         budget.removeAllocation(allocation);
         budgetRepository.save(budget);
+        
+        log.info("Evicting cache for companyId: {} due to allocation removal", budget.getCompanyId());
+        evictCompanyCaches(budget.getCompanyId());
+
         long dbEnd = System.currentTimeMillis();
         System.out.println("====== DB Execution Time [Remove Category Allocation]: " + (dbEnd - dbStart) + "ms ======");
 
@@ -291,6 +319,10 @@ public class BudgetServiceImpl implements BudgetService {
         allocation.setAlertThreshold(request.getAlertThreshold());
 
         BudgetCategoryAllocation saved = allocationRepository.save(allocation);
+        
+        log.info("Evicting cache for companyId: {} due to allocation update", allocation.getBudget().getCompanyId());
+        evictCompanyCaches(allocation.getBudget().getCompanyId());
+
         long dbEnd = System.currentTimeMillis();
         System.out.println("====== DB Execution Time [Update Allocation]: " + (dbEnd - dbStart) + "ms ======");
 
@@ -329,6 +361,10 @@ public class BudgetServiceImpl implements BudgetService {
         budget.setEndDate(request.getEndDate());
 
         Budget saved = budgetRepository.save(budget);
+        
+        log.info("Evicting cache for companyId: {} due to budget update", saved.getCompanyId());
+        evictCompanyCaches(saved.getCompanyId());
+ 
         long dbEnd = System.currentTimeMillis();
         System.out.println("====== DB Execution Time [Update Budget]: " + (dbEnd - dbStart) + "ms ======");
 
@@ -360,6 +396,10 @@ public class BudgetServiceImpl implements BudgetService {
 
         budget.setStatus(BudgetStatus.CLOSED);
         budgetRepository.save(budget);
+        
+        log.info("Evicting cache for companyId: {} due to budget removal", budget.getCompanyId());
+        evictCompanyCaches(budget.getCompanyId());
+
         long dbEnd = System.currentTimeMillis();
         System.out.println("====== DB Execution Time [Remove Budget]: " + (dbEnd - dbStart) + "ms ======");
 
@@ -373,7 +413,9 @@ public class BudgetServiceImpl implements BudgetService {
     }
 
     @Override
+    @Cacheable(value = "budget_details", key = "#budgetId")
     public BudgetResponseDTO getAllDetailOfBudget(String userId, UUID budgetId) {
+        log.info("Cache miss for getAllDetailOfBudget, budgetId: {}", budgetId);
         long dbStart = System.currentTimeMillis();
         Budget budget = budgetRepository.findById(budgetId)
                 .orElseThrow(() -> new ResourceNotFoundException("Budget not found"));
@@ -383,5 +425,20 @@ public class BudgetServiceImpl implements BudgetService {
         authorizationService.checkPermission(userId, budget.getCompanyId(), Action.VIEW_BUDGET);
 
         return BudgetMapper.toBudgetResponse(budget);
+    }
+
+    private void evictCompanyCaches(String companyId) {
+        if (cacheManager == null) return;
+        
+        var budgetsCache = cacheManager.getCache("company_budgets");
+        if (budgetsCache != null) budgetsCache.evict(companyId);
+        
+        var budgetsListCache = cacheManager.getCache("company_budgets_list");
+        if (budgetsListCache != null) budgetsListCache.evict(companyId);
+        
+        var budgetDetailsCache = cacheManager.getCache("budget_details");
+        if (budgetDetailsCache != null) budgetDetailsCache.clear(); // Clearing all details for now to be safe
+        
+        log.info("Finished local cache eviction for companyId: {}", companyId);
     }
 }

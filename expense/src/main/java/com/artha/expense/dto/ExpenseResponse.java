@@ -8,12 +8,14 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
+import java.io.Serializable;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ExpenseResponse {
+public class ExpenseResponse implements Serializable {
+    private static final long serialVersionUID = 1L;
 
     private UUID id;
 

@@ -7,12 +7,14 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.util.UUID;
+import java.io.Serializable;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class BudgetExpenseSummaryResponse {
+public class BudgetExpenseSummaryResponse implements Serializable {
+    private static final long serialVersionUID = 1L;
 
     private UUID budgetId;
 

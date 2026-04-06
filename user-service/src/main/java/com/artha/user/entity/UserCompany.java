@@ -10,6 +10,10 @@ import java.time.Instant;
         name = "user_companies",
         uniqueConstraints = {
                 @UniqueConstraint(columnNames = {"user_id", "company_id"})
+        },
+        indexes = {
+                @Index(name = "idx_usercompany_company_active", columnList = "company_id, active"),
+                @Index(name = "idx_usercompany_user_active", columnList = "user_id, active")
         }
 )
 @Getter

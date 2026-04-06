@@ -14,6 +14,8 @@
 - [Run with Docker Compose](#run-with-docker-compose)
 - [Event-Driven Flow](#event-driven-flow)
 - [API Overview](#api-overview)
+- [Implementation Deep-Dives](#implementation-deep-dives)
+- [⚡ Optimization & Refactoring](#-optimization--refactoring)
 
 ---
 
@@ -34,8 +36,9 @@
   - *Month-over-Month Spending Trend* — detects whether spending is accelerating or slowing down with MoM growth percentages.
   - *Top Spenders Leaderboard* — ranks allocations by total spend for a specific budget.
   - *Active Budget Analysis* — aggregated view across all active budgets of a company.
+- **Redis Response Caching** — The Expense and Budget services cache hot read endpoints (company expenses, budget lists, budget details, and chart data) in Redis using Spring Cache with a 5-minute TTL and immediate write-path eviction. The Python Analysis service adds a second Redis caching layer on top of MongoDB so that dashboard API calls are served in under 1 ms on cache hits.
 - **Redis Rate Limiting** — The API Gateway enforces per-user (or per-IP) rate limits using Redis to protect all backend services from abuse.
-- **Event-Driven CQRS Architecture** — Expense and company membership events are published to Apache Kafka (`expense-events` and `company-events` topics). The Analysis Service and Notification Service consume these events asynchronously, enabling O(1) dashboard reads and real-time email alerts without blocking the core request path.
+- **Event-Driven CQRS Architecture** — Expense, budget, and company membership events are published to Apache Kafka (`expense-events`, `budget-events`, and `company-events` topics). The Analysis Service and Notification Service consume these events asynchronously, enabling O(1) dashboard reads and real-time email alerts without blocking the core request path.
 
 ---
 
@@ -66,8 +69,9 @@ Artha follows a microservices architecture coordinated through a service registr
                     └─────────────────────────────────────┘       │
                                                                   │
                     expense approved ──►┌──────────────────────┐  │
-                    membership changed ─►│   Apache Kafka       │─ ┘
-                                        │  expense-events      │
+                    budget created   ──►│   Apache Kafka       │─ ┘
+                    membership changed─►│  expense-events      │
+                                        │  budget-events       │
                                         │  company-events      │
                                         └──────────┬───────────┘
                                                    │
@@ -76,9 +80,10 @@ Artha follows a microservices architecture coordinated through a service registr
                     ┌──────────▼──────────┐            ┌──────────────▼───────┐
                     │  analysis-service   │            │ notification-service │
                     │  Kafka consumer     │            │  Kafka consumer      │
-                    │  (expense-events)   │            │  (expense-events +   │
-                    │  → MongoDB Atlas    │            │   company-events)    │
-                    │    (CQRS cache)     │            │  → Email via SendGrid│
+                    │  (expense-events +  │            │  (expense-events +   │
+                    │   budget-events)    │            │   company-events)    │
+                    │  → MongoDB Atlas    │            │  → Email via SendGrid│
+                    │    (CQRS cache)     │            │                      │
                     └─────────────────────┘            └──────────────────────┘
 ```
 
@@ -98,7 +103,7 @@ All Java/Spring Boot services register with the Eureka service registry. The Pyt
 | API Gateway | Spring Cloud Gateway, Redis (rate limiting) |
 | Security | Spring Security, JWT (jjwt 0.12.6), OAuth 2.0 (Google) |
 | Relational Database | PostgreSQL (via Spring Data JPA / Neon) |
-| NoSQL / Cache | MongoDB Atlas (Motor async driver) |
+| NoSQL / Cache | MongoDB Atlas (Motor async driver), Redis (Spring Cache — expense & budget services) |
 | Message Broker | Apache Kafka 7.8.0 + Zookeeper |
 | Data Processing | Pandas, NumPy (Python analysis engine) |
 | Observability | Spring Boot Actuator, Kafka UI |
@@ -124,8 +129,8 @@ All Java/Spring Boot services register with the Eureka service registry. The Pyt
 
 | Component | Port | Description |
 |---|---|---|
-| Redis | 6379 | In-memory store for API Gateway rate limiting |
-| Apache Kafka | 9092 | Message broker for `expense-events` and `company-events` topics |
+| Redis | 6379 | In-memory store for API Gateway rate limiting and service-level response caching (expense & budget) |
+| Apache Kafka | 9092 | Message broker for `expense-events`, `budget-events`, and `company-events` topics |
 | Zookeeper | 2181 | Kafka coordination service |
 | Kafka UI | 8085 | Web UI for monitoring Kafka topics and consumer groups |
 | MongoDB Atlas | cloud | NoSQL store for analysis cache (`artha_analysis` DB) and notification deduplication |
@@ -170,9 +175,9 @@ This starts:
 | `budget-service` | http://localhost:8081 |
 | `expense-service` | http://localhost:8082 |
 | `frontend` | http://localhost:5173 |
-| `redis` | localhost:6379 |
-| `kafka` | localhost:9092 |
-| `zookeeper` | localhost:2181 |
+| `redis` | http://localhost:6379 |
+| `kafka` | http://localhost:9092 |
+| `zookeeper` | http://localhost:2181 |
 | `kafka-ui` | http://localhost:8085 |
 
 To stop all containers:
@@ -294,6 +299,24 @@ user-service  ──publish──►  Kafka topic: company-events
                       • Personalised HTML email sent to the affected user via SendGrid
 ```
 
+### Budget Lifecycle Events
+
+When a company owner **creates, updates, or deletes a budget or category allocation**, the following pipeline executes:
+
+```
+budget-service  ──publish──►  Kafka topic: budget-events
+                                      │
+                                      ▼
+                         analysis-service consumer
+                         • Upserts budget and allocation metadata
+                           into the budget_metadata collection
+                         • On allocation UPDATED: propagates
+                           categoryName changes across expense history
+                         • On allocation DELETED: marks matching
+                           expenses as "Uncategorized" in MongoDB
+                         → Dashboard reads use up-to-date allocation metadata
+```
+
 ---
 
 ## API Overview
@@ -355,3 +378,40 @@ All analytics endpoints are routed through the API Gateway at `/analysis/**`.
 | GET | `/analysis/company/{companyId}/category-breakdown` | Company-wide spending grouped by category with percentages — optimised for Pie/Donut charts |
 | GET | `/analysis/company/{companyId}/spending-trend` | Month-over-month spending trend with growth percentages and trend direction (*UP / DOWN / FLAT*) — optimised for Line/Bar charts |
 | GET | `/analysis/budget/{budgetId}/top-spenders` | Leaderboard of allocations ranked by total spend for a specific budget — optimised for horizontal Bar charts |
+
+---
+
+## Implementation Deep-Dives
+
+Detailed write-ups on key cross-cutting concerns implemented in this project:
+
+| Topic | File | Summary |
+|---|---|---|
+| **Dynamic Rate Limiting** | [`implementation/Rate-limiting.md`](implementation/Rate-limiting.md) | Per-user adaptive rate limiting in the API Gateway using Redis token buckets, active-user tracking, and health-based limit calculation. |
+| **Caching** | [`implementation/Caching.md`](implementation/Caching.md) | Three-layer caching strategy: Spring `@Cacheable` + Redis for expense and budget read endpoints; Python `cache_response` decorator + Redis for analytics endpoints; MongoDB as a CQRS event-sourced read model for O(1) dashboard queries. |
+| **⚡ Optimization & Refactoring** | [`implementation/optimization.md`](implementation/optimization.md) | Second-round backend optimization: DB indexes, N+1 HTTP fix in FastAPI, async I/O fix, constraint-based validation, and aggregation query optimization across user, budget, and expense services. |
+
+---
+
+## ⚡ Optimization & Refactoring
+
+A focused second round of backend optimization was applied across the Java Spring Boot and Python FastAPI services. Full details in [`implementation/optimization.md`](implementation/optimization.md).
+
+**Key improvements:**
+
+- **Fixed N+1 HTTP calls** in `getExpenseChart` — replaced sequential per-category HTTP requests with a single batched async call, eliminating O(n) latency scaling.
+- **Replaced blocking I/O in FastAPI** — switched from `requests` to `httpx.AsyncClient` inside async endpoints to prevent event-loop starvation under concurrent load.
+- **Added database indexes** on `expense.company_id` (+ composite), `user_company (company_id, active)`, `user_company (user_id, active)`, and `company.type` — converts full-table scans to O(log n) lookups.
+- **Optimized budget summary query** — replaced multi-query in-memory aggregation with a single `GROUP BY` query at the database layer.
+- **Replaced in-memory filtering with DB `COUNT`** — existence checks and record counts now execute at the database level.
+- **Constraint-based validation** in `addMember`, `delete`, and `create` — removed pre-check SELECT queries, cutting DB round trips per operation from 2 to 1 and eliminating TOCTOU race conditions.
+
+**Performance highlights (warm-execution averages, non-cached):**
+
+| Endpoint | Before (ms) | After (ms) | Improvement |
+|---|---|---|---|
+| `POST /auth/login` | 1507 | 913 | **+39%** |
+| `GET /api/users/{id}` | 1037 | 703 | **+32%** |
+| `POST /api/budgets` | 1668 | 1294 | **+22%** |
+| `GET /api/users/by-email` | 1216 | 1078 | **+11%** |
+

@@ -7,13 +7,15 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
+import java.io.Serializable;
 
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class BudgetResponseDTO {
+public class BudgetResponseDTO implements Serializable {
+    private static final long serialVersionUID = 1L;
 
     private UUID id;
     private String companyId;

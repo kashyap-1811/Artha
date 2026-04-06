@@ -5,9 +5,10 @@ from contextlib import asynccontextmanager
 from py_eureka_client import eureka_client
 from app.routers import analysis
 from motor.motor_asyncio import AsyncIOMotorClient
-from app.core.config import MONGO_DETAILS, EUREKA_SERVER
+from app.core.config import MONGO_DETAILS, EUREKA_SERVER, REDIS_HOST, REDIS_PORT
 import asyncio
 import certifi
+import redis.asyncio as redis
 from dotenv import load_dotenv
 from app.services.kafka_consumer import consume_expense_events, consume_budget_events
 import socket
@@ -35,6 +36,11 @@ async def lifespan(app: FastAPI):
     db.client = AsyncIOMotorClient(MONGO_DETAILS, tlsCAFile=certifi.where())
     app.state.mongodb_client = db.client
     print("Successfully connected to MongoDB Atlas!")
+ 
+    # Connect to Redis
+    print(f"Connecting to Redis at {REDIS_HOST}:{REDIS_PORT}...")
+    app.state.redis = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
+    print("Successfully connected to Redis!")
 
     # Startup: Register with Eureka
     try:
@@ -72,6 +78,9 @@ async def lifespan(app: FastAPI):
         await eureka_client.stop_async()
     except Exception as e:
         pass
+ 
+    print("Disconnecting from Redis...")
+    await app.state.redis.close()
 
 load_dotenv()
 

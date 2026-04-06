@@ -19,6 +19,7 @@ public class SecurityConfig {
                 .authorizeExchange(exchange -> exchange
                         .pathMatchers("/auth/**").permitAll()
                         .pathMatchers("/users/auth/**").permitAll()
+                        .pathMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
                         .pathMatchers("/internal/**").permitAll()  // Internal service-to-service calls (no JWT)
                         .anyExchange().authenticated()
                 )

@@ -128,7 +128,7 @@ function AuthPage() {
   }
 
   function handleGoogleLogin() {
-    console.log("Google login triggered");
+    window.location.href = "http://localhost:8080/oauth2/authorization/google";
   }
 
   return (

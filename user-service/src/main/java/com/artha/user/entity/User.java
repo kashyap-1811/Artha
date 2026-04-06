@@ -30,6 +30,12 @@ public class User {
     @Column(nullable = true)
     private String password;
 
+    @Column(nullable = true)
+    private String provider; // e.g., "google"
+
+    @Column(nullable = true)
+    private String providerId; // Unique ID from OAuth provider
+
     @Column(nullable = false)
     @Builder.Default
     private boolean active = true;

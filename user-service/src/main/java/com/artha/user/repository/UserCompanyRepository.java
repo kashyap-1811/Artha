@@ -48,4 +48,7 @@ public interface UserCompanyRepository extends JpaRepository<UserCompany, String
 
     // Validation helper
     boolean existsByUser_IdAndCompany_Id(String userId, String companyId);
+
+    // Efficient database-level counting (Part 2 Optimization)
+    long countByCompany_IdAndRoleAndActiveTrue(String companyId, UserCompanyRole role);
 }

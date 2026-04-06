@@ -9,6 +9,7 @@ import com.artha.budget.entity.BudgetCategoryAllocation;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 public interface BudgetService {
@@ -24,9 +25,9 @@ public interface BudgetService {
             LocalDate endDate
     );
 
-    List<Budget> getActiveBudget(String userId, String companyId);
+    List<BudgetResponseDTO> getActiveBudget(String userId, String companyId);
 
-    List<Budget> getAllBudgets(String userId, String companyId);
+    List<BudgetResponseDTO> getAllBudgets(String userId, String companyId);
 
     void closeBudget(String userId, UUID budgetId);
 
@@ -53,4 +54,6 @@ public interface BudgetService {
     void removeBudget(String userId, UUID budgetId);
 
     BudgetResponseDTO getAllDetailOfBudget(String userId, UUID budgetId);
+
+    Map<UUID, String> getAllocationNames(List<UUID> allocationIds);
 }

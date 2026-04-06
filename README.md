@@ -14,6 +14,7 @@
 - [Run with Docker Compose](#run-with-docker-compose)
 - [Event-Driven Flow](#event-driven-flow)
 - [API Overview](#api-overview)
+- [Implementation Deep-Dives](#implementation-deep-dives)
 
 ---
 
@@ -34,6 +35,7 @@
   - *Month-over-Month Spending Trend* — detects whether spending is accelerating or slowing down with MoM growth percentages.
   - *Top Spenders Leaderboard* — ranks allocations by total spend for a specific budget.
   - *Active Budget Analysis* — aggregated view across all active budgets of a company.
+- **Redis Response Caching** — The Expense and Budget services cache hot read endpoints (company expenses, budget lists, budget details, and chart data) in Redis using Spring Cache with a 5-minute TTL and immediate write-path eviction. The Python Analysis service adds a second Redis caching layer on top of MongoDB so that dashboard API calls are served in under 1 ms on cache hits.
 - **Redis Rate Limiting** — The API Gateway enforces per-user (or per-IP) rate limits using Redis to protect all backend services from abuse.
 - **Event-Driven CQRS Architecture** — Expense, budget, and company membership events are published to Apache Kafka (`expense-events`, `budget-events`, and `company-events` topics). The Analysis Service and Notification Service consume these events asynchronously, enabling O(1) dashboard reads and real-time email alerts without blocking the core request path.
 
@@ -100,7 +102,7 @@ All Java/Spring Boot services register with the Eureka service registry. The Pyt
 | API Gateway | Spring Cloud Gateway, Redis (rate limiting) |
 | Security | Spring Security, JWT (jjwt 0.12.6), OAuth 2.0 (Google) |
 | Relational Database | PostgreSQL (via Spring Data JPA / Neon) |
-| NoSQL / Cache | MongoDB Atlas (Motor async driver) |
+| NoSQL / Cache | MongoDB Atlas (Motor async driver), Redis (Spring Cache — expense & budget services) |
 | Message Broker | Apache Kafka 7.8.0 + Zookeeper |
 | Data Processing | Pandas, NumPy (Python analysis engine) |
 | Observability | Spring Boot Actuator, Kafka UI |
@@ -126,7 +128,7 @@ All Java/Spring Boot services register with the Eureka service registry. The Pyt
 
 | Component | Port | Description |
 |---|---|---|
-| Redis | 6379 | In-memory store for API Gateway rate limiting |
+| Redis | 6379 | In-memory store for API Gateway rate limiting and service-level response caching (expense & budget) |
 | Apache Kafka | 9092 | Message broker for `expense-events`, `budget-events`, and `company-events` topics |
 | Zookeeper | 2181 | Kafka coordination service |
 | Kafka UI | 8085 | Web UI for monitoring Kafka topics and consumer groups |
@@ -375,3 +377,15 @@ All analytics endpoints are routed through the API Gateway at `/analysis/**`.
 | GET | `/analysis/company/{companyId}/category-breakdown` | Company-wide spending grouped by category with percentages — optimised for Pie/Donut charts |
 | GET | `/analysis/company/{companyId}/spending-trend` | Month-over-month spending trend with growth percentages and trend direction (*UP / DOWN / FLAT*) — optimised for Line/Bar charts |
 | GET | `/analysis/budget/{budgetId}/top-spenders` | Leaderboard of allocations ranked by total spend for a specific budget — optimised for horizontal Bar charts |
+
+---
+
+## Implementation Deep-Dives
+
+Detailed write-ups on key cross-cutting concerns implemented in this project:
+
+| Topic | File | Summary |
+|---|---|---|
+| **Dynamic Rate Limiting** | [`implementation/Rate-limiting.md`](implementation/Rate-limiting.md) | Per-user adaptive rate limiting in the API Gateway using Redis token buckets, active-user tracking, and health-based limit calculation. |
+| **Caching** | [`implementation/Caching.md`](implementation/Caching.md) | Three-layer caching strategy: Spring `@Cacheable` + Redis for expense and budget read endpoints; Python `cache_response` decorator + Redis for analytics endpoints; MongoDB as a CQRS event-sourced read model for O(1) dashboard queries. |
+

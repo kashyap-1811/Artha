@@ -8,6 +8,7 @@ import DashboardPage from "./pages/DashboardPage";
 import CompaniesPage from "./pages/CompaniesPage";
 import ProfilePage from "./pages/ProfilePage";
 import AnalysisPage from "./pages/AnalysisPage";
+import OAuth2CallbackPage from "./pages/OAuth2CallbackPage";
 import DotBackground from "./components/DotBackground";
 
 function App() {
@@ -18,6 +19,7 @@ function App() {
         {/* Public Route */}
         <Route path="/" element={<HomePage />} />
         <Route path="/auth" element={<AuthPage />} />
+        <Route path="/oauth-callback" element={<OAuth2CallbackPage />} />
 
         {/* Authenticated Routes wrapped in Layout */}
         <Route

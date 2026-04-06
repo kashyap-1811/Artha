@@ -15,6 +15,7 @@
 - [Event-Driven Flow](#event-driven-flow)
 - [API Overview](#api-overview)
 - [Implementation Deep-Dives](#implementation-deep-dives)
+- [⚡ Optimization & Refactoring](#-optimization--refactoring)
 
 ---
 
@@ -388,4 +389,29 @@ Detailed write-ups on key cross-cutting concerns implemented in this project:
 |---|---|---|
 | **Dynamic Rate Limiting** | [`implementation/Rate-limiting.md`](implementation/Rate-limiting.md) | Per-user adaptive rate limiting in the API Gateway using Redis token buckets, active-user tracking, and health-based limit calculation. |
 | **Caching** | [`implementation/Caching.md`](implementation/Caching.md) | Three-layer caching strategy: Spring `@Cacheable` + Redis for expense and budget read endpoints; Python `cache_response` decorator + Redis for analytics endpoints; MongoDB as a CQRS event-sourced read model for O(1) dashboard queries. |
+| **⚡ Optimization & Refactoring** | [`implementation/optimization.md`](implementation/optimization.md) | Second-round backend optimization: DB indexes, N+1 HTTP fix in FastAPI, async I/O fix, constraint-based validation, and aggregation query optimization across user, budget, and expense services. |
+
+---
+
+## ⚡ Optimization & Refactoring
+
+A focused second round of backend optimization was applied across the Java Spring Boot and Python FastAPI services. Full details in [`implementation/optimization.md`](implementation/optimization.md).
+
+**Key improvements:**
+
+- **Fixed N+1 HTTP calls** in `getExpenseChart` — replaced sequential per-category HTTP requests with a single batched async call, eliminating O(n) latency scaling.
+- **Replaced blocking I/O in FastAPI** — switched from `requests` to `httpx.AsyncClient` inside async endpoints to prevent event-loop starvation under concurrent load.
+- **Added database indexes** on `expense.company_id` (+ composite), `user_company (company_id, active)`, `user_company (user_id, active)`, and `company.type` — converts full-table scans to O(log n) lookups.
+- **Optimized budget summary query** — replaced multi-query in-memory aggregation with a single `GROUP BY` query at the database layer.
+- **Replaced in-memory filtering with DB `COUNT`** — existence checks and record counts now execute at the database level.
+- **Constraint-based validation** in `addMember`, `delete`, and `create` — removed pre-check SELECT queries, cutting DB round trips per operation from 2 to 1 and eliminating TOCTOU race conditions.
+
+**Performance highlights (warm-execution averages, non-cached):**
+
+| Endpoint | Before (ms) | After (ms) | Improvement |
+|---|---|---|---|
+| `POST /auth/login` | 1507 | 913 | **−39%** |
+| `GET /api/users/{id}` | 1037 | 703 | **−32%** |
+| `POST /api/budgets` | 1668 | 1294 | **−22%** |
+| `GET /api/users/by-email` | 1216 | 1078 | **−11%** |
 

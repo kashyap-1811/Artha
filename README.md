@@ -410,8 +410,8 @@ A focused second round of backend optimization was applied across the Java Sprin
 
 | Endpoint | Before (ms) | After (ms) | Improvement |
 |---|---|---|---|
-| `POST /auth/login` | 1507 | 913 | **−39%** |
-| `GET /api/users/{id}` | 1037 | 703 | **−32%** |
-| `POST /api/budgets` | 1668 | 1294 | **−22%** |
-| `GET /api/users/by-email` | 1216 | 1078 | **−11%** |
+| `POST /auth/login` | 1507 | 913 | **+39%** |
+| `GET /api/users/{id}` | 1037 | 703 | **+32%** |
+| `POST /api/budgets` | 1668 | 1294 | **+22%** |
+| `GET /api/users/by-email` | 1216 | 1078 | **+11%** |
 

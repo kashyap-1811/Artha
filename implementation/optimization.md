@@ -99,10 +99,10 @@ Without indexes, every query that filters by `company_id`, `user_id`, or `active
 
 | Endpoint | After (ms) | Key Change |
 |---|---|---|
-| `GET /api/expenses/chart` | ~1854 | N+1 HTTP calls → single batched call |
-| `GET /api/budgets/active` | ~1464 | Multi-query aggregation → single GROUP BY |
-| `GET /api/expenses` | ~1010 | In-memory filter → DB COUNT |
-| `GET /api/companies/my/personal` | ~1370 | Index on `company.type` |
+| `GET /api/expenses/chart` | 1854 | N+1 HTTP calls → single batched call |
+| `GET /api/budgets/active` | 1464 | Multi-query aggregation → single GROUP BY |
+| `GET /api/expenses` | 1010 | In-memory filter → DB COUNT |
+| `GET /api/companies/my/personal` | 1370 | Index on `company.type` |
 
 > ¹ These endpoints show higher values in post-refactoring logs due to a larger dataset in the test environment at measurement time. The optimizations applied (indexes, constraint validation) are validated at the query-plan level and benefit at scale where data volume increases query cost most.
 

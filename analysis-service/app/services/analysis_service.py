@@ -1,20 +1,22 @@
 from fastapi import HTTPException
 from app.core.config import API_GATEWAY_URL
 from motor.motor_asyncio import AsyncIOMotorClient
-import requests
+import httpx
 import time
 
 async def fetch_company_health_data(company_id: str, headers: dict, db_client: AsyncIOMotorClient) -> dict:
     
     ext_start = time.time()
-    # Use internal gateway route
-    budgets_resp = requests.get(
-        f"{API_GATEWAY_URL}/internal/budget/api/budgets/all",
-        params={"companyId": company_id},
-        headers=headers,
-        timeout=5
-    )
-    budgets = budgets_resp.json() if budgets_resp.json() and budgets_resp.status_code == 200 else []
+    # Use internal gateway route with non-blocking httpx
+    async with httpx.AsyncClient() as client:
+        budgets_resp = await client.get(
+            f"{API_GATEWAY_URL}/internal/budget/api/budgets/all",
+            params={"companyId": company_id},
+            headers=headers,
+            timeout=5.0
+        )
+    
+    budgets = budgets_resp.json() if budgets_resp.status_code == 200 else []
     ext_end = time.time()
     
     total_budget = 0.0
@@ -68,12 +70,14 @@ async def fetch_company_health_data(company_id: str, headers: dict, db_client: A
 
 async def fetch_budget_analysis_data(budget_id: str, headers: dict, db_client: AsyncIOMotorClient) -> dict:
     ext_start = time.time()
-    # Use internal gateway route
-    budget_resp = requests.get(
-        f"{API_GATEWAY_URL}/internal/budget/api/budgets/{budget_id}/details",
-        headers=headers,
-        timeout=5
-    )
+    # Use internal gateway route with non-blocking httpx
+    async with httpx.AsyncClient() as client:
+        budget_resp = await client.get(
+            f"{API_GATEWAY_URL}/internal/budget/api/budgets/{budget_id}/details",
+            headers=headers,
+            timeout=5.0
+        )
+        
     if budget_resp.status_code != 200:
         print(f"FAILED TO FETCH BUDGET FROM GATEWAY: {budget_resp.status_code} {budget_resp.text}")
         raise HTTPException(status_code=404, detail="Budget not found")
@@ -137,13 +141,14 @@ async def fetch_budget_analysis_data(budget_id: str, headers: dict, db_client: A
 
 async def fetch_active_budget_analysis_data(company_id: str, headers: dict, db_client: AsyncIOMotorClient) -> dict:
     ext_start = time.time()
-    # Use internal gateway route
-    budgets_resp = requests.get(
-        f"{API_GATEWAY_URL}/internal/budget/api/budgets/active",
-        params={"companyId": company_id},
-        headers=headers,
-        timeout=5
-    )
+    # Use internal gateway route with non-blocking httpx
+    async with httpx.AsyncClient() as client:
+        budgets_resp = await client.get(
+            f"{API_GATEWAY_URL}/internal/budget/api/budgets/active",
+            params={"companyId": company_id},
+            headers=headers,
+            timeout=5.0
+        )
     budgets = budgets_resp.json() if budgets_resp.status_code == 200 else []
     ext_end = time.time()
 

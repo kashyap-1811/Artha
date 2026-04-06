@@ -62,4 +62,32 @@ public class BudgetServiceClient {
         }
         return null;
     }
+
+    /**
+     * Fetches multiple allocation names in a single batch call.
+     */
+    public Map<UUID, String> getAllocationNamesBatch(String userId, List<UUID> allocationIds) {
+        if (allocationIds == null || allocationIds.isEmpty()) {
+            return Map.of();
+        }
+        
+        String url = budgetServiceUrl + "/internal/budget/api/budgets/allocations/names";
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("X-User-Id", userId);
+            HttpEntity<List<UUID>> entity = new HttpEntity<>(allocationIds, headers);
+
+            ResponseEntity<Map<UUID, String>> response = restTemplate.exchange(
+                url, 
+                HttpMethod.POST, 
+                entity, 
+                new ParameterizedTypeReference<Map<UUID, String>>() {}
+            );
+            
+            return response.getBody() != null ? response.getBody() : Map.of();
+        } catch (Exception e) {
+            log.warn("Could not resolve batch allocation names: {}", e.getMessage());
+            return Map.of();
+        }
+    }
 }

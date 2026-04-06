@@ -59,46 +59,37 @@ public class CompanyService implements ICompanyService {
 
     @Override
     public Company addMember(User user, Company company, UserCompanyRole role) {
-
-        long dbStart1 = System.currentTimeMillis();
-        User persistedUser = userRepository.findById(user.getId())
-                .orElseThrow(() ->
-                        new EntityNotFoundException("User not found: " + user.getId())
-                );
-        long dbEnd1 = System.currentTimeMillis();
-
-        long dbStart2 = System.currentTimeMillis();
-        Company persistedCompany = companyRepository.findById(company.getId())
-                .orElseThrow(() ->
-                        new EntityNotFoundException("Company not found: " + company.getId())
-                );
-        long dbEnd2 = System.currentTimeMillis();
-
+        // Part 3 Optimization: Use getReferenceById to avoid full entity fetch when only ID is needed for association
+        // Note: persistedCompany.getType() will trigger a lazy load if not already in session, which is fine.
+        Company persistedCompany = companyRepository.getReferenceById(company.getId());
+        
         if (persistedCompany.getType() == CompanyType.PERSONAL) {
             throw new IllegalStateException("Cannot add members to PERSONAL company");
         }
 
-        long dbStart3 = System.currentTimeMillis();
-        boolean exists = userCompanyRepository.existsByUser_IdAndCompany_Id(persistedUser.getId(), persistedCompany.getId());
-        long dbEnd3 = System.currentTimeMillis();
-
-        if (exists) {
-            throw new IllegalStateException("User already a member");
-        }
+        User persistedUser = userRepository.getReferenceById(user.getId());
 
         UserCompany uc = UserCompany.builder()
                 .role(role)
                 .active(true)
                 .build();
 
+        // Bi-directional relationship management
         persistedUser.addUserCompany(uc);
         persistedCompany.addUserCompany(uc);
 
-        long dbStart4 = System.currentTimeMillis();
-        userCompanyRepository.save(uc);
-        long dbEnd4 = System.currentTimeMillis();
+        long dbStart = System.currentTimeMillis();
+        try {
+            // Part 3 Optimization: Remove exists check and rely on DB UNIQUE constraint (user_id, company_id)
+            userCompanyRepository.save(uc);
+            // We must flush to trigger the constraint violation within this block if transaction is committed later
+            userCompanyRepository.flush();
+        } catch (org.springframework.dao.DataIntegrityViolationException ex) {
+            throw new com.artha.user.exception.DuplicateResourceException("User already a member of this company");
+        }
+        long dbEnd = System.currentTimeMillis();
 
-        System.out.println("====== DB Execution Time [Add Member]: LookupUser " + (dbEnd1 - dbStart1) + "ms, LookupComp " + (dbEnd2 - dbStart2) + "ms, Check " + (dbEnd3 - dbStart3) + "ms, Save " + (dbEnd4 - dbStart4) + "ms ======");
+        System.out.println("====== DB Execution Time [Add Member Optimized]: Save/Flush " + (dbEnd - dbStart) + "ms ======");
 
         CompanyMemberEvent event = CompanyMemberEvent.builder()
                 .eventType("MEMBER_ADDED")
@@ -172,11 +163,8 @@ public class CompanyService implements ICompanyService {
         if (membership.getRole() == UserCompanyRole.OWNER) {
 
             long dbStart2 = System.currentTimeMillis();
-            long ownerCount = userCompanyRepository
-                    .findByCompany_IdAndActiveTrue(company.getId())
-                    .stream()
-                    .filter(uc -> uc.getRole() == UserCompanyRole.OWNER)
-                    .count();
+            // Part 2 Optimization: Use direct database COUNT instead of loading all members into memory
+            long ownerCount = userCompanyRepository.countByCompany_IdAndRoleAndActiveTrue(company.getId(), UserCompanyRole.OWNER);
             long dbEnd2 = System.currentTimeMillis();
             System.out.println("====== DB Execution Time [Check Owners]: " + (dbEnd2 - dbStart2) + "ms ======");
 

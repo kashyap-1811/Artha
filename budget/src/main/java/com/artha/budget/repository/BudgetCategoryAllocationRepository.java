@@ -12,6 +12,8 @@ import java.util.UUID;
 public interface BudgetCategoryAllocationRepository
         extends JpaRepository<BudgetCategoryAllocation, UUID> {
 
+    List<BudgetCategoryAllocation> findAllByIdIn(List<UUID> ids);
+
     List<BudgetCategoryAllocation> findAllByBudgetId(UUID budgetId);
 
     boolean existsByBudgetIdAndCategoryName(

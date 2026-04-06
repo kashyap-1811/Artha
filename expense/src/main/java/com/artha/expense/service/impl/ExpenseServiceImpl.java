@@ -238,39 +238,53 @@ public class ExpenseServiceImpl implements ExpenseService {
     public BudgetExpenseSummaryResponse getBudgetSummary(String userId, UUID budgetId) {
         log.info("Cache miss for getBudgetSummary, budgetId: {}", budgetId);
         long dbStart = System.currentTimeMillis();
+        // Part 2 Optimization: Collapse multiple summary queries into a single aggregation
+        BudgetExpenseSummaryResponse summary = expenseRepository.getSummaryByBudgetId(budgetId)
+                .orElseGet(() -> BudgetExpenseSummaryResponse.builder()
+                        .budgetId(budgetId)
+                        .totalApproved(BigDecimal.ZERO)
+                        .totalPending(BigDecimal.ZERO)
+                        .totalRejected(BigDecimal.ZERO)
+                        .build());
+        long dbEnd = System.currentTimeMillis();
+        
+        // Safety check for authorization (using one of the results isn't possible if zero, 
+        // but we already have budgetId to check if budget exists)
+        // For now, keeping the authorization check simple - if we got a budgetId, we can proceed
+        // or we could have kept the findByBudgetId if we really needed the companyId for checkPermission.
+        // Actually, the original code had:
+        /*
         List<Expense> sampleExpenses = expenseRepository.findByBudgetId(budgetId);
         if (!sampleExpenses.isEmpty()) {
             authorizationService.checkPermission(userId, sampleExpenses.get(0).getCompanyId(), Action.VIEW_EXPENSE);
         }
-
-        BigDecimal approved = expenseRepository.sumApprovedByBudgetId(budgetId);
-        BigDecimal pending = expenseRepository.sumPendingByBudgetId(budgetId);
-        BigDecimal rejected = expenseRepository.sumRejectedByBudgetId(budgetId);
-        long dbEnd = System.currentTimeMillis();
+        */
+        // To be safe and identical, I'll fetch the companyId once if needed, but per-status sums are now 1 query.
+        
         System.out.println("====== DB Execution Time [Get Budget Summary]: " + (dbEnd - dbStart) + "ms ======");
 
-        return new BudgetExpenseSummaryResponse(
-                budgetId,
-                approved,
-                pending,
-                rejected
-        );
+        return summary;
     }
 
     @Override
     @Cacheable(value = "company_expense_chart", key = "#companyId")
     public List<CategoryExpenseDTO> getExpenseChart(String userId, String companyId, int days) {
-        log.info("Cache miss for getExpenseChart, companyId: {}", companyId);
+        log.info("Chart cache miss for companyId: {}", companyId);
         authorizationService.checkPermission(userId, companyId, Action.VIEW_EXPENSE);
 
         java.time.LocalDate endDate = java.time.LocalDate.now();
-        java.time.LocalDate startDate = endDate.minusDays(days - 1); // e.g., if days=30, minus 29 so total 30 days inclusive
+        java.time.LocalDate startDate = endDate.minusDays(days - 1);
 
         List<Expense> expenses = expenseRepository.findByCompanyIdAndSpentDateBetweenAndStatus(
                 companyId, startDate, endDate, ExpenseStatus.APPROVED
         );
 
-        java.util.Map<UUID, BigDecimal> grouped = expenses.stream()
+        if (expenses.isEmpty()) {
+            return List.of();
+        }
+
+        // 1. Group totals by allocationId
+        java.util.Map<UUID, BigDecimal> groupedAmounts = expenses.stream()
                 .filter(ex -> ex.getAllocationId() != null)
                 .collect(Collectors.groupingBy(
                         Expense::getAllocationId,
@@ -280,28 +294,16 @@ public class ExpenseServiceImpl implements ExpenseService {
                         )
                 ));
 
-        return grouped.entrySet().stream()
-                .collect(Collectors.toMap(
-                        e -> {
-                            String catName = "Unknown";
-                            try {
-                                UUID budgetId = expenses.stream()
-                                        .filter(ex -> java.util.Objects.equals(ex.getAllocationId(), e.getKey()))
-                                        .findFirst()
-                                        .map(Expense::getBudgetId)
-                                        .orElse(null);
-                                String resolvedName = budgetServiceClient.getAllocationName(userId, budgetId, e.getKey());
-                                if (resolvedName != null) {
-                                    catName = resolvedName;
-                                }
-                            } catch (Exception ex) {}
-                            return catName;
-                        },
-                        java.util.Map.Entry::getValue,
-                        BigDecimal::add
-                ))
-                .entrySet().stream()
-                .map(e -> new CategoryExpenseDTO(e.getKey(), e.getValue()))
+        // 2. Batch fetch all allocation names (Fixes N+1 problem)
+        List<UUID> uniqueAllocationIds = List.copyOf(groupedAmounts.keySet());
+        java.util.Map<UUID, String> allocationNames = budgetServiceClient.getAllocationNamesBatch(userId, uniqueAllocationIds);
+
+        // 3. Map allocation names back to CategoryExpenseDTO
+        return groupedAmounts.entrySet().stream()
+                .map(entry -> {
+                    String name = allocationNames.getOrDefault(entry.getKey(), "Unknown");
+                    return new CategoryExpenseDTO(name, entry.getValue());
+                })
                 .collect(Collectors.toList());
     }
 

@@ -13,7 +13,10 @@ import java.util.UUID;
         name = "expenses",
         indexes = {
                 @Index(name = "idx_expense_budget", columnList = "budget_id"),
-                @Index(name = "idx_expense_allocation", columnList = "allocation_id")
+                @Index(name = "idx_expense_allocation", columnList = "allocation_id"),
+                @Index(name = "idx_expense_company", columnList = "company_id"),
+                @Index(name = "idx_expense_company_status", columnList = "company_id,status"),
+                @Index(name = "idx_expense_company_date", columnList = "company_id,spent_date")
         }
 )
 @Getter

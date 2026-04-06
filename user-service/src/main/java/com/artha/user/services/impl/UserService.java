@@ -21,27 +21,26 @@ public class UserService implements IUserService {
     private final UserCompanyRepository userCompanyRepository;
 
     public User create(User user) {
-
-        long dbCheckStart = System.currentTimeMillis();
-        boolean exists = userRepository.existsByEmail(user.getEmail());
-        long dbCheckEnd = System.currentTimeMillis();
-        
-        if (exists) {
-            throw new IllegalStateException("Email already registered");
-        }
-
         long dbSaveStart = System.currentTimeMillis();
-        User savedUser = userRepository.save(user);
-        long dbSaveEnd = System.currentTimeMillis();
-        System.out.println("====== DB Execution Time [Create User]: Check " + (dbCheckEnd - dbCheckStart) + "ms, Save " + (dbSaveEnd - dbSaveStart) + "ms ======");
-
-        ensurePersonalCompany(savedUser.getId());
-        return savedUser;
+        try {
+            // Part 3 Optimization: Remove existsByEmail check and rely on DB UNIQUE constraint
+            User savedUser = userRepository.save(user);
+            // Flush to catch constraint violation during save
+            userRepository.flush();
+            long dbSaveEnd = System.currentTimeMillis();
+            System.out.println("====== DB Execution Time [Create User Optimized]: Save/Flush " + (dbSaveEnd - dbSaveStart) + "ms ======");
+            
+            ensurePersonalCompany(savedUser.getId());
+            return savedUser;
+        } catch (org.springframework.dao.DataIntegrityViolationException ex) {
+            throw new com.artha.user.exception.DuplicateResourceException("Email already exists");
+        }
     }
 
     @Override
     public Company ensurePersonalCompany(String userId) {
         long dbStart1 = System.currentTimeMillis();
+        // We still need the User entity here to build the personal company name and associate it.
         User persistedUser = userRepository.findById(userId)
                 .orElseThrow(() ->
                         new EntityNotFoundException("User not found: " + userId)
@@ -131,18 +130,16 @@ public class UserService implements IUserService {
 
     @Override
     public void delete(String id) {
-
-        long dbCheckStart = System.currentTimeMillis();
-        boolean exists = userRepository.existsById(id);
-        long dbCheckEnd = System.currentTimeMillis();
-
-        if (!exists) {
+        long dbDeleteStart = System.currentTimeMillis();
+        try {
+            // Part 3 Optimization: Remove existsById check and call deleteById directly
+            userRepository.deleteById(id);
+            // Explicitly flush to catch issues if needed, though deleteById usually triggers execution
+            userRepository.flush();
+        } catch (org.springframework.dao.EmptyResultDataAccessException | EntityNotFoundException ex) {
             throw new EntityNotFoundException("User not found: " + id);
         }
-
-        long dbDeleteStart = System.currentTimeMillis();
-        userRepository.deleteById(id);
         long dbDeleteEnd = System.currentTimeMillis();
-        System.out.println("====== DB Execution Time [Delete User]: Check " + (dbCheckEnd - dbCheckStart) + "ms, Delete " + (dbDeleteEnd - dbDeleteStart) + "ms ======");
+        System.out.println("====== DB Execution Time [Delete User Optimized]: Delete/Flush " + (dbDeleteEnd - dbDeleteStart) + "ms ======");
     }
 }

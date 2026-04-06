@@ -413,7 +413,6 @@ public class BudgetServiceImpl implements BudgetService {
     }
 
     @Override
-    @Cacheable(value = "budget_details", key = "#budgetId")
     public BudgetResponseDTO getAllDetailOfBudget(String userId, UUID budgetId) {
         log.info("Cache miss for getAllDetailOfBudget, budgetId: {}", budgetId);
         long dbStart = System.currentTimeMillis();
@@ -425,6 +424,19 @@ public class BudgetServiceImpl implements BudgetService {
         authorizationService.checkPermission(userId, budget.getCompanyId(), Action.VIEW_BUDGET);
 
         return BudgetMapper.toBudgetResponse(budget);
+    }
+
+    @Override
+    public java.util.Map<UUID, String> getAllocationNames(List<UUID> allocationIds) {
+        if (allocationIds == null || allocationIds.isEmpty()) {
+            return java.util.Collections.emptyMap();
+        }
+        return allocationRepository.findAllByIdIn(allocationIds).stream()
+                .collect(Collectors.toMap(
+                        BudgetCategoryAllocation::getId,
+                        BudgetCategoryAllocation::getCategoryName,
+                        (existing, replacement) -> existing
+                ));
     }
 
     private void evictCompanyCaches(String companyId) {

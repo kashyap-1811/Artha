@@ -232,4 +232,15 @@ public class BudgetController {
             System.out.println("====== Service Execution Time [Get All Detail Of Budget]: " + (serviceEnd - serviceStart) + "ms ======");
         }
     }
+
+    /**
+     * Batch resolve allocation IDs to names.
+     * Internal endpoint for cross-service optimization.
+     */
+    @PostMapping("/allocations/names")
+    public java.util.Map<UUID, String> getAllocationNames(
+            @RequestBody List<UUID> allocationIds
+    ) {
+        return budgetService.getAllocationNames(allocationIds);
+    }
 }

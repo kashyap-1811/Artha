@@ -1,12 +1,13 @@
 spring.application.name=user-service
 server.port=8083
+
 eureka.client.service-url.defaultZone=${EUREKA_SERVER_URL:http://localhost:8761/eureka}
-jwt.secret=<YOUR_SECRET>
+server.forward-headers-strategy=framework
 
 # Neon PostgreSQL
-spring.datasource.url=<YOUR_URL>
-spring.datasource.username=<YOUR_USERNAME>
-spring.datasource.password=<YOUR_PASSWORD>
+spring.datasource.url=<YOUR_POSTGRES_URL>
+spring.datasource.username=<DB_USERNAME>
+spring.datasource.password=<DB_PASSWORD>
 spring.datasource.driver-class-name=org.postgresql.Driver
 
 # HikariCP
@@ -26,3 +27,16 @@ spring.devtools.restart.quiet-period=1s
 
 # Eureka configuration to allow multi-device network testing
 eureka.instance.prefer-ip-address=true
+
+# Kafka Configuration
+spring.kafka.producer.bootstrap-servers=${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+spring.kafka.producer.key-serializer=org.apache.kafka.common.serialization.StringSerializer
+spring.kafka.producer.value-serializer=org.springframework.kafka.support.serializer.JsonSerializer
+
+# OAuth2 Configuration
+spring.security.oauth2.client.registration.google.client-id=<GOOGLE_CLIENT_ID>
+spring.security.oauth2.client.registration.google.client-secret=<GOOGLE_CLIENT_SECRET>
+spring.security.oauth2.client.registration.google.scope=email,profile
+spring.security.oauth2.client.registration.google.redirect-uri={baseUrl}/login/oauth2/code/google
+
+jwt.secret=<YOUR_JWT_SECRET>

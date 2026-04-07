@@ -2,7 +2,8 @@ const Eureka = require('eureka-js-client').Eureka;
 const dotenv = require('dotenv');
 const os = require('os');
 
-dotenv.config();
+// Do NOT override env variables from terminal
+dotenv.config({ override: false });
 
 const PORT = parseInt(process.env.PORT, 10) || 8086;
 
@@ -19,6 +20,10 @@ function getLocalIpAddress() {
 }
 
 const SERVICE_HOST = process.env.SERVICE_HOST || getLocalIpAddress();
+
+// 🔴 Critical fix: explicit host resolution
+const EUREKA_HOST = process.env.EUREKA_HOST || 'localhost';
+const EUREKA_PORT = parseInt(process.env.EUREKA_PORT, 10) || 8761;
 
 const client = new Eureka({
     instance: {
@@ -38,8 +43,8 @@ const client = new Eureka({
         },
     },
     eureka: {
-        host: process.env.EUREKA_HOST || 'service-registry',
-        port: parseInt(process.env.EUREKA_PORT, 10) || 8761,
+        host: EUREKA_HOST,
+        port: EUREKA_PORT,
         servicePath: '/eureka/apps/',
     },
 });

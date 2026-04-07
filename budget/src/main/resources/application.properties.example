@@ -1,11 +1,10 @@
 spring.application.name=budget-service
 eureka.client.service-url.defaultZone=${EUREKA_SERVER_URL:http://localhost:8761/eureka}
 
-
 # Neon PostgreSQL
-spring.datasource.url=<YOUR_URL>
-spring.datasource.username=<YOUR_USERNAME>
-spring.datasource.password=<YOUR_PASSWORD>
+spring.datasource.url=<YOUR_POSTGRES_SQL_URL>
+spring.datasource.username=<DB_USERNAME>
+spring.datasource.password=<DB_PASSWORD>
 spring.datasource.driver-class-name=org.postgresql.Driver
 
 # HikariCP
@@ -30,3 +29,14 @@ spring.devtools.restart.quiet-period=1s
 
 # Eureka configuration to allow multi-device network testing
 eureka.instance.prefer-ip-address=true
+
+# Kafka Configuration
+spring.kafka.producer.bootstrap-servers=${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+spring.kafka.producer.key-serializer=org.apache.kafka.common.serialization.StringSerializer
+spring.kafka.producer.value-serializer=org.springframework.kafka.support.serializer.JsonSerializer
+
+# Redis Caching Configuration
+spring.cache.type=redis
+spring.cache.redis.time-to-live=300000
+spring.data.redis.host=${REDIS_HOST:localhost}
+spring.data.redis.port=${REDIS_PORT:6379}

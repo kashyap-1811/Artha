@@ -4,10 +4,11 @@ import os
 from aiokafka import AIOKafkaConsumer
 import asyncio
 from app.core.cache import clear_analysis_cache
+from app.core.config import KAFKA_BOOTSTRAP_SERVERS
 
 logger = logging.getLogger(__name__)
 
-KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
+
 EXPENSE_TOPIC = "expense-events"
 BUDGET_TOPIC = "budget-events"
 

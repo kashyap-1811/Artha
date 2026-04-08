@@ -195,11 +195,11 @@ services:
     build:
       context: ./artha-frontend
       dockerfile: Dockerfile
-      args:
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8080}
     container_name: artha-frontend
     depends_on:
       - api-gateway
+    environment:
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8080}
     ports:
       - "5173:80"
     restart: unless-stopped

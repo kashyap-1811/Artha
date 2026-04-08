@@ -171,6 +171,11 @@ Create your environment file first:
 cp .env.example .env
 ```
 
+Open `.env` and fill in all required values — database URLs, JWT secret, OAuth credentials, MongoDB URIs, and SendGrid key. Two variables worth noting:
+
+- **`SERVER_IP`** — set to `localhost` for local-only use, or your machine's LAN IP (e.g. `192.168.1.10`) if you need Kafka reachable from another device. Also used to construct Eureka instance IDs.
+- **`ALLOWED_ORIGINS`** — comma-separated list of allowed CORS origins (defaults to `http://localhost:5173,http://127.0.0.1:5173`).
+
 Then start everything:
 
 ```bash

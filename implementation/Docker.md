@@ -17,7 +17,7 @@ Two compose files are provided:
 
 All Dockerfiles use a two-stage build pattern to keep production images lean (no build tools, no dev dependencies).
 
-### 2.1 Java / Spring Boot Services (4 services)
+### 2.1 Java / Spring Boot Services (5 services)
 
 Applies to: `service-registry`, `api-gateway`, `user-service`, `budget`, `expense`
 
@@ -106,7 +106,9 @@ zookeeper  ──healthy──►  kafka  ──healthy──►  ┐
 service-registry ──healthy──►  api-gateway     ├──►  budget-service
                                                ├──►  expense-service
 redis ──healthy──►  api-gateway                ├──►  notification-service
-                                               └──►  analysis-service
+redis ──healthy──►  budget-service             └──►  analysis-service
+redis ──healthy──►  expense-service
+redis ──healthy──►  analysis-service
 ```
 
 Health check summary:
@@ -116,7 +118,7 @@ Health check summary:
 | `service-registry` | `curl -f http://localhost:8761/actuator/health` | 15 s / 5 |
 | `redis` | `redis-cli ping` | 10 s / 5 |
 | `zookeeper` | `nc -z localhost 2181` | 10 s / 5 |
-| `kafka` | `kafka-broker-api-versions --bootstrap-server localhost:9092` | 15 s / 5 |
+| `kafka` | `nc -z localhost 9092` | 10 s / 5 (30 s start period) |
 
 All containers use `restart: unless-stopped` to recover from transient failures.
 
@@ -129,9 +131,21 @@ Kafka exposes two listeners:
 | `PLAINTEXT_HOST` | `${SERVER_IP:-localhost}:9092` | Host-machine clients (local dev tools, Kafka UI on laptop) |
 | `PLAINTEXT_INTERNAL` | `kafka:29092` | All Docker containers (application services) |
 
-Set `SERVER_IP` in your `.env` to your machine's LAN IP if you need to connect from another device.
+Set `SERVER_IP` in your `.env` to your machine's LAN IP (e.g. `192.168.1.10`) if you need to connect from another device, or leave it as `localhost` for local-only access. This value is also used when constructing Eureka instance IDs for the Java services.
 
-### 3.3 Environment Variable Injection
+### 3.3 Eureka Instance Registration
+
+All Java services are configured with explicit Eureka instance metadata so they are routable inside Docker by hostname (not by container IP):
+
+```yaml
+EUREKA_INSTANCE_HOSTNAME: <service-name>          # e.g. api-gateway
+EUREKA_INSTANCE_PREFER_IP_ADDRESS: "false"
+EUREKA_INSTANCE_INSTANCE_ID: ${SERVER_IP}:<service-name>:<port>
+```
+
+These values are set automatically by `docker-compose.yml` — you do not need to configure them manually.
+
+### 3.4 Environment Variable Injection
 
 All sensitive configuration and infrastructure URLs are passed to containers via the root `.env` file. The `docker-compose.yml` maps each variable with a sensible default where applicable:
 
@@ -193,7 +207,7 @@ Open `.env` and populate every placeholder value. The table below explains each 
 | `KAFKA_BOOTSTRAP_SERVERS` | `kafka:29092` | Kafka broker for Java/Python services (leave as-is) |
 | `KAFKA_BROKER` | `kafka:29092` | Kafka broker for notification-service (leave as-is) |
 | `KAFKA_GROUP_ID` | `notification-service-group` | Kafka consumer group for notification-service |
-| `SERVER_IP` | `localhost` | Your host machine IP; change when accessing Kafka from another device |
+| `SERVER_IP` | `localhost` | Your host machine IP — used for Kafka advertised listeners and Eureka instance IDs; change when accessing from another device |
 
 #### Database — PostgreSQL (per service)
 

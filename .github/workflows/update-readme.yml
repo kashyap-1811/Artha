@@ -1,0 +1,125 @@
+name: Update README on Push to Main
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  models: read
+
+jobs:
+  update-readme:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Detect changes and update README via Copilot
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 << 'PYEOF'
+          import os
+          import json
+          import urllib.request
+          import subprocess
+          import sys
+
+          # Read current README
+          with open('README.md', 'r') as f:
+              readme = f.read()
+
+          # Get diff of everything except README.md itself
+          result = subprocess.run(
+              ['git', 'diff', 'HEAD~1', 'HEAD', '--',
+               '.', ':(exclude)README.md'],
+              capture_output=True, text=True
+          )
+          diff = result.stdout.strip()
+
+          if not diff:
+              print("No significant changes detected outside README.md — skipping update.")
+              sys.exit(0)
+
+          # Truncate to stay within the model's ~128k context window while
+          # prioritising the diff (12 000 chars) over the README (8 000 chars).
+          diff = diff[:12000]
+          readme_snippet = readme[:8000]
+
+          token = os.environ['GITHUB_TOKEN']
+
+          prompt = (
+              "You are a technical documentation expert. "
+              "Analyze the git diff below and return an updated version of the README.md that accurately reflects the changes.\n\n"
+              "Rules:\n"
+              "- Only update sections that are directly affected by the diff (new features, removed features, API changes, dependency updates, config changes, etc.).\n"
+              "- Keep every section that is unaffected completely unchanged.\n"
+              "- If no update is needed, return the README exactly as provided.\n"
+              "- Return ONLY the raw README content — no explanation, no markdown fences.\n\n"
+              f"### Current README\n{readme_snippet}\n\n"
+              f"### Git Diff (recent push)\n```diff\n{diff}\n```"
+          )
+
+          payload = json.dumps({
+              "model": "gpt-4o",
+              "messages": [{"role": "user", "content": prompt}],
+              "max_tokens": 8192
+          }).encode()
+
+          req = urllib.request.Request(
+              'https://models.inference.ai.azure.com/chat/completions',
+              data=payload,
+              headers={
+                  'Authorization': f'Bearer {token}',
+                  'Content-Type': 'application/json'
+              }
+          )
+
+          try:
+              with urllib.request.urlopen(req) as response:
+                  api_result = json.loads(response.read())
+          except urllib.error.URLError as exc:
+              print(f"Network error calling GitHub Models API: {exc}")
+              sys.exit(1)
+          except json.JSONDecodeError as exc:
+              print(f"Failed to parse API response as JSON: {exc}")
+              sys.exit(1)
+
+          choices = api_result.get('choices')
+          if not choices or not isinstance(choices, list):
+              print(f"Unexpected API response structure: {api_result}")
+              sys.exit(1)
+
+          updated_readme = choices[0].get('message', {}).get('content', '').strip()
+          if not updated_readme:
+              print("API returned an empty response — skipping update.")
+              sys.exit(0)
+
+          # Strip accidental markdown fences the model may wrap the output in
+          # (e.g. ```markdown ... ``` or ``` ... ```)
+          lines = updated_readme.splitlines()
+          if lines and lines[0].startswith('```') and lines[-1].strip() == '```':
+              updated_readme = '\n'.join(lines[1:-1])
+
+          with open('README.md', 'w') as f:
+              f.write(updated_readme)
+
+          print("README.md updated successfully.")
+          PYEOF
+
+      - name: Commit and push updated README
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          if git diff --staged --quiet; then
+            echo "README.md is already up to date — nothing to commit."
+          else
+            git commit -m "docs: auto-update README via Copilot [skip ci]"
+            git push
+          fi

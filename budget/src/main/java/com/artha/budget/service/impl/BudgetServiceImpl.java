@@ -19,7 +19,7 @@ import com.artha.budget.dto.event.BudgetEvent;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.CacheManager;
-import org.springframework.kafka.core.KafkaTemplate;
+import com.artha.budget.kafka.KafkaEventPublisher;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -38,7 +38,7 @@ public class BudgetServiceImpl implements BudgetService {
     private final BudgetCategoryAllocationRepository allocationRepository;
     private final BudgetAuditLogRepository auditLogRepository;
     private final AuthorizationService authorizationService;
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final KafkaEventPublisher kafkaEventPublisher;
     private final CacheManager cacheManager;
 
     /* ===================== Audit Helper ===================== */
@@ -105,13 +105,14 @@ public class BudgetServiceImpl implements BudgetService {
         audit(userId, saved.getId(), BudgetAction.CREATE);
 
         // Push to Kafka
-        kafkaTemplate.send("budget-events", BudgetEvent.builder()
+        kafkaEventPublisher.send("budget-events", saved.getId().toString(), BudgetEvent.builder()
                 .id(saved.getId())
                 .companyId(saved.getCompanyId())
                 .name(saved.getName())
                 .totalAmount(saved.getTotalAmount())
                 .status(saved.getStatus())
                 .action("CREATED")
+                .eventType("BUDGET_CREATED")
                 .build());
 
         return saved;
@@ -173,13 +174,14 @@ public class BudgetServiceImpl implements BudgetService {
 
         audit(userId, budgetId, BudgetAction.CLOSE);
 
-        kafkaTemplate.send("budget-events", BudgetEvent.builder()
+        kafkaEventPublisher.send("budget-events", budget.getId().toString(), BudgetEvent.builder()
                 .id(budget.getId())
                 .companyId(budget.getCompanyId())
                 .name(budget.getName())
                 .totalAmount(budget.getTotalAmount())
                 .status(budget.getStatus())
                 .action("CLOSED")
+                .eventType("BUDGET_CLOSED")
                 .build());
     }
 
@@ -238,13 +240,14 @@ public class BudgetServiceImpl implements BudgetService {
 
         audit(userId, budgetId, BudgetAction.ADD_ALLOCATION);
 
-        kafkaTemplate.send("budget-events", AllocationEvent.builder()
+        kafkaEventPublisher.send("budget-events", budgetId.toString(), AllocationEvent.builder()
                 .id(savedAllocation.getId())
                 .budgetId(budgetId)
                 .categoryName(savedAllocation.getCategoryName())
                 .allocatedAmount(savedAllocation.getAllocatedAmount())
                 .alertThreshold(savedAllocation.getAlertThreshold())
                 .action("CREATED")
+                .eventType("ALLOCATION_CREATED")
                 .build());
 
         return savedAllocation;
@@ -276,10 +279,11 @@ public class BudgetServiceImpl implements BudgetService {
 
         audit(userId, budgetId, BudgetAction.REMOVE_ALLOCATION);
 
-        kafkaTemplate.send("budget-events", AllocationEvent.builder()
+        kafkaEventPublisher.send("budget-events", budgetId.toString(), AllocationEvent.builder()
                 .id(allocationId)
                 .budgetId(budgetId)
                 .action("DELETED")
+                .eventType("ALLOCATION_DELETED")
                 .build());
     }
 
@@ -328,13 +332,14 @@ public class BudgetServiceImpl implements BudgetService {
 
         audit(userId, budgetId, BudgetAction.UPDATE_ALLOCATION);
 
-        kafkaTemplate.send("budget-events", AllocationEvent.builder()
+        kafkaEventPublisher.send("budget-events", budgetId.toString(), AllocationEvent.builder()
                 .id(saved.getId())
                 .budgetId(budgetId)
                 .categoryName(saved.getCategoryName())
                 .allocatedAmount(saved.getAllocatedAmount())
                 .alertThreshold(saved.getAlertThreshold())
                 .action("UPDATED")
+                .eventType("ALLOCATION_UPDATED")
                 .build());
 
         return saved;
@@ -370,13 +375,14 @@ public class BudgetServiceImpl implements BudgetService {
 
         audit(userId, budgetId, BudgetAction.UPDATE);
 
-        kafkaTemplate.send("budget-events", BudgetEvent.builder()
+        kafkaEventPublisher.send("budget-events", budgetId.toString(), BudgetEvent.builder()
                 .id(saved.getId())
                 .companyId(saved.getCompanyId())
                 .name(saved.getName())
                 .totalAmount(saved.getTotalAmount())
                 .status(saved.getStatus())
                 .action("UPDATED")
+                .eventType("BUDGET_UPDATED")
                 .build());
 
         return saved;
@@ -405,10 +411,11 @@ public class BudgetServiceImpl implements BudgetService {
 
         audit(userId, budgetId, BudgetAction.DELETE);
 
-        kafkaTemplate.send("budget-events", BudgetEvent.builder()
+        kafkaEventPublisher.send("budget-events", budgetId.toString(), BudgetEvent.builder()
                 .id(budget.getId())
                 .companyId(budget.getCompanyId())
                 .action("DELETED")
+                .eventType("BUDGET_DELETED")
                 .build());
     }
 

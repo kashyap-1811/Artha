@@ -20,4 +20,5 @@ public class BudgetEvent {
     private BigDecimal totalAmount;
     private BudgetStatus status;
     private String action; // CREATE, UPDATE, DELETE, CLOSE
+    private String eventType;
 }

@@ -143,8 +143,8 @@ services:
       KAFKA_GROUP_ID: ${KAFKA_GROUP_ID:-notification-service-group}
       EUREKA_HOST: service-registry
       EUREKA_PORT: 8761
-      SMTP_USER: ${SMTP_USER}
-      SMTP_PASS: ${SMTP_PASS}
+      SENDGRID_API_KEY: ${SENDGRID_API_KEY}
+      FROM_EMAIL: ${FROM_EMAIL}
       NODE_ENV: production
     ports:
       - "8086:8086"

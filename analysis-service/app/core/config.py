@@ -1,7 +1,8 @@
 import os
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(override=False) # Load local .env
+load_dotenv("../.env", override=False) # Load root .env
 
 API_GATEWAY_URL = os.getenv("API_GATEWAY_URL", "http://localhost:8080")
 MONGO_DETAILS = os.getenv("MONGO_DETAILS")

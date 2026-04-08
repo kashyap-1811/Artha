@@ -149,7 +149,11 @@ All Java/Spring Boot services register with the Eureka service registry. The Pyt
 
 ### Environment Variables
 
-Refer to the `.env.example` and `application.yaml.example` files in each service for required environment variables and configuration details.
+All Docker-based runtime configuration is managed through the root `.env` file.
+
+1. Copy `.env.example` to `.env`.
+2. Fill in all required values (database URLs, JWT, OAuth, MongoDB, SMTP).
+3. Keep `.env` out of version control.
 
 ---
 
@@ -160,6 +164,14 @@ This repository includes Docker support for all Java services, the frontend, and
 > **Note:** Each backend service uses its existing Neon PostgreSQL database. No local Postgres container is created. Internal service-to-service URLs are wired through Docker networking.
 
 ### Full Stack (recommended)
+
+Create your environment file first:
+
+```bash
+cp .env.example .env
+```
+
+Then start everything:
 
 ```bash
 docker compose up --build

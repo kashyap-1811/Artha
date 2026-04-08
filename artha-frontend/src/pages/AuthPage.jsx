@@ -5,6 +5,8 @@ import SplitAuthLayout from "../components/auth/SplitAuthLayout";
 import AnimatedStockChart from "../components/auth/AnimatedStockChart";
 import DarkAuthForm, { DarkInput } from "../components/auth/DarkAuthForm";
 
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "http://localhost:8080").replace(/\/$/, "");
+
 function AuthPage() {
   const navigate = useNavigate();
   const [mode, setMode] = useState("login"); // Defaulting to login in split screen
@@ -128,7 +130,7 @@ function AuthPage() {
   }
 
   function handleGoogleLogin() {
-    window.location.href = "http://localhost:8080/oauth2/authorization/google";
+    window.location.href = `${API_BASE_URL}/oauth2/authorization/google`;
   }
 
   return (

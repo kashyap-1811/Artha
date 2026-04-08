@@ -2,13 +2,13 @@ import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
-from py_eureka_client import eureka_client
+from py_eureka_client import eureka_client # type: ignore
 from app.routers import analysis
 from motor.motor_asyncio import AsyncIOMotorClient
 from app.core.config import MONGO_DETAILS, EUREKA_SERVER, REDIS_HOST, REDIS_PORT
 import asyncio
 import certifi
-import redis.asyncio as redis
+import redis.asyncio as redis # type: ignore
 from dotenv import load_dotenv
 from app.services.kafka_consumer import consume_expense_events, consume_budget_events
 import socket
@@ -44,7 +44,9 @@ async def lifespan(app: FastAPI):
 
     # Startup: Register with Eureka
     try:
-        host_ip = get_local_ip()
+        server_ip = os.getenv("SERVER_IP", "localhost")
+        host_ip = server_ip if server_ip != "localhost" else get_local_ip()
+        
         await eureka_client.init_async(
             eureka_server=EUREKA_SERVER,
             app_name="analysis-service",

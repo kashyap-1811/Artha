@@ -3,14 +3,6 @@
 .postman
 /postman
 
-# Application config
-application.properties
-application.yml
-application.yaml
-**/src/main/resources/application.properties
-**/src/main/resources/application.yml
-**/src/main/resources/application.yaml
-
 # Environment files
 .env
 *.env

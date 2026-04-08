@@ -2,3 +2,7 @@ target
 .git
 .idea
 *.iml
+.env
+.env.*
+*.log
+README.md

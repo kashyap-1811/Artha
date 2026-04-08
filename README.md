@@ -103,10 +103,4 @@ All Java/Spring Boot services register with the Eureka service registry. The Pyt
 | Service Discovery | Spring Cloud Netflix Eureka, eureka-js-client |
 | API Gateway | Spring Cloud Gateway, Redis (rate limiting) |
 | Security | Spring Security, JWT (jjwt 0.12.6), OAuth 2.0 (Google) |
-| Relational Database | PostgreSQL (via Spring Data JPA / Neon) |
-| NoSQL / Cache | MongoDB Atlas (Motor async driver), Redis (Spring Cache — expense & budget services) |
-| Message Broker | Apache Kafka 7.8.0 + Zookeeper |
-| Data Processing | Pandas, NumPy (Python analysis engine) |
-| Observability | Spring Boot Actuator, Kafka UI |
-| Documentation Automation | GitHub Actions, OpenAI GPT integration |
-| Containerization | Docker, Docker Compose |
+| Relational Database | P

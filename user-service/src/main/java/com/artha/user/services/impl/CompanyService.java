@@ -10,7 +10,7 @@ import com.artha.user.services.ICompanyService;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
-import org.springframework.kafka.core.KafkaTemplate;
+import com.artha.user.kafka.KafkaEventPublisher;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -23,7 +23,7 @@ public class CompanyService implements ICompanyService {
     private final UserRepository userRepository;
     private final CompanyRepository companyRepository;
     private final UserCompanyRepository userCompanyRepository;
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final KafkaEventPublisher kafkaEventPublisher;
 
     @Override
     public Company createCompanyWithOwner(User owner, Company company) {
@@ -100,7 +100,7 @@ public class CompanyService implements ICompanyService {
                 .targetUserFullName(persistedUser.getFullName())
                 .newRole(role)
                 .build();
-        kafkaTemplate.send("company-events", event);
+        kafkaEventPublisher.send("company-events", event.getCompanyId().toString(), event);
 
         return persistedCompany;
     }
@@ -131,7 +131,7 @@ public class CompanyService implements ICompanyService {
                 .targetUserFullName(membership.getUser().getFullName())
                 .newRole(null) // role doesn't matter when removed
                 .build();
-        kafkaTemplate.send("company-events", event);
+        kafkaEventPublisher.send("company-events", event.getCompanyId().toString(), event);
 
         membership.getUser().removeUserCompany(membership);
         targetCompany.removeUserCompany(membership);
@@ -190,7 +190,7 @@ public class CompanyService implements ICompanyService {
                 .targetUserFullName(membership.getUser().getFullName())
                 .newRole(newRole)
                 .build();
-        kafkaTemplate.send("company-events", event);
+        kafkaEventPublisher.send("company-events", event.getCompanyId().toString(), event);
 
         return membership.getCompany();
     }

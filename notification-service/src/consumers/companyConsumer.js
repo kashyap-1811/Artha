@@ -12,7 +12,7 @@ const startCompanyConsumer = async () => {
     const connectAndRun = async () => {
         try {
             await consumer.connect();
-            await consumer.subscribe({ topic: 'company-events', fromBeginning: true });
+            await consumer.subscribe({ topic: 'company-events' });
 
             console.log('Kafka Consumer connected and subscribed to company-events');
 
@@ -28,6 +28,7 @@ const startCompanyConsumer = async () => {
             });
         } catch (error) {
             console.error('Error starting company Kafka consumer. Retrying in 10s...', error.message);
+            try { await consumer.disconnect(); } catch (e) { /* ignore */ }
             setTimeout(connectAndRun, 10000);
         }
     };

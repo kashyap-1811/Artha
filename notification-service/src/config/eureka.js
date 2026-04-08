@@ -3,7 +3,9 @@ const dotenv = require('dotenv');
 const os = require('os');
 
 // Do NOT override env variables from terminal
+// Load local .env and root .env (Terminal variables always take priority)
 dotenv.config({ override: false });
+dotenv.config({ path: '../.env', override: false });
 
 const PORT = parseInt(process.env.PORT, 10) || 8086;
 
@@ -19,7 +21,15 @@ function getLocalIpAddress() {
     return '127.0.0.1';
 }
 
-const SERVICE_HOST = process.env.SERVICE_HOST || getLocalIpAddress();
+function getServiceHost() {
+    const serverIp = process.env.SERVER_IP;
+    if (serverIp && serverIp !== 'localhost') {
+        return serverIp;
+    }
+    return getLocalIpAddress();
+}
+
+const SERVICE_HOST = process.env.SERVICE_HOST || getServiceHost();
 
 // 🔴 Critical fix: explicit host resolution
 const EUREKA_HOST = process.env.EUREKA_HOST || 'localhost';

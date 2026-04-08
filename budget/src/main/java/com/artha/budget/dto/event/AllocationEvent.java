@@ -19,4 +19,5 @@ public class AllocationEvent {
     private BigDecimal allocatedAmount;
     private Integer alertThreshold;
     private String action; // CREATE, UPDATE, DELETE
+    private String eventType;
 }

@@ -1,0 +1,186 @@
+server:
+ port: 8080
+
+spring:
+ config:
+   import: optional:file:.env[.properties],optional:file:../.env[.properties]
+ application:
+   name: api-gateway
+
+ # Redis configuration for rate limiter
+ data:
+   redis:
+     host: ${REDIS_HOST:localhost}
+     port: ${REDIS_PORT:6379}
+     password: ${REDIS_PASSWORD:}
+     timeout: 2000ms
+
+ cloud:
+   gateway:
+     routes:
+       # ── Auth (login/register) ─────────────────────────────────────────────
+       - id: auth-service
+         uri: lb://user-service
+         predicates:
+           - Path=/auth/**
+         filters:
+           - name: RequestRateLimiter
+             args:
+               redis-rate-limiter.replenishRate: 3
+               redis-rate-limiter.burstCapacity: 6
+               redis-rate-limiter.requestedTokens: 1
+               key-resolver: "#{@userKeyResolver}"
+
+       - id: oauth-service
+         uri: lb://user-service
+         predicates:
+           - Path=/oauth2/**, /login/oauth2/**
+
+       # ── Internal user route (no JWT, service-to-service) ─────────────────
+       - id: user-service-internal
+         uri: lb://user-service
+         predicates:
+           - Path=/internal/user/**
+         filters:
+           - StripPrefix=2
+
+
+       # ── User service (public) ─────────────────────────────────────────────
+       - id: user-service
+         uri: lb://user-service
+         predicates:
+           - Path=/users/**
+         filters:
+           - StripPrefix=1
+           - name: RequestRateLimiter
+             args:
+               redis-rate-limiter.replenishRate: 3
+               redis-rate-limiter.burstCapacity: 6
+               redis-rate-limiter.requestedTokens: 1
+               key-resolver: "#{@userKeyResolver}"
+
+
+       # ── Internal budget route (no JWT, service-to-service) ───────────────
+       - id: budget-service-internal
+         uri: lb://budget-service
+         predicates:
+           - Path=/internal/budget/**
+         filters:
+           - StripPrefix=2
+
+
+       # ── Budget service ────────────────────────────────────────────────────
+       - id: budget-service
+         uri: lb://budget-service
+         predicates:
+           - Path=/budget/**
+         filters:
+           - StripPrefix=1
+           - name: RequestRateLimiter
+             args:
+               redis-rate-limiter.replenishRate: 3
+               redis-rate-limiter.burstCapacity: 6
+               redis-rate-limiter.requestedTokens: 1
+               key-resolver: "#{@userKeyResolver}"
+
+
+       # ── Internal expense route (no JWT, service-to-service) ──────────────
+       - id: expense-service-internal
+         uri: lb://expense-service
+         predicates:
+           - Path=/internal/expense/**
+         filters:
+           - StripPrefix=2
+
+
+       # ── Expense service ───────────────────────────────────────────────────
+       - id: expense-service
+         uri: lb://expense-service
+         predicates:
+           - Path=/expense/**
+         filters:
+           - StripPrefix=1
+           - name: RequestRateLimiter
+             args:
+               redis-rate-limiter.replenishRate: 3
+               redis-rate-limiter.burstCapacity: 6
+               redis-rate-limiter.requestedTokens: 1
+               key-resolver: "#{@userKeyResolver}"
+
+
+       # ── Analysis service ──────────────────────────────────────────────────
+       - id: analysis-service
+         uri: lb://analysis-service
+         predicates:
+           - Path=/analysis/**
+         filters:
+           - StripPrefix=1
+           - name: RequestRateLimiter
+             args:
+               redis-rate-limiter.replenishRate: 3
+               redis-rate-limiter.burstCapacity: 6
+               redis-rate-limiter.requestedTokens: 1
+               key-resolver: "#{@userKeyResolver}"
+
+
+       # ── Notification service ──────────────────────────────────────────────
+       - id: notification-service
+         uri: lb://notification-service
+         predicates:
+           - Path=/notification/**
+         filters:
+           - StripPrefix=1
+           - name: RequestRateLimiter
+             args:
+               redis-rate-limiter.replenishRate: 3
+               redis-rate-limiter.burstCapacity: 6
+               redis-rate-limiter.requestedTokens: 1
+               key-resolver: "#{@userKeyResolver}"
+
+
+# ── Adaptive Rate Limiting ────────────────────────────────────────────────────
+# All values are configurable without code changes.
+# safe-rps:                 empirically derived from load testing
+# min-limit:                floor — always allow at least this many req/s per user
+# max-limit:                ceiling — no single user gets more than this
+# active-user-window-secs:  sliding window to consider a user "active"
+adaptive-rate-limiting:
+ safe-rps: 280
+ min-limit: 1
+ max-limit: 20
+ active-user-window-seconds: 60
+
+
+# ── Eureka ────────────────────────────────────────────────────────────────────
+eureka:
+ client:
+   serviceUrl:
+     defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}
+ instance:
+   preferIpAddress: true
+   ip-address: ${SERVER_IP:localhost}
+
+
+# ── Actuator / Prometheus metrics ────────────────────────────────────────────
+management:
+ endpoints:
+   web:
+     exposure:
+       include: "prometheus,metrics,health,info"
+ endpoint:
+   prometheus:
+     enabled: true
+   health:
+     show-details: always
+
+
+# ── Custom rate limiting toggle ───────────────────────────────────────────────
+# Set to false to completely bypass rate limiting (e.g. during load testing)
+rate-limiting:
+ enabled: true
+
+
+# ── Security / JWT ────────────────────────────────────────────────────────────
+jwt:
+ secret: ${JWT_SECRET:your-password}
+ expiration: 864000  # 10 days in seconds

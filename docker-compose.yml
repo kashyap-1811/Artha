@@ -28,8 +28,11 @@ services:
         condition: service_healthy
     environment:
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-registry:8761/eureka/
-      SPRING_DATA_REDIS_HOST: redis
-      SPRING_DATA_REDIS_PORT: 6379
+      EUREKA_SERVER_URL: ${EUREKA_SERVER_URL:-http://service-registry:8761/eureka/}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      JWT_SECRET: ${JWT_SECRET}
       SPRING_DEVTOOLS_RESTART_ENABLED: "false"
     ports:
       - "8080:8080"
@@ -44,8 +47,18 @@ services:
     depends_on:
       service-registry:
         condition: service_healthy
+      kafka:
+        condition: service_healthy
     environment:
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-registry:8761/eureka/
+      EUREKA_SERVER_URL: ${EUREKA_SERVER_URL:-http://service-registry:8761/eureka/}
+      SPRING_DATASOURCE_URL: ${USER_DB_URL}
+      SPRING_DATASOURCE_USERNAME: ${USER_DB_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${USER_DB_PASSWORD}
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-kafka:29092}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      JWT_SECRET: ${JWT_SECRET}
       SPRING_DEVTOOLS_RESTART_ENABLED: "false"
     ports:
       - "8083:8083"
@@ -62,9 +75,20 @@ services:
         condition: service_healthy
       user-service:
         condition: service_started
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
     environment:
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-registry:8761/eureka/
+      EUREKA_SERVER_URL: ${EUREKA_SERVER_URL:-http://service-registry:8761/eureka/}
       SERVICES_USER_SERVICE_URL: http://user-service:8083
+      SPRING_DATASOURCE_URL: ${BUDGET_DB_URL}
+      SPRING_DATASOURCE_USERNAME: ${BUDGET_DB_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${BUDGET_DB_PASSWORD}
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-kafka:29092}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
       SPRING_DEVTOOLS_RESTART_ENABLED: "false"
     ports:
       - "8081:8081"
@@ -84,10 +108,18 @@ services:
         condition: service_started
       kafka:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-registry:8761/eureka/
+      EUREKA_SERVER_URL: ${EUREKA_SERVER_URL:-http://service-registry:8761/eureka/}
       SERVICES_USER_SERVICE_URL: http://user-service:8083
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SPRING_DATASOURCE_URL: ${EXPENSE_DB_URL}
+      SPRING_DATASOURCE_USERNAME: ${EXPENSE_DB_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${EXPENSE_DB_PASSWORD}
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-kafka:29092}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
       SPRING_DEVTOOLS_RESTART_ENABLED: "false"
     ports:
       - "8082:8082"
@@ -107,8 +139,8 @@ services:
     environment:
       PORT: 8086
       MONGODB_URI: ${MONGODB_URI}
-      KAFKA_BROKER: kafka:29092
-      KAFKA_GROUP_ID: notification-service-group
+      KAFKA_BROKER: ${KAFKA_BROKER:-kafka:29092}
+      KAFKA_GROUP_ID: ${KAFKA_GROUP_ID:-notification-service-group}
       EUREKA_HOST: service-registry
       EUREKA_PORT: 8761
       SMTP_USER: ${SMTP_USER}
@@ -129,11 +161,15 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
-      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      EUREKA_SERVER: http://service-registry:8761/eureka/
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-kafka:29092}
+      EUREKA_SERVER: ${EUREKA_SERVER_URL:-http://service-registry:8761/eureka/}
       API_GATEWAY_URL: http://api-gateway:8080
       MONGO_DETAILS: ${MONGO_DETAILS}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
     ports:
       - "8084:8084"
     restart: unless-stopped
@@ -143,14 +179,13 @@ services:
     build:
       context: ./artha-frontend
       dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8080}
     container_name: artha-frontend
     depends_on:
       - api-gateway
-    environment:
-      # Vite's proxy must point to the gateway's Docker hostname.
-      VITE_DEV_PROXY_TARGET: http://api-gateway:8080
     ports:
-      - "5173:5173"
+      - "5173:80"
     restart: unless-stopped
 
   # ── Redis ────────────────────────────────────────────────────────────────────
@@ -208,7 +243,7 @@ services:
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
       # PLAINTEXT_HOST → reachable from the host machine (localhost:9092)
       # PLAINTEXT_INTERNAL → reachable from other Docker containers (kafka:29092)
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT_HOST://localhost:9092,PLAINTEXT_INTERNAL://kafka:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT_HOST://${SERVER_IP:-localhost}:9092,PLAINTEXT_INTERNAL://kafka:29092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT_HOST:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1

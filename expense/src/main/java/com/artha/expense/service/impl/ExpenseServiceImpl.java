@@ -18,7 +18,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.kafka.core.KafkaTemplate;
+import com.artha.expense.kafka.KafkaEventPublisher;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -33,7 +33,7 @@ public class ExpenseServiceImpl implements ExpenseService {
 
     private final ExpenseRepository expenseRepository;
     private final AuthorizationService authorizationService;
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final KafkaEventPublisher kafkaEventPublisher;
     private final BudgetServiceClient budgetServiceClient;
     private final CacheManager cacheManager;
 
@@ -77,7 +77,7 @@ public class ExpenseServiceImpl implements ExpenseService {
             );
             response.setAllocationName(allocationName);
             response.setAction("CREATED");
-            kafkaTemplate.send("expense-events", response);
+            kafkaEventPublisher.send("expense-events", response.getId().toString(), response);
         }
 
         return response;
@@ -197,7 +197,7 @@ public class ExpenseServiceImpl implements ExpenseService {
         );
         response.setAllocationName(allocationName);
         response.setAction("CREATED");
-        kafkaTemplate.send("expense-events", response);
+        kafkaEventPublisher.send("expense-events", response.getId().toString(), response);
 
         return response;
     }
@@ -337,7 +337,7 @@ public class ExpenseServiceImpl implements ExpenseService {
                 userId, saved.getBudgetId(), saved.getAllocationId()
             );
             response.setAllocationName(allocationName);
-            kafkaTemplate.send("expense-events", response);
+            kafkaEventPublisher.send("expense-events", response.getId().toString(), response);
         }
 
         return response;
@@ -358,7 +358,7 @@ public class ExpenseServiceImpl implements ExpenseService {
         if (expense.getStatus() == ExpenseStatus.APPROVED) {
             ExpenseResponse response = ExpenseMapper.toResponse(expense);
             response.setAction("DELETED");
-            kafkaTemplate.send("expense-events", response);
+            kafkaEventPublisher.send("expense-events", response.getId().toString(), response);
         }
     }
 

@@ -5,8 +5,9 @@ const eurekaClient = require('./config/eureka');
 const { startExpenseConsumer } = require('./consumers/expenseConsumer');
 const { startCompanyConsumer } = require('./consumers/companyConsumer');
 
-// Load environment variables
-dotenv.config();
+// Load environment variables (Terminal variables always take priority)
+dotenv.config({ override: false });
+dotenv.config({ path: '../.env', override: false });
 
 const app = express();
 app.use(express.json());

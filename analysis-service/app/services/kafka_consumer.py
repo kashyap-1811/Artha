@@ -19,7 +19,9 @@ async def consume_expense_events(app):
                 EXPENSE_TOPIC,
                 bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
                 group_id="analysis-expense-group",
-                value_deserializer=lambda v: json.loads(v.decode('utf-8')) if v else None
+                value_deserializer=lambda v: json.loads(v.decode('utf-8')) if v else None,
+                enable_auto_commit=False,
+                auto_offset_reset='earliest'
             )
 
             await consumer.start()
@@ -87,6 +89,9 @@ async def consume_expense_events(app):
                     # Invalidate Cache
                     await clear_analysis_cache(app.state.redis, company_id=company_id, budget_id=budget_id)
                     
+                    # Manual commit after successful DB write
+                    await consumer.commit()
+                    
             finally:
                 await consumer.stop()
         except asyncio.CancelledError:
@@ -102,7 +107,9 @@ async def consume_budget_events(app):
                 BUDGET_TOPIC,
                 bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
                 group_id="analysis-budget-group",
-                value_deserializer=lambda v: json.loads(v.decode('utf-8')) if v else None
+                value_deserializer=lambda v: json.loads(v.decode('utf-8')) if v else None,
+                enable_auto_commit=False,
+                auto_offset_reset='earliest'
             )
 
             await consumer.start()
@@ -120,8 +127,9 @@ async def consume_budget_events(app):
                     action = event.get("action")
                     event_id = event.get("id")
                     
-                    # Distinguish between Budget and Allocation
-                    is_allocation = "budgetId" in event and "categoryName" in event
+                    # Distinguish between Budget and Allocation via explicit eventType
+                    event_type = event.get("eventType", "")
+                    is_allocation = event_type.startswith("ALLOCATION")
 
                     if action == "DELETED":
                         await metadata_coll.delete_one({"id": event_id})
@@ -161,6 +169,9 @@ async def consume_budget_events(app):
                                 array_filters=[{"elem.allocation_id": event_id}]
                             )
                             await clear_analysis_cache(app.state.redis, budget_id=budget_id)
+                    
+                    # Manual commit after successful processing
+                    await consumer.commit()
             finally:
                 await consumer.stop()
         except asyncio.CancelledError:

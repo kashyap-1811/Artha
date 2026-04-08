@@ -44,18 +44,25 @@ async def lifespan(app: FastAPI):
 
     # Startup: Register with Eureka
     try:
+        # If running in Docker, always use the service name for internal routing
+        # If running locally, prefer SERVER_IP
+        in_docker = os.path.exists("/.dockerenv")
         server_ip = os.getenv("SERVER_IP", "localhost")
-        host_ip = server_ip if server_ip != "localhost" else get_local_ip()
         
+        if in_docker:
+            host_ip = "analysis-service"
+        else:
+            host_ip = server_ip if server_ip != "localhost" else get_local_ip()
+            
         await eureka_client.init_async(
             eureka_server=EUREKA_SERVER,
             app_name="analysis-service",
             instance_port=8084,
             instance_host=host_ip,
-            instance_id=f"{host_ip}:analysis-service:8084"
+            instance_id=f"{server_ip if server_ip != 'localhost' else host_ip}:analysis-service:8084"
         )
     except Exception as e:
-        print(f"Eureka init failed (this is non-fatal for local testing): {e}")
+        print(f"Eureka init failed: {e}")
 
     # Start Kafka Consumers in the background
     expense_task = asyncio.create_task(consume_expense_events(app))

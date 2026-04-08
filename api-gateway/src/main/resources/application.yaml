@@ -153,12 +153,14 @@ adaptive-rate-limiting:
 
 # ── Eureka ────────────────────────────────────────────────────────────────────
 eureka:
- client:
-   serviceUrl:
-     defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}
- instance:
-   preferIpAddress: true
-   ip-address: ${SERVER_IP:localhost}
+  client:
+    serviceUrl:
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}
+  instance:
+    hostname: ${EUREKA_INSTANCE_HOSTNAME:${SERVER_IP:localhost}}
+    preferIpAddress: ${EUREKA_INSTANCE_PREFER_IP_ADDRESS:true}
+    ip-address: ${SERVER_IP:localhost}
+    instanceId: ${SERVER_IP:localhost}:${spring.application.name}:${server.port}
 
 
 # ── Actuator / Prometheus metrics ────────────────────────────────────────────

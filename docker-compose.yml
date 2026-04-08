@@ -27,12 +27,16 @@ services:
       redis:
         condition: service_healthy
     environment:
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-registry:8761/eureka/
-      EUREKA_SERVER_URL: ${EUREKA_SERVER_URL:-http://service-registry:8761/eureka/}
-      REDIS_HOST: ${REDIS_HOST:-redis}
-      REDIS_PORT: ${REDIS_PORT:-6379}
+      EUREKA_SERVER_URL: http://service-registry:8761/eureka/
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      SERVER_IP: ${SERVER_IP}
+      EUREKA_INSTANCE_HOSTNAME: api-gateway
+      EUREKA_INSTANCE_PREFER_IP_ADDRESS: "false"
+      EUREKA_INSTANCE_INSTANCE_ID: ${SERVER_IP}:api-gateway:8080
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
       JWT_SECRET: ${JWT_SECRET}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
       SPRING_DEVTOOLS_RESTART_ENABLED: "false"
     ports:
       - "8080:8080"
@@ -50,15 +54,18 @@ services:
       kafka:
         condition: service_healthy
     environment:
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-registry:8761/eureka/
-      EUREKA_SERVER_URL: ${EUREKA_SERVER_URL:-http://service-registry:8761/eureka/}
+      EUREKA_SERVER_URL: http://service-registry:8761/eureka/
       SPRING_DATASOURCE_URL: ${USER_DB_URL}
       SPRING_DATASOURCE_USERNAME: ${USER_DB_USERNAME}
       SPRING_DATASOURCE_PASSWORD: ${USER_DB_PASSWORD}
-      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-kafka:29092}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
       JWT_SECRET: ${JWT_SECRET}
+      SERVER_IP: ${SERVER_IP}
+      EUREKA_INSTANCE_HOSTNAME: user-service
+      EUREKA_INSTANCE_PREFER_IP_ADDRESS: "false"
+      EUREKA_INSTANCE_INSTANCE_ID: ${SERVER_IP}:user-service:8083
       SPRING_DEVTOOLS_RESTART_ENABLED: "false"
     ports:
       - "8083:8083"
@@ -80,15 +87,18 @@ services:
       kafka:
         condition: service_healthy
     environment:
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-registry:8761/eureka/
-      EUREKA_SERVER_URL: ${EUREKA_SERVER_URL:-http://service-registry:8761/eureka/}
+      EUREKA_SERVER_URL: http://service-registry:8761/eureka/
       SERVICES_USER_SERVICE_URL: http://user-service:8083
       SPRING_DATASOURCE_URL: ${BUDGET_DB_URL}
       SPRING_DATASOURCE_USERNAME: ${BUDGET_DB_USERNAME}
       SPRING_DATASOURCE_PASSWORD: ${BUDGET_DB_PASSWORD}
-      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-kafka:29092}
-      REDIS_HOST: ${REDIS_HOST:-redis}
-      REDIS_PORT: ${REDIS_PORT:-6379}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      SERVER_IP: ${SERVER_IP}
+      EUREKA_INSTANCE_HOSTNAME: budget-service
+      EUREKA_INSTANCE_PREFER_IP_ADDRESS: "false"
+      EUREKA_INSTANCE_INSTANCE_ID: ${SERVER_IP}:budget-service:8081
       SPRING_DEVTOOLS_RESTART_ENABLED: "false"
     ports:
       - "8081:8081"
@@ -111,15 +121,18 @@ services:
       redis:
         condition: service_healthy
     environment:
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-registry:8761/eureka/
-      EUREKA_SERVER_URL: ${EUREKA_SERVER_URL:-http://service-registry:8761/eureka/}
+      EUREKA_SERVER_URL: http://service-registry:8761/eureka/
       SERVICES_USER_SERVICE_URL: http://user-service:8083
       SPRING_DATASOURCE_URL: ${EXPENSE_DB_URL}
       SPRING_DATASOURCE_USERNAME: ${EXPENSE_DB_USERNAME}
       SPRING_DATASOURCE_PASSWORD: ${EXPENSE_DB_PASSWORD}
-      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-kafka:29092}
-      REDIS_HOST: ${REDIS_HOST:-redis}
-      REDIS_PORT: ${REDIS_PORT:-6379}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      SERVER_IP: ${SERVER_IP}
+      EUREKA_INSTANCE_HOSTNAME: expense-service
+      EUREKA_INSTANCE_PREFER_IP_ADDRESS: "false"
+      EUREKA_INSTANCE_INSTANCE_ID: ${SERVER_IP}:expense-service:8082
       SPRING_DEVTOOLS_RESTART_ENABLED: "false"
     ports:
       - "8082:8082"
@@ -139,12 +152,14 @@ services:
     environment:
       PORT: 8086
       MONGODB_URI: ${MONGODB_URI}
-      KAFKA_BROKER: ${KAFKA_BROKER:-kafka:29092}
+      KAFKA_BROKER: kafka:29092
       KAFKA_GROUP_ID: ${KAFKA_GROUP_ID:-notification-service-group}
       EUREKA_HOST: service-registry
       EUREKA_PORT: 8761
-      SMTP_USER: ${SMTP_USER}
-      SMTP_PASS: ${SMTP_PASS}
+      SENDGRID_API_KEY: ${SENDGRID_API_KEY}
+      FROM_EMAIL: ${FROM_EMAIL}
+      SERVER_IP: ${SERVER_IP}
+      EUREKA_INSTANCE_IP_ADDRESS: ${SERVER_IP}
       NODE_ENV: production
     ports:
       - "8086:8086"
@@ -164,12 +179,13 @@ services:
       redis:
         condition: service_healthy
     environment:
-      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-kafka:29092}
-      EUREKA_SERVER: ${EUREKA_SERVER_URL:-http://service-registry:8761/eureka/}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      EUREKA_SERVER: http://service-registry:8761/eureka/
       API_GATEWAY_URL: http://api-gateway:8080
       MONGO_DETAILS: ${MONGO_DETAILS}
-      REDIS_HOST: ${REDIS_HOST:-redis}
-      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      SERVER_IP: ${SERVER_IP}
     ports:
       - "8084:8084"
     restart: unless-stopped
@@ -250,10 +266,11 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
     healthcheck:
-      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
-      interval: 15s
-      timeout: 10s
+      test: ["CMD-SHELL", "nc -z localhost 9092 || exit 1"]
+      interval: 10s
+      timeout: 5s
       retries: 5
+      start_period: 30s
     restart: unless-stopped
 
 

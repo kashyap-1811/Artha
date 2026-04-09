@@ -6,7 +6,7 @@ const kafka = new Kafka({
     brokers: [process.env.KAFKA_BROKER || 'localhost:9092']
 });
 
-const consumer = kafka.consumer({ groupId: process.env.KAFKA_COMPANY_GROUP_ID || 'notification-service-company-group' });
+const consumer = kafka.consumer({ groupId: process.env.NOTIFICATION_COMPANY_GROUP_ID || 'notification-company-group' });
 
 const startCompanyConsumer = async () => {
     const connectAndRun = async () => {

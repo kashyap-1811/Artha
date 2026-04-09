@@ -12,3 +12,5 @@ REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
 REDIS_PASSWORD = os.getenv("REDIS_PASSWORD")
 REDIS_SSL = os.getenv("REDIS_SSL", "false").lower() == "true"
 KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
+ANALYSIS_EXPENSE_GROUP_ID = os.getenv("ANALYSIS_EXPENSE_GROUP_ID", "analysis-expense-group")
+ANALYSIS_BUDGET_GROUP_ID = os.getenv("ANALYSIS_BUDGET_GROUP_ID", "analysis-budget-group")

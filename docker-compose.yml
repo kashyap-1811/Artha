@@ -152,7 +152,8 @@ services:
       PORT: 8086
       MONGODB_URI: ${MONGODB_URI}
       KAFKA_BROKER: kafka:29092
-      KAFKA_GROUP_ID: ${KAFKA_GROUP_ID:-notification-service-group}
+      NOTIFICATION_EXPENSE_GROUP_ID: ${NOTIFICATION_EXPENSE_GROUP_ID:-notification-expense-group}
+      NOTIFICATION_COMPANY_GROUP_ID: ${NOTIFICATION_COMPANY_GROUP_ID:-notification-company-group}
       EUREKA_HOST: service-registry
       EUREKA_PORT: 8761
       SENDGRID_API_KEY: ${SENDGRID_API_KEY}
@@ -179,6 +180,8 @@ services:
         condition: service_healthy
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      ANALYSIS_EXPENSE_GROUP_ID: ${ANALYSIS_EXPENSE_GROUP_ID:-analysis-expense-group}
+      ANALYSIS_BUDGET_GROUP_ID: ${ANALYSIS_BUDGET_GROUP_ID:-analysis-budget-group}
       EUREKA_SERVER: http://service-registry:8761/eureka/
       API_GATEWAY_URL: http://api-gateway:8080
       MONGO_DETAILS: ${MONGO_DETAILS}

@@ -12,3 +12,11 @@ __pycache__/
 *.pyc
 venv/
 nohup.out
+
+# Security / Certs
+certs/
+*.pem
+*.jks
+*.p12
+*.cert
+*.key

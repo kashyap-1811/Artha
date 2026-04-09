@@ -4,10 +4,16 @@ import os
 from aiokafka import AIOKafkaConsumer
 import asyncio
 from app.core.cache import clear_analysis_cache
-from app.core.config import KAFKA_BOOTSTRAP_SERVERS, ANALYSIS_EXPENSE_GROUP_ID, ANALYSIS_BUDGET_GROUP_ID
+from app.core.config import KAFKA_BOOTSTRAP_SERVERS, ANALYSIS_EXPENSE_GROUP_ID, ANALYSIS_BUDGET_GROUP_ID, KAFKA_CA_CERT, KAFKA_SERVICE_CERT, KAFKA_SERVICE_KEY, KAFKA_SSL_ENABLED
+import ssl
 
 logger = logging.getLogger(__name__)
 
+# SSL Context for Aiven Kafka
+def create_ssl_context():
+    context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH, cafile=KAFKA_CA_CERT)
+    context.load_cert_chain(certfile=KAFKA_SERVICE_CERT, keyfile=KAFKA_SERVICE_KEY)
+    return context
 
 EXPENSE_TOPIC = "expense-events"
 BUDGET_TOPIC = "budget-events"
@@ -21,7 +27,9 @@ async def consume_expense_events(app):
                 group_id=ANALYSIS_EXPENSE_GROUP_ID,
                 value_deserializer=lambda v: json.loads(v.decode('utf-8')) if v else None,
                 enable_auto_commit=False,
-                auto_offset_reset='earliest'
+                auto_offset_reset='earliest',
+                security_protocol="SSL" if KAFKA_SSL_ENABLED else "PLAINTEXT",
+                ssl_context=create_ssl_context() if KAFKA_SSL_ENABLED else None
             )
 
             await consumer.start()
@@ -109,7 +117,9 @@ async def consume_budget_events(app):
                 group_id=ANALYSIS_BUDGET_GROUP_ID,
                 value_deserializer=lambda v: json.loads(v.decode('utf-8')) if v else None,
                 enable_auto_commit=False,
-                auto_offset_reset='earliest'
+                auto_offset_reset='earliest',
+                security_protocol="SSL" if KAFKA_SSL_ENABLED else "PLAINTEXT",
+                ssl_context=create_ssl_context() if KAFKA_SSL_ENABLED else None
             )
 
             await consumer.start()

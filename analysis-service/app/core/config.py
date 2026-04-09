@@ -12,5 +12,12 @@ REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
 REDIS_PASSWORD = os.getenv("REDIS_PASSWORD")
 REDIS_SSL = os.getenv("REDIS_SSL", "false").lower() == "true"
 KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
+KAFKA_SSL_ENABLED = os.getenv("KAFKA_SSL_ENABLED", "false").lower() == "true"
 ANALYSIS_EXPENSE_GROUP_ID = os.getenv("ANALYSIS_EXPENSE_GROUP_ID", "analysis-expense-group")
 ANALYSIS_BUDGET_GROUP_ID = os.getenv("ANALYSIS_BUDGET_GROUP_ID", "analysis-budget-group")
+
+# Kafka SSL
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+KAFKA_CA_CERT = os.path.join(BASE_DIR, "certs", "ca.pem")
+KAFKA_SERVICE_CERT = os.path.join(BASE_DIR, "certs", "service.cert")
+KAFKA_SERVICE_KEY = os.path.join(BASE_DIR, "certs", "service.key")

@@ -171,6 +171,11 @@ Create your environment file first:
 cp .env.example .env
 ```
 
+Open `.env` and fill in all required values — database URLs, JWT secret, OAuth credentials, MongoDB URIs, and SendGrid key. Two variables worth noting:
+
+- **`SERVER_IP`** — set to `localhost` for local-only use, or your machine's LAN IP (e.g. `192.168.1.10`) if you need Kafka reachable from another device. Also used to construct Eureka instance IDs.
+- **`ALLOWED_ORIGINS`** — comma-separated list of allowed CORS origins (defaults to `http://localhost:5173,http://127.0.0.1:5173`).
+
 Then start everything:
 
 ```bash
@@ -186,10 +191,13 @@ This starts:
 | `user-service` | http://localhost:8083 |
 | `budget-service` | http://localhost:8081 |
 | `expense-service` | http://localhost:8082 |
+| `analysis-service` | http://localhost:8084 |
+| `notification-service` | http://localhost:8086 |
 | `frontend` | http://localhost:5173 |
-| `redis` | http://localhost:6379 |
-| `kafka` | http://localhost:9092 |
-| `zookeeper` | http://localhost:2181 |
+| `redis` | localhost:6379 |
+| `redis-insight` | http://localhost:8087 |
+| `kafka` | localhost:9092 |
+| `zookeeper` | localhost:2181 |
 | `kafka-ui` | http://localhost:8085 |
 
 To stop all containers:
@@ -402,6 +410,7 @@ Detailed write-ups on key cross-cutting concerns implemented in this project:
 | **Dynamic Rate Limiting** | [`implementation/Rate-limiting.md`](implementation/Rate-limiting.md) | Per-user adaptive rate limiting in the API Gateway using Redis token buckets, active-user tracking, and health-based limit calculation. |
 | **Caching** | [`implementation/Caching.md`](implementation/Caching.md) | Three-layer caching strategy: Spring `@Cacheable` + Redis for expense and budget read endpoints; Python `cache_response` decorator + Redis for analytics endpoints; MongoDB as a CQRS event-sourced read model for O(1) dashboard queries. |
 | **⚡ Optimization & Refactoring** | [`implementation/optimization.md`](implementation/optimization.md) | Second-round backend optimization: DB indexes, N+1 HTTP fix in FastAPI, async I/O fix, constraint-based validation, and aggregation query optimization across user, budget, and expense services. |
+| **🐳 Docker** | [`implementation/Docker.md`](implementation/Docker.md) | Multi-stage Docker builds for every service, full-stack `docker-compose.yml` with health checks and dependency ordering, infra-only compose for local development, and step-by-step guide to pull the pre-built image and run the stack with a root `.env` file. |
 
 ---
 

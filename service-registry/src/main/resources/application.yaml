@@ -6,9 +6,14 @@ spring:
     name: service-registry
 
 eureka:
+  server:
+    enable-self-preservation: false
+    eviction-interval-timer-in-ms: 5000
   instance:
     prefer-ip-address: true
     ip-address: ${SERVER_IP:localhost}
+    lease-renewal-interval-in-seconds: 5
+    lease-expiration-duration-in-seconds: 10
   client:
     register-with-eureka: false
     fetch-registry: false

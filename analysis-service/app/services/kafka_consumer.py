@@ -4,7 +4,7 @@ import os
 from aiokafka import AIOKafkaConsumer
 import asyncio
 from app.core.cache import clear_analysis_cache
-from app.core.config import KAFKA_BOOTSTRAP_SERVERS
+from app.core.config import KAFKA_BOOTSTRAP_SERVERS, ANALYSIS_EXPENSE_GROUP_ID, ANALYSIS_BUDGET_GROUP_ID
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +18,7 @@ async def consume_expense_events(app):
             consumer = AIOKafkaConsumer(
                 EXPENSE_TOPIC,
                 bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
-                group_id="analysis-expense-group",
+                group_id=ANALYSIS_EXPENSE_GROUP_ID,
                 value_deserializer=lambda v: json.loads(v.decode('utf-8')) if v else None,
                 enable_auto_commit=False,
                 auto_offset_reset='earliest'
@@ -106,7 +106,7 @@ async def consume_budget_events(app):
             consumer = AIOKafkaConsumer(
                 BUDGET_TOPIC,
                 bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
-                group_id="analysis-budget-group",
+                group_id=ANALYSIS_BUDGET_GROUP_ID,
                 value_deserializer=lambda v: json.loads(v.decode('utf-8')) if v else None,
                 enable_auto_commit=False,
                 auto_offset_reset='earliest'

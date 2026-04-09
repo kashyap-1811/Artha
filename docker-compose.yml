@@ -153,8 +153,8 @@ services:
       PORT: 8086
       MONGODB_URI: ${MONGODB_URI}
       KAFKA_BROKER: kafka:29092
-      KAFKA_GROUP_ID: ${KAFKA_GROUP_ID:-notification-service-group}
-      KAFKA_COMPANY_GROUP_ID: ${KAFKA_COMPANY_GROUP_ID:-notification-service-company-group}
+      NOTIFICATION_EXPENSE_GROUP_ID: ${NOTIFICATION_EXPENSE_GROUP_ID:-notification-expense-group}
+      NOTIFICATION_COMPANY_GROUP_ID: ${NOTIFICATION_COMPANY_GROUP_ID:-notification-company-group}
       EUREKA_HOST: service-registry
       EUREKA_PORT: 8761
       SENDGRID_API_KEY: ${SENDGRID_API_KEY}

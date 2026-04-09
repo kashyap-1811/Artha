@@ -9,7 +9,7 @@ services:
     ports:
       - "8761:8761"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8761/actuator/health" ]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -24,16 +24,17 @@ services:
     depends_on:
       service-registry:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       EUREKA_SERVER_URL: http://service-registry:8761/eureka/
-      REDIS_HOST: ${REDIS_HOST}
-      REDIS_PORT: ${REDIS_PORT}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
       SERVER_IP: ${SERVER_IP}
       EUREKA_INSTANCE_HOSTNAME: api-gateway
       EUREKA_INSTANCE_PREFER_IP_ADDRESS: "false"
       EUREKA_INSTANCE_INSTANCE_ID: ${SERVER_IP}:api-gateway:8080
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
-      REDIS_SSL: ${REDIS_SSL}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
       JWT_SECRET: ${JWT_SECRET}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
       SPRING_DEVTOOLS_RESTART_ENABLED: "false"
@@ -81,6 +82,8 @@ services:
         condition: service_healthy
       user-service:
         condition: service_started
+      redis:
+        condition: service_healthy
       kafka:
         condition: service_healthy
     environment:
@@ -90,10 +93,8 @@ services:
       SPRING_DATASOURCE_USERNAME: ${BUDGET_DB_USERNAME}
       SPRING_DATASOURCE_PASSWORD: ${BUDGET_DB_PASSWORD}
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      REDIS_HOST: ${REDIS_HOST}
-      REDIS_PORT: ${REDIS_PORT}
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
-      REDIS_SSL: ${REDIS_SSL}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
       SERVER_IP: ${SERVER_IP}
       EUREKA_INSTANCE_HOSTNAME: budget-service
       EUREKA_INSTANCE_PREFER_IP_ADDRESS: "false"
@@ -102,7 +103,6 @@ services:
     ports:
       - "8081:8081"
     restart: unless-stopped
-
 
   # ── Expense Service ──────────────────────────────────────────────────────────
   expense-service:
@@ -117,6 +117,8 @@ services:
         condition: service_started
       kafka:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       EUREKA_SERVER_URL: http://service-registry:8761/eureka/
       SERVICES_USER_SERVICE_URL: http://user-service:8083
@@ -124,10 +126,8 @@ services:
       SPRING_DATASOURCE_USERNAME: ${EXPENSE_DB_USERNAME}
       SPRING_DATASOURCE_PASSWORD: ${EXPENSE_DB_PASSWORD}
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      REDIS_HOST: ${REDIS_HOST}
-      REDIS_PORT: ${REDIS_PORT}
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
-      REDIS_SSL: ${REDIS_SSL}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
       SERVER_IP: ${SERVER_IP}
       EUREKA_INSTANCE_HOSTNAME: expense-service
       EUREKA_INSTANCE_PREFER_IP_ADDRESS: "false"
@@ -182,10 +182,8 @@ services:
       EUREKA_SERVER: http://service-registry:8761/eureka/
       API_GATEWAY_URL: http://api-gateway:8080
       MONGO_DETAILS: ${MONGO_DETAILS}
-      REDIS_HOST: ${REDIS_HOST}
-      REDIS_PORT: ${REDIS_PORT}
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
-      REDIS_SSL: ${REDIS_SSL}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
       SERVER_IP: ${SERVER_IP}
     ports:
       - "8084:8084"
@@ -205,6 +203,29 @@ services:
       - "5173:80"
     restart: unless-stopped
 
+  # ── Redis ────────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: artha-redis-dev
+    command: [ "redis-server", "--appendonly", "yes" ]
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  # ── Redis UI ──────────────────────────────────────────────────────────────────
+  redis-insight:
+    image: redislabs/redisinsight:1.14.0
+    container_name: redis-insight
+    ports:
+      - "8087:8001"
+    depends_on:
+      - redis
+    restart: unless-stopped
 
   # ── Zookeeper ────────────────────────────────────────────────────────────────
   zookeeper:
@@ -216,7 +237,7 @@ services:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
     healthcheck:
-      test: ["CMD", "nc", "-z", "localhost", "2181"]
+      test: [ "CMD", "nc", "-z", "localhost", "2181" ]
       interval: 10s
       timeout: 3s
       retries: 5
@@ -244,13 +265,12 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
     healthcheck:
-      test: ["CMD-SHELL", "nc -z localhost 9092 || exit 1"]
+      test: [ "CMD-SHELL", "nc -z localhost 9092 || exit 1" ]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 30s
     restart: unless-stopped
-
 
   # ── Kafka UI ──────────────────────────────────────────────────────────────────
   kafka-ui:

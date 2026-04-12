@@ -78,7 +78,7 @@ Port: **8084** | Memory limit: **384 MB**
 
 ```
 Stage 1 — builder : node:20-alpine
-  • npm ci --omit=dev   (production deps only, reproducible install)
+  • npm ci --omit=dev   (production dependencies only, reproducible install)
 
 Stage 2 — runtime : node:20-alpine
   • Copies node_modules from builder
@@ -202,7 +202,7 @@ certs/
   client.keystore.p12     — PKCS12 Keystore (client certificate + private key)
 ```
 
-> These files are gitignored. **Never commit certificate files to version control.**
+> These files are ignored by Git. **Never commit certificate files to version control.**
 
 ### 3.4 Redis — Cloud-Managed with TLS
 
@@ -250,10 +250,10 @@ This file starts only the supporting infrastructure so application services can 
 | Container | Image | Host Port | Purpose |
 |---|---|---|---|
 | `redis` | `redis:7-alpine` | 6379 | Rate limiting (API Gateway) + response cache (expense, budget, analysis) |
-| `redis-insight` | `redislabs/redisinsight:1.14.0` | 8087 → 8001 | Web UI to inspect Redis keys and streams |
+| `redis-insight` | `redislabs/redisinsight:1.14.0` | 8087:8001 | Web UI to inspect Redis keys and streams |
 | `zookeeper` | `confluentinc/cp-zookeeper:7.8.0` | 2181 | Kafka coordination service |
 | `kafka` | `confluentinc/cp-kafka:7.8.0` | 9092 / 29092 | Message broker for `expense-events`, `budget-events`, `company-events` |
-| `kafka-ui` | `provectuslabs/kafka-ui:latest` | 8085 → 8080 | Web UI to monitor topics and consumer groups |
+| `kafka-ui` | `provectuslabs/kafka-ui:latest` | 8085:8080 | Web UI to monitor topics and consumer groups |
 
 **Kafka dual-listener setup** (local dev, PLAINTEXT — no SSL):
 
@@ -369,7 +369,7 @@ cp /path/to/client.truststore.jks certs/
 cp /path/to/client.keystore.p12   certs/
 ```
 
-> `certs/` is gitignored. Never commit certificate files to version control.
+> `certs/` is ignored by Git. Never commit certificate files to version control.
 
 ### Step 5 — Build and Start the Stack
 

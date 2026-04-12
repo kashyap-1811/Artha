@@ -11,7 +11,7 @@ FROM eclipse-temurin:17-jre
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/* && \
-    groupadd -r spring && useradd -r -g spring spring
+  groupadd -r spring && useradd -r -g spring spring
 
 USER spring:spring
 
@@ -19,4 +19,4 @@ COPY --from=builder /app/target/*.jar /app/app.jar
 
 EXPOSE 8761
 
-ENTRYPOINT ["sh", "-c", "java ${JAVA_OPTS} -jar /app/app.jar"]
+ENTRYPOINT ["java", "-Xms128m", "-Xmx200m", "-XX:+UseG1GC", "-XX:+UseStringDeduplication", "-Djava.security.egd=file:/dev/./urandom", "-jar", "/app/app.jar"]

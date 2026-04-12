@@ -4,3 +4,6 @@ npm-debug.log*
 .env.*
 .git
 .gitignore
+
+**/certs
+src/certs

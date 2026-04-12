@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from py_eureka_client import eureka_client # type: ignore
 from app.routers import analysis
 from motor.motor_asyncio import AsyncIOMotorClient
-from app.core.config import MONGO_DETAILS, EUREKA_SERVER, REDIS_HOST, REDIS_PORT
+from app.core.config import MONGO_DETAILS, EUREKA_SERVER, REDIS_HOST, REDIS_PORT, REDIS_PASSWORD, REDIS_SSL
 import asyncio
 import certifi
 import redis.asyncio as redis # type: ignore
@@ -39,7 +39,13 @@ async def lifespan(app: FastAPI):
  
     # Connect to Redis
     print(f"Connecting to Redis at {REDIS_HOST}:{REDIS_PORT}...")
-    app.state.redis = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
+    app.state.redis = redis.Redis(
+        host=REDIS_HOST, 
+        port=REDIS_PORT, 
+        password=REDIS_PASSWORD,
+        ssl=REDIS_SSL,
+        decode_responses=True
+    )
     print("Successfully connected to Redis!")
 
     # Startup: Register with Eureka

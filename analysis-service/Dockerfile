@@ -15,12 +15,21 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
+# Non-root user setup
+RUN apt-get update && apt-get install -y --no-install-recommends wget && rm -rf /var/lib/apt/lists/* && \
+    groupadd -r appuser && useradd -r -g appuser appuser
+
 # Copy installed packages from builder
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Copy application source
 COPY app/ ./app/
+
+# Set ownership
+RUN chown -R appuser:appuser /app
+
+USER appuser
 
 EXPOSE 8084
 

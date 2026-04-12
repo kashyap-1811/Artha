@@ -159,46 +159,57 @@ All Docker-based runtime configuration is managed through the root `.env` file.
 
 ## Run with Docker Compose
 
-This repository includes Docker support for all Java services, the frontend, and the full event-driven infrastructure (Kafka, Zookeeper, Redis, Kafka UI).
+Two Docker Compose files are provided for different use cases:
 
-> **Note:** Each backend service uses its existing Neon PostgreSQL database. No local Postgres container is created. Internal service-to-service URLs are wired through Docker networking.
+| File | Purpose |
+|---|---|
+| `docker-compose.yml` | **Production deployment** — all application services behind an Nginx reverse proxy; connects to cloud-managed Kafka (SSL) and Redis (TLS) |
+| `docker-compose.infra.yml` | **Local dev infrastructure** — Redis, Zookeeper, Kafka, Kafka UI, Redis Insight (no application services) |
 
-### Full Stack (recommended)
+> **Note:** Each backend service uses its own PostgreSQL database. No local Postgres container is created. Service-to-service communication uses the internal `artha-net` Docker bridge network.
 
-Create your environment file first:
+### Production Deployment (`docker-compose.yml`)
+
+**Prerequisites:** Cloud-managed Kafka (e.g., Confluent Cloud) with SSL certificate files, and a cloud-managed Redis instance (e.g., Redis Cloud).
+
+**1. Create and populate the `.env` file:**
 
 ```bash
 cp .env.example .env
 ```
 
-Open `.env` and fill in all required values — database URLs, JWT secret, OAuth credentials, MongoDB URIs, and SendGrid key. Two variables worth noting:
+Fill in all required values — database URLs, JWT secret, OAuth credentials, MongoDB URIs, SendGrid key, and cloud Kafka/Redis connection details. Key variables:
 
-- **`SERVER_IP`** — set to `localhost` for local-only use, or your machine's LAN IP (e.g. `192.168.1.10`) if you need Kafka reachable from another device. Also used to construct Eureka instance IDs.
-- **`ALLOWED_ORIGINS`** — comma-separated list of allowed CORS origins (defaults to `http://localhost:5173,http://127.0.0.1:5173`).
+- **`SERVER_IP`** — your server's public IP, used for Eureka instance IDs.
+- **`KAFKA_BOOTSTRAP_SERVERS`** — your cloud Kafka broker address (e.g., `pkc-xxx.region.confluent.cloud:9092`).
+- **`ALLOWED_ORIGINS`** — comma-separated CORS origins for the API Gateway.
 
-Then start everything:
+**2. Place Kafka SSL certificates** in `./certs/` (gitignored, never commit these):
+
+```bash
+mkdir certs
+cp /path/to/client.truststore.jks certs/
+cp /path/to/client.keystore.p12   certs/
+```
+
+**3. Build and start the stack:**
 
 ```bash
 docker compose up --build
 ```
 
-This starts:
+All containers start in dependency order behind Nginx. The stack is ready when Eureka registration messages appear for each service.
 
-| Container | URL |
+| Container | Access |
 |---|---|
-| `service-registry` | http://localhost:8761 |
-| `api-gateway` | http://localhost:8080 |
-| `user-service` | http://localhost:8083 |
-| `budget-service` | http://localhost:8081 |
-| `expense-service` | http://localhost:8082 |
-| `analysis-service` | http://localhost:8084 |
-| `notification-service` | http://localhost:8086 |
-| `frontend` | http://localhost:5173 |
-| `redis` | localhost:6379 |
-| `redis-insight` | http://localhost:8087 |
-| `kafka` | localhost:9092 |
-| `zookeeper` | localhost:2181 |
-| `kafka-ui` | http://localhost:8085 |
+| `nginx` (reverse proxy) | http://your-server-ip (port 80) |
+| `service-registry` | Internal only — `docker compose exec service-registry curl localhost:8761` |
+| `api-gateway` | Internal only — routed via Nginx |
+| `user-service` | Internal only |
+| `budget-service` | Internal only |
+| `expense-service` | Internal only |
+| `analysis-service` | Internal only |
+| `notification-service` | Internal only |
 
 To stop all containers:
 
@@ -208,11 +219,21 @@ docker compose down
 
 ### Infrastructure Only (for local development)
 
-If you prefer to run Java/Python/Node services natively, start only the infrastructure containers:
+Spin up Kafka, Redis, and their admin UIs while running the application services natively with hot-reload:
 
 ```bash
 docker compose -f docker-compose.infra.yml up -d
 ```
+
+This starts:
+
+| Container | URL |
+|---|---|
+| `redis` | localhost:6379 |
+| `redis-insight` | http://localhost:8087 |
+| `zookeeper` | localhost:2181 |
+| `kafka` | localhost:9092 |
+| `kafka-ui` | http://localhost:8085 |
 
 ---
 
@@ -410,7 +431,7 @@ Detailed write-ups on key cross-cutting concerns implemented in this project:
 | **Dynamic Rate Limiting** | [`implementation/Rate-limiting.md`](implementation/Rate-limiting.md) | Per-user adaptive rate limiting in the API Gateway using Redis token buckets, active-user tracking, and health-based limit calculation. |
 | **Caching** | [`implementation/Caching.md`](implementation/Caching.md) | Three-layer caching strategy: Spring `@Cacheable` + Redis for expense and budget read endpoints; Python `cache_response` decorator + Redis for analytics endpoints; MongoDB as a CQRS event-sourced read model for O(1) dashboard queries. |
 | **⚡ Optimization & Refactoring** | [`implementation/optimization.md`](implementation/optimization.md) | Second-round backend optimization: DB indexes, N+1 HTTP fix in FastAPI, async I/O fix, constraint-based validation, and aggregation query optimization across user, budget, and expense services. |
-| **🐳 Docker** | [`implementation/Docker.md`](implementation/Docker.md) | Multi-stage Docker builds for every service, full-stack `docker-compose.yml` with health checks and dependency ordering, infra-only compose for local development, and step-by-step guide to pull the pre-built image and run the stack with a root `.env` file. |
+| **🐳 Docker** | [`implementation/Docker.md`](implementation/Docker.md) | Multi-stage Docker builds with non-root users and JVM tuning for every service; production `docker-compose.yml` with Nginx reverse proxy, cloud-managed Kafka (SSL) and Redis (TLS), health-check dependency ordering, and memory limits; infra-only compose for local development. |
 
 ---
 

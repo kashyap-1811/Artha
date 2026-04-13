@@ -2,8 +2,8 @@
 
 **Artha** (Sanskrit for *wealth* / *finance*) is a full-stack, microservices-based application that helps companies manage their budgets and track expenses. It supports multi-company management, fiscal-period budgeting with category allocations, an approval workflow for expenses, real-time analytics, and automated email budget alerts — all secured with JWT authentication and protected by Redis-backed rate limiting.
 
-> 🌐 **Live Demo:** [https://www.artha.systems](https://www.artha.systems/) — Deployed on **DigitalOcean** with HTTPS (Let's Encrypt SSL)  
-> 🔗 **API:** [https://api.artha.systems](https://api.artha.systems/) — All backend requests routed via Nginx reverse proxy
+> 🌐 **Live Demo:** Deployed on **DigitalOcean** with HTTPS (Let's Encrypt SSL)  
+> 🔗 **API:** All backend requests routed via Nginx reverse proxy
 
 ---
 
@@ -175,7 +175,7 @@ Two Docker Compose files are provided for different use cases:
 
 ### Production Deployment (`docker-compose.yml`)
 
-The live deployment runs on **DigitalOcean** with HTTPS enabled via Let's Encrypt SSL certificates. The React frontend is served at [https://www.artha.systems](https://www.artha.systems/) and the API is exposed at [https://api.artha.systems](https://api.artha.systems/).
+The live deployment runs on **DigitalOcean** with HTTPS enabled via Let's Encrypt SSL certificates. The React frontend is served at your frontend domain and the API is exposed at your API domain.
 
 **Prerequisites:** Cloud-managed Kafka (e.g., Confluent Cloud) with SSL certificate files, a cloud-managed Redis instance (e.g., Redis Cloud), and a domain name with DNS pointing to your server.
 
@@ -189,7 +189,7 @@ Fill in all required values — database URLs, JWT secret, OAuth credentials, Mo
 
 - **`SERVER_IP`** — your server's public IP, used for Eureka instance IDs.
 - **`KAFKA_BOOTSTRAP_SERVERS`** — your cloud Kafka broker address (e.g., `pkc-xxx.region.confluent.cloud:9092`).
-- **`ALLOWED_ORIGINS`** — comma-separated CORS origins for the API Gateway (e.g., `https://www.artha.systems,https://artha.systems`).
+- **`ALLOWED_ORIGINS`** — comma-separated CORS origins for the API Gateway (e.g., `https://www.your-domain.com,https://your-domain.com`).
 
 **2. Place Kafka SSL certificates** in `./certs/` (gitignored, never commit these):
 
@@ -203,7 +203,7 @@ cp /path/to/client.keystore.p12   certs/
 
 ```bash
 # Install Certbot on the server and obtain a certificate for your domain
-certbot certonly --standalone -d api.artha.systems
+certbot certonly --standalone -d api.your-domain.com
 ```
 
 Nginx mounts `/etc/letsencrypt` from the host and serves the certificates at runtime. A `/.well-known/acme-challenge/` location is already configured for automatic renewal.
@@ -219,7 +219,7 @@ All containers start in dependency order behind Nginx. The stack is ready when E
 | Container | Access |
 |---|---|
 | `nginx` (reverse proxy) | http://your-server-ip (port 80) — redirects to HTTPS |
-| `nginx` (HTTPS) | https://api.artha.systems (port 443) — TLS 1.2/1.3 with Let's Encrypt |
+| `nginx` (HTTPS) | https://api.your-domain.com (port 443) — TLS 1.2/1.3 with Let's Encrypt |
 | `service-registry` | Internal only — `docker compose exec service-registry curl localhost:8761` |
 | `api-gateway` | Internal only — routed via Nginx |
 | `user-service` | Internal only |

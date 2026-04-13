@@ -21,3 +21,6 @@ certs/
 *.p12
 *.cert
 *.key
+
+# Nginx runtime config (copy from nginx/nginx.conf.example)
+nginx/nginx.conf

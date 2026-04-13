@@ -189,7 +189,7 @@ Fill in all required values — database URLs, JWT secret, OAuth credentials, Mo
 
 - **`SERVER_IP`** — your server's public IP, used for Eureka instance IDs.
 - **`KAFKA_BOOTSTRAP_SERVERS`** — your cloud Kafka broker address (e.g., `pkc-xxx.region.confluent.cloud:9092`).
-- **`ALLOWED_ORIGINS`** — comma-separated CORS origins for the API Gateway (e.g., `https://www.your-domain.com,https://your-domain.com`).
+- **`ALLOWED_ORIGINS`** — comma-separated CORS origins for the API Gateway (e.g., `https://your_frontend_url,https://your_backend_url`).
 
 **2. Place Kafka SSL certificates** in `./certs/` (gitignored, never commit these):
 
@@ -203,7 +203,7 @@ cp /path/to/client.keystore.p12   certs/
 
 ```bash
 # Install Certbot on the server and obtain a certificate for your domain
-certbot certonly --standalone -d api.your-domain.com
+certbot certonly --standalone -d your_backend_url
 ```
 
 Nginx mounts `/etc/letsencrypt` from the host and serves the certificates at runtime. A `/.well-known/acme-challenge/` location is already configured for automatic renewal.
@@ -219,7 +219,7 @@ All containers start in dependency order behind Nginx. The stack is ready when E
 | Container | Access |
 |---|---|
 | `nginx` (reverse proxy) | http://your-server-ip (port 80) — redirects to HTTPS |
-| `nginx` (HTTPS) | https://api.your-domain.com (port 443) — TLS 1.2/1.3 with Let's Encrypt |
+| `nginx` (HTTPS) | https://your_backend_url (port 443) — TLS 1.2/1.3 with Let's Encrypt |
 | `service-registry` | Internal only — `docker compose exec service-registry curl localhost:8761` |
 | `api-gateway` | Internal only — routed via Nginx |
 | `user-service` | Internal only |

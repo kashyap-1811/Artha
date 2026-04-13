@@ -13,6 +13,8 @@ spring:
      host: ${REDIS_HOST:localhost}
      port: ${REDIS_PORT:6379}
      password: ${REDIS_PASSWORD:}
+     ssl:
+       enabled: ${REDIS_SSL:false}
      timeout: 2000ms
 
  cloud:
@@ -26,8 +28,8 @@ spring:
          filters:
            - name: RequestRateLimiter
              args:
-               redis-rate-limiter.replenishRate: 3
-               redis-rate-limiter.burstCapacity: 6
+               redis-rate-limiter.replenishRate: 5
+               redis-rate-limiter.burstCapacity: 10
                redis-rate-limiter.requestedTokens: 1
                key-resolver: "#{@userKeyResolver}"
 
@@ -54,8 +56,8 @@ spring:
            - StripPrefix=1
            - name: RequestRateLimiter
              args:
-               redis-rate-limiter.replenishRate: 3
-               redis-rate-limiter.burstCapacity: 6
+               redis-rate-limiter.replenishRate: 5
+               redis-rate-limiter.burstCapacity: 10
                redis-rate-limiter.requestedTokens: 1
                key-resolver: "#{@userKeyResolver}"
 
@@ -78,8 +80,8 @@ spring:
            - StripPrefix=1
            - name: RequestRateLimiter
              args:
-               redis-rate-limiter.replenishRate: 3
-               redis-rate-limiter.burstCapacity: 6
+               redis-rate-limiter.replenishRate: 5
+               redis-rate-limiter.burstCapacity: 10
                redis-rate-limiter.requestedTokens: 1
                key-resolver: "#{@userKeyResolver}"
 
@@ -102,8 +104,8 @@ spring:
            - StripPrefix=1
            - name: RequestRateLimiter
              args:
-               redis-rate-limiter.replenishRate: 3
-               redis-rate-limiter.burstCapacity: 6
+               redis-rate-limiter.replenishRate: 5
+               redis-rate-limiter.burstCapacity: 10
                redis-rate-limiter.requestedTokens: 1
                key-resolver: "#{@userKeyResolver}"
 
@@ -117,8 +119,8 @@ spring:
            - StripPrefix=1
            - name: RequestRateLimiter
              args:
-               redis-rate-limiter.replenishRate: 3
-               redis-rate-limiter.burstCapacity: 6
+               redis-rate-limiter.replenishRate: 5
+               redis-rate-limiter.burstCapacity: 10
                redis-rate-limiter.requestedTokens: 1
                key-resolver: "#{@userKeyResolver}"
 
@@ -132,8 +134,8 @@ spring:
            - StripPrefix=1
            - name: RequestRateLimiter
              args:
-               redis-rate-limiter.replenishRate: 3
-               redis-rate-limiter.burstCapacity: 6
+               redis-rate-limiter.replenishRate: 5
+               redis-rate-limiter.burstCapacity: 10
                redis-rate-limiter.requestedTokens: 1
                key-resolver: "#{@userKeyResolver}"
 
@@ -146,9 +148,9 @@ spring:
 # active-user-window-secs:  sliding window to consider a user "active"
 adaptive-rate-limiting:
  safe-rps: 280
- min-limit: 1
- max-limit: 20
- active-user-window-seconds: 60
+ min-limit: 5
+ max-limit: 40
+ active-user-window-seconds: 120
 
 
 # ── Eureka ────────────────────────────────────────────────────────────────────

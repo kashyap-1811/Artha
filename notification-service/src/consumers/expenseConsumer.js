@@ -1,10 +1,24 @@
+const fs = require('fs');
+const path = require('path');
 const { Kafka } = require('kafkajs');
 const notificationService = require('../services/notificationService');
 
-const kafka = new Kafka({
+const kafkaConfig = {
     clientId: 'notification-service',
     brokers: [process.env.KAFKA_BROKER || 'localhost:9092']
-});
+};
+
+// Add SSL for Aiven Cloud Kafka
+if (process.env.KAFKAJS_SSL === 'true') {
+    kafkaConfig.ssl = {
+        rejectUnauthorized: false,
+        ca: [fs.readFileSync(path.join(__dirname, '../certs/ca.pem'), 'utf-8')],
+        key: fs.readFileSync(path.join(__dirname, '../certs/service.key'), 'utf-8'),
+        cert: fs.readFileSync(path.join(__dirname, '../certs/service.cert'), 'utf-8')
+    };
+}
+
+const kafka = new Kafka(kafkaConfig);
 
 const consumer = kafka.consumer({ groupId: process.env.NOTIFICATION_EXPENSE_GROUP_ID || 'notification-expense-group' });
 

@@ -6,9 +6,18 @@
 # Environment files
 .env
 *.env
+.env.production
 
 # Python
 __pycache__/
 *.pyc
 venv/
 nohup.out
+
+# Security / Certs
+certs/
+*.pem
+*.jks
+*.p12
+*.cert
+*.key

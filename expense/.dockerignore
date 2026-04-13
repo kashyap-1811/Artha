@@ -7,3 +7,5 @@ target
 *.log
 README.md
 
+**/certs
+src/main/resources/certs

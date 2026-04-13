@@ -4,7 +4,7 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 COPY package.json package-lock.json* ./
-RUN npm install --omit=dev
+RUN npm ci --omit=dev
 
 # ── Stage 2: runtime ──────────────────────────────────────────────────────────
 FROM node:20-alpine
@@ -21,5 +21,7 @@ COPY src/ ./src/
 EXPOSE 8086
 
 ENV NODE_ENV=production
+
+USER node
 
 CMD ["node", "src/index.js"]

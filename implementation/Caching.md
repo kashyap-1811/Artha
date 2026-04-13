@@ -127,17 +127,21 @@ public List<ExpenseResponse> getCompanyExpenses(String userId, String companyId)
 
 | Cache name | Key | Method | Description |
 |---|---|---|---|
-| `company_budgets` | `#companyId` | `getActiveBudget` | Currently active budget for a company |
-| `company_budgets_list` | `#companyId` | `getAllBudgets` | All budgets for a company |
-| `budget_details` | `#budgetId` | `getAllDetailOfBudget` | Full budget details including allocations |
+| `company_budgets` | `#companyId` | `getActiveBudget` | Currently active ACTIVE-status budgets for a company |
+| `company_budgets_list` | `#companyId` | `getAllBudgets` | All budgets for a company (all statuses) |
 
 ```java
 @CacheEvict(value = {"company_budgets", "company_budgets_list"}, key = "#companyId")
-public BudgetResponse createBudget(String companyId, ...) { ... }
+public Budget createBudget(String userId, String companyId, ...) { ... }
 
-@Cacheable(value = "budget_details", key = "#budgetId")
-public BudgetDetailResponse getAllDetailOfBudget(UUID budgetId, ...) { ... }
+@Cacheable(value = "company_budgets", key = "#companyId")
+public List<BudgetResponseDTO> getActiveBudget(String userId, String companyId) { ... }
+
+@Cacheable(value = "company_budgets_list", key = "#companyId")
+public List<BudgetResponseDTO> getAllBudgets(String userId, String companyId) { ... }
 ```
+
+> **Note:** `getAllDetailOfBudget` fetches full budget details (allocations included) from PostgreSQL on every call — it is not currently cached. The `evictCompanyCaches` helper defensively attempts to clear a `budget_details` cache entry, but no `@Cacheable` population step exists for that name at this time.
 
 ### 3.4 Cache Eviction Strategy
 
@@ -267,7 +271,7 @@ budget_analysis:budget-456:/analysis/budget/budget-456/top-spenders
 
 ### 4.3 Cache Invalidation
 
-Unlike the Spring services, the Analysis service invalidates its Redis cache **event-driven** via Kafka. When the Kafka consumer processes an approved expense or a budget change, it calls `clear_analysis_cache` before finishing:
+Unlike the Spring services, the Analysis service invalidates its Redis cache **event-driven** via Kafka. Only **approved** expense events are published to the `expense-events` topic (approve, update of an approved expense, or delete of an approved expense), so the cache is invalidated only when financially significant state changes occur. When the Kafka consumer processes such an event or a budget change, it calls `clear_analysis_cache` before finishing:
 
 ```python
 async def clear_analysis_cache(redis, company_id: str = None, budget_id: str = None):

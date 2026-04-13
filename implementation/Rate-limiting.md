@@ -126,7 +126,7 @@ Each entry is: `member = "user:<id>"` (or `"ip:<addr>"`), `score = epoch second 
 
 **Sliding window logic:**
 
-In `DynamicRateLimitUpdater`, entries older than `activeUserWindowSeconds` (default 60 s) are evicted before counting:
+In `DynamicRateLimitUpdater`, entries older than `activeUserWindowSeconds` (default 120 s) are evicted before counting:
 
 ```java
 long windowStart = nowEpoch - activeUserWindowSeconds;
@@ -136,7 +136,7 @@ redisTemplate.opsForZSet().removeRangeByScore(ACTIVE_USERS_KEY, Range.unbounded(
 Long count = redisTemplate.opsForZSet().count(ACTIVE_USERS_KEY, Range.closed(windowStart, nowEpoch)).block();
 ```
 
-A **sliding window** is used instead of a fixed 60-second bucket because it counts users who made a request *in the last 60 seconds*, regardless of when the window started. This avoids the "thundering herd" problem that occurs when a fixed window resets and all users are suddenly counted as zero.
+A **sliding window** is used instead of a fixed 120-second bucket because it counts users who made a request *in the last 120 seconds*, regardless of when the window started. This avoids the "thundering herd" problem that occurs when a fixed window resets and all users are suddenly counted as zero.
 
 ---
 
@@ -168,10 +168,11 @@ user_based_limit = safe_rps / active_users
 
 | Active users | Calculated limit | Applied limit (after clamp) |
 |---|---|---|
-| 1 | 280 | 20 (capped by max) |
+| 1 | 280 | 40 (capped by max) |
+| 7 | 40 | 40 |
 | 14 | 20 | 20 |
 | 56 | 5 | 5 |
-| 280 | 1 | 1 |
+| 280 | 1 | 5 (floored by min) |
 
 **Step 2 — Health-based limit** (see [Section 8](#8-dynamicratelimitupdater)):
 
@@ -181,13 +182,13 @@ The system also computes an independent upper bound based on CPU usage, average 
 
 ```
 raw_limit   = min(user_based_limit, health_based_limit)
-final_limit = clamp(raw_limit, min=1, max=20)
+final_limit = clamp(raw_limit, min=5, max=40)
 ```
 
 The more conservative of the two limits is chosen, then clamped between the configured floor and ceiling:
 
-- **min = 1 req/s** — every authenticated user can always make at least one request per second.
-- **max = 20 req/s** — no single user monopolises capacity, even when very few users are active.
+- **min = 5 req/s** — every authenticated user can always make at least five requests per second.
+- **max = 40 req/s** — no single user monopolises capacity, even when very few users are active.
 
 ---
 
@@ -266,15 +267,13 @@ Each route in `application.yml` includes a `RequestRateLimiter` filter:
     - StripPrefix=1
     - name: RequestRateLimiter
       args:
-        redis-rate-limiter.replenishRate: 3
-        redis-rate-limiter.burstCapacity: 6
+        redis-rate-limiter.replenishRate: 5
+        redis-rate-limiter.burstCapacity: 10
         redis-rate-limiter.requestedTokens: 1
         key-resolver: "#{@userKeyResolver}"
 ```
 
-The `replenishRate: 3` and `burstCapacity: 6` in the YAML are **safe defaults** — they are the fallback values used only if the `DynamicRateLimitUpdater` has not yet run (e.g., the very first few seconds after startup). In practice, `@PostConstruct` overwrites these with `maxLimit` (20 RPS) immediately at startup, and the scheduler updates them further within 10 seconds.
-
-Setting conservative defaults (3 RPS) ensures that even in the edge case where the adaptive scheduler fails to start, the system is still protected.
+The `replenishRate: 5` and `burstCapacity: 10` in the YAML are **safe defaults** — they are the fallback values used only if the `DynamicRateLimitUpdater` has not yet run (e.g., the very first few seconds after startup). In practice, `@PostConstruct` overwrites these with `maxLimit` (40 RPS) immediately at startup, and the scheduler updates them further within 10 seconds.
 
 Internal service-to-service routes (`/internal/**`) deliberately **do not** have a `RequestRateLimiter` filter — they bypass rate limiting entirely since they are called by trusted backend services over the internal network, not by end users.
 
@@ -284,20 +283,20 @@ Internal service-to-service routes (`/internal/**`) deliberately **do not** have
 
 | Scenario | Active users | User-based limit | Health limit | Final limit |
 |---|---|---|---|---|
-| Low traffic | 2 | 140 RPS | unconstrained | 20 RPS (capped by max) |
+| Low traffic | 2 | 140 RPS | unconstrained | 40 RPS (capped by max) |
 | Moderate traffic | 28 | 10 RPS | unconstrained | 10 RPS |
-| High traffic | 100 | 2 RPS | unconstrained | 2 RPS |
-| Peak traffic | 280 | 1 RPS | unconstrained | 1 RPS (floor) |
-| CPU spike (> 85 %) | any | any | 1 RPS (emergency) | 1 RPS |
-| High latency (> 500 ms) | any | any | 1 RPS (emergency) | 1 RPS |
-| High error rate (> 3 %) | any | any | 1 RPS (emergency) | 1 RPS |
-| Single user, healthy system | 1 | 280 RPS | unconstrained | 20 RPS (capped by max) |
+| High traffic | 100 | 2 RPS | unconstrained | 5 RPS (floored by min) |
+| Peak traffic | 280 | 1 RPS | unconstrained | 5 RPS (floored by min) |
+| CPU spike (> 85 %) | any | any | 1 RPS (emergency) | 5 RPS (floored by min) |
+| High latency (> 500 ms) | any | any | 1 RPS (emergency) | 5 RPS (floored by min) |
+| High error rate (> 3 %) | any | any | 1 RPS (emergency) | 5 RPS (floored by min) |
+| Single user, healthy system | 1 | 280 RPS | unconstrained | 40 RPS (capped by max) |
 
 **Key behaviours:**
 
-- **Few users → high per-user limit.** Idle capacity is redistributed rather than wasted. A single developer testing in isolation gets the full `maxLimit` (20 RPS).
+- **Few users → high per-user limit.** Idle capacity is redistributed rather than wasted. A single developer testing in isolation gets the full `maxLimit` (40 RPS).
 - **Many users → low per-user limit.** Capacity is spread fairly. No single user can crowd out others.
-- **System under stress → limits collapse automatically.** CPU spikes, slow responses, or cascading errors all trigger the emergency floor (1 RPS) without any human intervention.
+- **System under stress → limits collapse automatically.** CPU spikes, slow responses, or cascading errors all trigger the emergency floor (clamped to `minLimit` of 5 RPS) without any human intervention.
 - **Recovery is automatic.** Once metrics normalise in the next 10-second window, the limit rises back to the appropriate user-based value.
 
 ---
@@ -331,3 +330,4 @@ Internal service-to-service routes (`/internal/**`) deliberately **do not** have
 - **Circuit breaker integration.** If a downstream service trips its circuit breaker, the gateway could automatically drop the per-user limit for routes pointing to that service to zero, short-circuiting upstream traffic faster than the health metrics window.
 - **Graduated health response.** The current health decision tree has hard thresholds. A smoother curve (e.g., linearly scaling limit between 60 % and 85 % CPU) would reduce oscillation when CPU hovers near a threshold boundary.
 - **Per-endpoint limits.** Some endpoints (e.g., analytics queries) are more expensive than others. `requestedTokens` can be set higher for expensive routes so they consume more tokens per call, naturally throttling them more aggressively.
+- **Stricter emergency floor.** Currently, health-based emergencies return a hardcoded limit of 1 RPS which is then floored back up to `minLimit` (5 RPS) by the clamp. Wiring the emergency path to `minLimit` directly (instead of a hardcoded `1`) would make the floor fully configurable.

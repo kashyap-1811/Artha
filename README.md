@@ -2,7 +2,7 @@
 
 **Artha** (Sanskrit for *wealth* / *finance*) is a full-stack, microservices-based application that helps companies manage their budgets and track expenses. It supports multi-company management, fiscal-period budgeting with category allocations, an approval workflow for expenses, real-time analytics, and automated email budget alerts — all secured with JWT authentication and protected by Redis-backed rate limiting.
 
-> 🌐 **Live Demo:** Deployed on **DigitalOcean** with HTTPS (Let's Encrypt SSL)  
+> 🌐 **Live Demo:** www.artha.systems Deployed on **DigitalOcean** with HTTPS (Let's Encrypt SSL)  
 > 🔗 **API:** All backend requests routed via Nginx reverse proxy
 
 ---

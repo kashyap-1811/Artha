@@ -2,6 +2,9 @@
 
 **Artha** (Sanskrit for *wealth* / *finance*) is a full-stack, microservices-based application that helps companies manage their budgets and track expenses. It supports multi-company management, fiscal-period budgeting with category allocations, an approval workflow for expenses, real-time analytics, and automated email budget alerts — all secured with JWT authentication and protected by Redis-backed rate limiting.
 
+> 🌐 **Live Demo:** www.artha.systems Deployed on **DigitalOcean** with HTTPS (Let's Encrypt SSL)  
+> 🔗 **API:** All backend requests routed via Nginx reverse proxy
+
 ---
 
 ## Table of Contents
@@ -108,6 +111,8 @@ All Java/Spring Boot services register with the Eureka service registry. The Pyt
 | Data Processing | Pandas, NumPy (Python analysis engine) |
 | Observability | Spring Boot Actuator, Kafka UI |
 | Containerization | Docker, Docker Compose (multi-stage builds) |
+| Reverse Proxy / SSL | Nginx (reverse proxy + TLS termination), Let's Encrypt (Certbot) |
+| Hosting | DigitalOcean Droplet |
 | Dev Tooling | Lombok, Spring Boot DevTools, Nodemon |
 
 ---
@@ -163,14 +168,16 @@ Two Docker Compose files are provided for different use cases:
 
 | File | Purpose |
 |---|---|
-| `docker-compose.yml` | **Production deployment** — all application services behind an Nginx reverse proxy; connects to cloud-managed Kafka (SSL) and Redis (TLS) |
+| `docker-compose.yml` | **Production deployment** — all application services behind an Nginx reverse proxy (ports 80 & 443); connects to cloud-managed Kafka (SSL) and Redis (TLS); SSL certificates mounted from host (`/etc/letsencrypt`) |
 | `docker-compose.infra.yml` | **Local dev infrastructure** — Redis, Zookeeper, Kafka, Kafka UI, Redis Insight (no application services) |
 
 > **Note:** Each backend service uses its own PostgreSQL database. No local Postgres container is created. Service-to-service communication uses the internal `artha-net` Docker bridge network.
 
 ### Production Deployment (`docker-compose.yml`)
 
-**Prerequisites:** Cloud-managed Kafka (e.g., Confluent Cloud) with SSL certificate files, and a cloud-managed Redis instance (e.g., Redis Cloud).
+The live deployment runs on **DigitalOcean** with HTTPS enabled via Let's Encrypt SSL certificates. The React frontend is served at your frontend domain and the API is exposed at your API domain.
+
+**Prerequisites:** Cloud-managed Kafka (e.g., Confluent Cloud) with SSL certificate files, a cloud-managed Redis instance (e.g., Redis Cloud), and a domain name with DNS pointing to your server.
 
 **1. Create and populate the `.env` file:**
 
@@ -182,7 +189,7 @@ Fill in all required values — database URLs, JWT secret, OAuth credentials, Mo
 
 - **`SERVER_IP`** — your server's public IP, used for Eureka instance IDs.
 - **`KAFKA_BOOTSTRAP_SERVERS`** — your cloud Kafka broker address (e.g., `pkc-xxx.region.confluent.cloud:9092`).
-- **`ALLOWED_ORIGINS`** — comma-separated CORS origins for the API Gateway.
+- **`ALLOWED_ORIGINS`** — comma-separated CORS origins for the API Gateway (e.g., `https://your_frontend_url,https://your_backend_url`).
 
 **2. Place Kafka SSL certificates** in `./certs/` (gitignored, never commit these):
 
@@ -192,7 +199,16 @@ cp /path/to/client.truststore.jks certs/
 cp /path/to/client.keystore.p12   certs/
 ```
 
-**3. Build and start the stack:**
+**3. Obtain SSL certificates with Certbot** (first-time setup):
+
+```bash
+# Install Certbot on the server and obtain a certificate for your domain
+certbot certonly --standalone -d your_backend_url
+```
+
+Nginx mounts `/etc/letsencrypt` from the host and serves the certificates at runtime. A `/.well-known/acme-challenge/` location is already configured for automatic renewal.
+
+**4. Build and start the stack:**
 
 ```bash
 docker compose up --build
@@ -202,7 +218,8 @@ All containers start in dependency order behind Nginx. The stack is ready when E
 
 | Container | Access |
 |---|---|
-| `nginx` (reverse proxy) | http://your-server-ip (port 80) |
+| `nginx` (reverse proxy) | http://your-server-ip (port 80) — redirects to HTTPS |
+| `nginx` (HTTPS) | https://your_backend_url (port 443) — TLS 1.2/1.3 with Let's Encrypt |
 | `service-registry` | Internal only — `docker compose exec service-registry curl localhost:8761` |
 | `api-gateway` | Internal only — routed via Nginx |
 | `user-service` | Internal only |
@@ -432,6 +449,7 @@ Detailed write-ups on key cross-cutting concerns implemented in this project:
 | **Caching** | [`implementation/Caching.md`](implementation/Caching.md) | Three-layer caching strategy: Spring `@Cacheable` + Redis for expense and budget read endpoints; Python `cache_response` decorator + Redis for analytics endpoints; MongoDB as a CQRS event-sourced read model for O(1) dashboard queries. |
 | **⚡ Optimization & Refactoring** | [`implementation/optimization.md`](implementation/optimization.md) | Second-round backend optimization: DB indexes, N+1 HTTP fix in FastAPI, async I/O fix, constraint-based validation, and aggregation query optimization across user, budget, and expense services. |
 | **🐳 Docker** | [`implementation/Docker.md`](implementation/Docker.md) | Multi-stage Docker builds with non-root users and JVM tuning for every service; production `docker-compose.yml` with Nginx reverse proxy, cloud-managed Kafka (SSL) and Redis (TLS), health-check dependency ordering, and memory limits; infra-only compose for local development. |
+| **📨 Kafka** | [`implementation/Kafka.md`](implementation/Kafka.md) | End-to-end Kafka event streaming: topic design (`expense-events`, `budget-events`, `company-events`), event schemas, producer transactional-outbox pattern (`afterCommit`), SSL/TLS configuration, and per-consumer group processing in the analysis and notification services. |
 
 ---
 

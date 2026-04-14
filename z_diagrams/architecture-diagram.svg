@@ -8,7 +8,6 @@
     <marker id="arr-purple" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#a855f7"/></marker>
     <marker id="arr-indigo" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#818cf8"/></marker>
     <marker id="arr-teal"   markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#00ed64"/></marker>
-    <marker id="arr-lgreen" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#84cc16"/></marker>
     <linearGradient id="bg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%"   style="stop-color:#0d1117"/>
       <stop offset="100%" style="stop-color:#161b22"/>
@@ -24,17 +23,16 @@
   <!-- ══ TITLE ══ -->
   <text x="850" y="23" text-anchor="middle" fill="#f0f6fc" font-size="19" font-weight="700" letter-spacing="3">ARTHA — MICROSERVICES ARCHITECTURE</text>
 
-  <!-- ══════════════════════════════════════════════
-       ENTRY FLOW  (top-left)
-       Browser → Vercel/Frontend → Nginx
-       ══════════════════════════════════════════════ -->
+  <!-- ══════════════════════════════════════════
+       ENTRY: Browser → Vercel → Nginx
+       ══════════════════════════════════════════ -->
   <!-- Browser -->
   <circle cx="82" cy="68" r="32" fill="#0d1117" stroke="#475569" stroke-width="1.5"/>
   <text x="82" y="63"  text-anchor="middle" font-size="18">🌐</text>
   <text x="82" y="76"  text-anchor="middle" fill="#94a3b8" font-size="8" font-weight="600">Browser</text>
   <text x="82" y="88"  text-anchor="middle" fill="#475569" font-size="7">artha.systems</text>
 
-  <!-- Vercel zone -->
+  <!-- Vercel zone — label ABOVE border (matches MongoDB/Neon PG pattern) -->
   <text x="133" y="38" fill="#ffffff" font-size="11" font-weight="700">▲ Vercel</text>
   <rect x="125" y="42" width="310" height="68" rx="8"
         fill="#0d1117" fill-opacity="0.6" stroke="#ffffff" stroke-width="1.5" stroke-dasharray="8,4"/>
@@ -49,24 +47,22 @@
         stroke="#60a5fa" stroke-width="2" marker-end="url(#arr-blue)"/>
   <text x="124" y="61" text-anchor="middle" fill="#60a5fa" font-size="8">HTTPS</text>
 
-  <!-- Frontend → Nginx (elbow down-right) -->
+  <!-- Frontend → Nginx (elbow) -->
   <path d="M280,102 L280,136 L755,136 L755,153"
         fill="none" stroke="#60a5fa" stroke-width="2" stroke-dasharray="6,3"
         marker-end="url(#arr-blue)"/>
   <text x="490" y="130" text-anchor="middle" fill="#60a5fa" font-size="8">API calls</text>
 
-  <!-- ══════════════════════════════════════════════
+  <!-- ══════════════════════════════════════════
        DIGITALOCEAN ZONE
-       x=215  y=140  w=1070  h=462  (ends y=602)
-       Contains: Nginx · API GW · SR · 5 services
-       ══════════════════════════════════════════════ -->
-  <rect x="215" y="132" width="460" height="20" rx="4" fill="#1f6feb"/>
-  <text x="224" y="147" fill="#ffffff" font-size="11" font-weight="700">🌊 DigitalOcean Droplet · 2 vCPU / 8 GB RAM</text>
+       Label above border (text at y=137, rect at y=140)
+       ══════════════════════════════════════════ -->
+  <text x="218" y="137" fill="#1f6feb" font-size="11" font-weight="700">🌊 DigitalOcean Droplet · 2 vCPU / 8 GB RAM</text>
   <rect x="215" y="140" width="1070" height="462" rx="10"
         fill="#161b22" fill-opacity="0.35"
         stroke="#1f6feb" stroke-width="2.5" stroke-dasharray="12,5"/>
 
-  <!-- ── Nginx ── cx=755 y=153 h=40 bottom=193 -->
+  <!-- ── Nginx ── -->
   <rect x="625" y="153" width="260" height="40" rx="7"
         fill="#0f2a3f" stroke="#38bdf8" stroke-width="1.5" filter="url(#sh)"/>
   <text x="755" y="171" text-anchor="middle" fill="#38bdf8" font-size="12" font-weight="700">Nginx</text>
@@ -75,45 +71,70 @@
   <!-- Nginx → API GW -->
   <line x1="755" y1="193" x2="755" y2="211"
         stroke="#9ca3af" stroke-width="2" marker-end="url(#arr-gray)"/>
-  <text x="770" y="204" fill="#9ca3af" font-size="8">:8080</text>
+  <text x="771" y="203" fill="#9ca3af" font-size="8">:8080</text>
 
-  <!-- ── API Gateway ── cx=755 y=211 h=58 bottom=269 -->
+  <!-- ── API Gateway ── x=470 y=211 w=570 h=58 -->
   <rect x="470" y="211" width="570" height="58" rx="7"
         fill="#2d1500" stroke="#fb923c" stroke-width="2" filter="url(#sh)"/>
   <text x="755" y="231" text-anchor="middle" fill="#fb923c" font-size="12" font-weight="700">API Gateway</text>
   <text x="755" y="248" text-anchor="middle" fill="#94a3b8" font-size="9">Spring Cloud Gateway · :8080</text>
   <text x="755" y="263" text-anchor="middle" fill="#64748b" font-size="8">JWT Auth · Adaptive Rate Limiting · CORS · Routing</text>
 
-  <!-- API GW → SR (dashed purple) -->
-  <line x1="755" y1="269" x2="755" y2="287"
+  <!-- ── Service Registry — left of API GW ── x=228 y=222 w=205 h=36 -->
+  <rect x="228" y="222" width="205" height="36" rx="7"
+        fill="#1a0030" stroke="#a855f7" stroke-width="1.5" filter="url(#sh)"/>
+  <text x="330" y="240" text-anchor="middle" fill="#a855f7" font-size="12" font-weight="700">Service Registry</text>
+  <text x="330" y="253" text-anchor="middle" fill="#94a3b8" font-size="9">Netflix Eureka · :8761</text>
+
+  <!-- SR → API GW (short horizontal purple dashed) -->
+  <line x1="433" y1="240" x2="470" y2="240"
         stroke="#a855f7" stroke-width="1.5" stroke-dasharray="4,3"
         marker-end="url(#arr-purple)"/>
 
-  <!-- ── Service Registry ── cx=755 y=287 h=42 bottom=329 -->
-  <rect x="620" y="287" width="270" height="42" rx="7"
-        fill="#1a0030" stroke="#a855f7" stroke-width="1.5" filter="url(#sh)"/>
-  <text x="755" y="307" text-anchor="middle" fill="#a855f7" font-size="12" font-weight="700">Service Registry</text>
-  <text x="755" y="322" text-anchor="middle" fill="#94a3b8" font-size="9">Netflix Eureka · :8761</text>
+  <!-- ══════════════════════════════════════════
+       API GW → each service (gray dashed routing)
+       Left services exit from API GW left edge (x=470)
+       Right services exit from API GW right edge (x=1040)
+       All paths go below SR (y=258) before turning
+       ══════════════════════════════════════════ -->
 
-  <!-- ══ LEFT SERVICES inside DO zone ══
-       analysis  cx=318  y=364  h=62  bottom=426
-       notification  cx=318  y=445  h=62  bottom=507  -->
-  <rect x="224" y="364" width="188" height="62" rx="7"
+  <!-- API GW → analysis: exit left edge y=262 (just below SR bottom y=258) -->
+  <path d="M470,262 L392,262 L392,364"
+        fill="none" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="5,3"
+        marker-end="url(#arr-gray)"/>
+  <!-- API GW → notification: exit left edge y=266 -->
+  <path d="M470,266 L382,266 L382,445"
+        fill="none" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="5,3"
+        marker-end="url(#arr-gray)"/>
+  <!-- API GW → user: exit right edge y=260 -->
+  <path d="M1040,260 L1157,260 L1157,350"
+        fill="none" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="5,3"
+        marker-end="url(#arr-gray)"/>
+  <!-- API GW → budget: exit right edge y=264 -->
+  <path d="M1040,264 L1162,264 L1162,430"
+        fill="none" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="5,3"
+        marker-end="url(#arr-gray)"/>
+  <!-- API GW → expense: exit right edge y=268 -->
+  <path d="M1040,268 L1167,268 L1167,510"
+        fill="none" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="5,3"
+        marker-end="url(#arr-gray)"/>
+
+  <!-- ══ LEFT SERVICES — moved right (cx=390, x=296) for gap from DO border ══ -->
+  <!-- analysis: x=296 y=364 w=188 h=62  cx=390 -->
+  <rect x="296" y="364" width="188" height="62" rx="7"
         fill="#0d2a1a" stroke="#22c55e" stroke-width="1.5" filter="url(#sh)"/>
-  <text x="318" y="383" text-anchor="middle" fill="#4ade80" font-size="12" font-weight="700">analysis-service</text>
-  <text x="318" y="399" text-anchor="middle" fill="#94a3b8" font-size="9">Python FastAPI · :8084</text>
-  <text x="318" y="415" text-anchor="middle" fill="#4ade80" font-size="8">📥 expense + budget events</text>
+  <text x="390" y="383" text-anchor="middle" fill="#4ade80" font-size="12" font-weight="700">analysis-service</text>
+  <text x="390" y="399" text-anchor="middle" fill="#94a3b8" font-size="9">Python FastAPI · :8084</text>
+  <text x="390" y="415" text-anchor="middle" fill="#4ade80" font-size="8">📥 expense + budget events</text>
 
-  <rect x="224" y="445" width="188" height="62" rx="7"
+  <!-- notification: x=296 y=445 w=188 h=62  cx=390 -->
+  <rect x="296" y="445" width="188" height="62" rx="7"
         fill="#1a2a0d" stroke="#84cc16" stroke-width="1.5" filter="url(#sh)"/>
-  <text x="318" y="464" text-anchor="middle" fill="#a3e635" font-size="12" font-weight="700">notification-service</text>
-  <text x="318" y="480" text-anchor="middle" fill="#94a3b8" font-size="9">Node.js KafkaJS · :8086</text>
-  <text x="318" y="496" text-anchor="middle" fill="#4ade80" font-size="8">📥 expense + company events</text>
+  <text x="390" y="464" text-anchor="middle" fill="#a3e635" font-size="12" font-weight="700">notification-service</text>
+  <text x="390" y="480" text-anchor="middle" fill="#94a3b8" font-size="9">Node.js KafkaJS · :8086</text>
+  <text x="390" y="496" text-anchor="middle" fill="#4ade80" font-size="8">📥 expense + company events</text>
 
-  <!-- ══ RIGHT SERVICES inside DO zone ══
-       user      cx=1157  y=350  h=62  bottom=412
-       budget    cx=1157  y=430  h=62  bottom=492
-       expense   cx=1157  y=510  h=62  bottom=572  -->
+  <!-- ══ RIGHT SERVICES (unchanged cx=1157) ══ -->
   <rect x="1062" y="350" width="190" height="62" rx="7"
         fill="#0d1f3c" stroke="#1f6feb" stroke-width="1.5" filter="url(#sh)"/>
   <text x="1157" y="369" text-anchor="middle" fill="#60a5fa" font-size="12" font-weight="700">user-service</text>
@@ -132,143 +153,107 @@
   <text x="1157" y="545" text-anchor="middle" fill="#94a3b8" font-size="9">Spring Boot · :8082</text>
   <text x="1157" y="561" text-anchor="middle" fill="#4ade80" font-size="8">📤 expense-events</text>
 
-  <!-- ══════════════════════════════════════════════
-       SR → each service  (dashed purple diagonals)
-       SR bottom-center: (755, 329)
-       ══════════════════════════════════════════════ -->
-  <!-- SR → analysis  -->
-  <line x1="755" y1="329" x2="318" y2="364"
-        stroke="#a855f7" stroke-width="1.5" stroke-dasharray="5,3"
-        marker-end="url(#arr-purple)"/>
-  <!-- SR → notification  -->
-  <line x1="755" y1="329" x2="318" y2="445"
-        stroke="#a855f7" stroke-width="1.5" stroke-dasharray="5,3"
-        marker-end="url(#arr-purple)"/>
-  <!-- SR → user  -->
-  <line x1="755" y1="329" x2="1157" y2="350"
-        stroke="#a855f7" stroke-width="1.5" stroke-dasharray="5,3"
-        marker-end="url(#arr-purple)"/>
-  <!-- SR → budget  -->
-  <line x1="755" y1="329" x2="1157" y2="430"
-        stroke="#a855f7" stroke-width="1.5" stroke-dasharray="5,3"
-        marker-end="url(#arr-purple)"/>
-  <!-- SR → expense  -->
-  <line x1="755" y1="329" x2="1157" y2="510"
-        stroke="#a855f7" stroke-width="1.5" stroke-dasharray="5,3"
-        marker-end="url(#arr-purple)"/>
-
-  <!-- ══════════════════════════════════════════════
-       LEFT EXTERNAL: MongoDB Atlas zone + SendGrid
-       x=12  y=355  (LEFT of DO zone at x=215)
-       ══════════════════════════════════════════════ -->
+  <!-- ══════════════════════════════════════════
+       LEFT EXTERNAL: MongoDB Atlas + SendGrid
+       ══════════════════════════════════════════ -->
   <text x="16" y="352" fill="#00ed64" font-size="10" font-weight="700">☁ MongoDB Atlas</text>
   <rect x="12" y="355" width="205" height="160" rx="8"
         fill="#161b22" fill-opacity="0.5"
         stroke="#00ed64" stroke-width="1.5" stroke-dasharray="8,4"/>
 
-  <!-- analysis_db -->
   <rect x="18" y="367" width="193" height="48" rx="6"
         fill="#0d2a1a" stroke="#00ed64" stroke-width="1"/>
   <text x="114" y="386" text-anchor="middle" fill="#00ed64" font-size="11" font-weight="700">analysis_db</text>
   <text x="114" y="401" text-anchor="middle" fill="#64748b" font-size="8">CQRS event cache</text>
   <text x="114" y="413" text-anchor="middle" fill="#475569" font-size="7">Motor (async Python)</text>
 
-  <!-- notification_db -->
   <rect x="18" y="453" width="193" height="48" rx="6"
         fill="#0d2a1a" stroke="#00ed64" stroke-width="1"/>
   <text x="114" y="472" text-anchor="middle" fill="#00ed64" font-size="11" font-weight="700">notification_db</text>
   <text x="114" y="487" text-anchor="middle" fill="#64748b" font-size="8">Alert deduplication</text>
   <text x="114" y="499" text-anchor="middle" fill="#475569" font-size="7">Mongoose (Node.js)</text>
 
-  <!-- SendGrid (left external, below MongoDB zone) -->
-  <rect x="12" y="528" width="205" height="48" rx="7"
+  <!-- SendGrid -->
+  <rect x="12" y="530" width="205" height="48" rx="7"
         fill="#1a0d2e" stroke="#a855f7" stroke-width="1.5" filter="url(#sh)"/>
-  <text x="114" y="547" text-anchor="middle" fill="#a855f7" font-size="11" font-weight="700">SendGrid</text>
-  <text x="114" y="562" text-anchor="middle" fill="#94a3b8" font-size="9">Transactional Email API</text>
-  <text x="114" y="572" text-anchor="middle" fill="#64748b" font-size="7">Budget alerts · Membership notifs</text>
+  <text x="114" y="549" text-anchor="middle" fill="#a855f7" font-size="11" font-weight="700">SendGrid</text>
+  <text x="114" y="564" text-anchor="middle" fill="#94a3b8" font-size="9">Transactional Email API</text>
+  <text x="114" y="574" text-anchor="middle" fill="#64748b" font-size="7">Budget alerts · Membership notifs</text>
 
-  <!-- analysis → analysis_db  (left arrow) -->
-  <line x1="224" y1="391" x2="211" y2="391"
+  <!-- analysis → analysis_db (short left arrow, x=296→217) -->
+  <line x1="296" y1="391" x2="211" y2="391"
         stroke="#00ed64" stroke-width="1.5" marker-end="url(#arr-teal)"/>
-  <!-- notification → notification_db  (left arrow) -->
-  <line x1="224" y1="474" x2="211" y2="474"
+  <!-- notification → notification_db (short left arrow) -->
+  <line x1="296" y1="474" x2="211" y2="474"
         stroke="#00ed64" stroke-width="1.5" marker-end="url(#arr-teal)"/>
   <!-- notification → SendGrid (left-down elbow) -->
-  <path d="M224,490 L180,490 L180,552 L217,552"
+  <path d="M296,492 L240,492 L240,554 L217,554"
         fill="none" stroke="#a855f7" stroke-width="1.5" stroke-dasharray="5,3"
         marker-end="url(#arr-purple)"/>
-  <text x="165" y="524" fill="#a855f7" font-size="7"
-        transform="rotate(-90,165,524)">email</text>
+  <text x="232" y="525" fill="#a855f7" font-size="7"
+        transform="rotate(-90,232,525)">email</text>
 
-  <!-- ══════════════════════════════════════════════
-       RIGHT EXTERNAL: Neon PostgreSQL zone
-       x=1295  y=342  (RIGHT of DO zone at x=1285)
-       ══════════════════════════════════════════════ -->
+  <!-- ══════════════════════════════════════════
+       RIGHT EXTERNAL: Neon PostgreSQL
+       ══════════════════════════════════════════ -->
   <text x="1299" y="339" fill="#5294e2" font-size="10" font-weight="700">☁ Neon PostgreSQL</text>
   <rect x="1295" y="342" width="395" height="248" rx="8"
         fill="#161b22" fill-opacity="0.5"
         stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="8,4"/>
 
-  <!-- user_db -->
   <rect x="1303" y="355" width="379" height="52" rx="6"
         fill="#0d1a2e" stroke="#3b82f6" stroke-width="1"/>
   <text x="1492" y="375" text-anchor="middle" fill="#60a5fa" font-size="11" font-weight="700">user_db</text>
   <text x="1492" y="390" text-anchor="middle" fill="#64748b" font-size="8">Users · Companies · Auth · OAuth tokens</text>
   <text x="1492" y="402" text-anchor="middle" fill="#475569" font-size="7">Spring Data JPA</text>
 
-  <!-- budget_db -->
   <rect x="1303" y="435" width="379" height="52" rx="6"
         fill="#0d1a2e" stroke="#3b82f6" stroke-width="1"/>
   <text x="1492" y="455" text-anchor="middle" fill="#60a5fa" font-size="11" font-weight="700">budget_db</text>
   <text x="1492" y="470" text-anchor="middle" fill="#64748b" font-size="8">Budgets · Categories · Allocations</text>
   <text x="1492" y="482" text-anchor="middle" fill="#475569" font-size="7">Spring Data JPA</text>
 
-  <!-- expense_db -->
   <rect x="1303" y="515" width="379" height="52" rx="6"
         fill="#0d1a2e" stroke="#3b82f6" stroke-width="1"/>
   <text x="1492" y="535" text-anchor="middle" fill="#60a5fa" font-size="11" font-weight="700">expense_db</text>
   <text x="1492" y="550" text-anchor="middle" fill="#64748b" font-size="8">Expenses · Approvals · Status</text>
   <text x="1492" y="562" text-anchor="middle" fill="#475569" font-size="7">Spring Data JPA</text>
 
-  <!-- user → user_db  (right arrow) -->
+  <!-- right services → their DBs (short right arrows) -->
   <line x1="1252" y1="381" x2="1303" y2="381"
         stroke="#818cf8" stroke-width="1.5" marker-end="url(#arr-indigo)"/>
-  <!-- budget → budget_db  (right arrow) -->
   <line x1="1252" y1="461" x2="1303" y2="461"
         stroke="#818cf8" stroke-width="1.5" marker-end="url(#arr-indigo)"/>
-  <!-- expense → expense_db  (right arrow) -->
   <line x1="1252" y1="541" x2="1303" y2="541"
         stroke="#818cf8" stroke-width="1.5" marker-end="url(#arr-indigo)"/>
 
-  <!-- ══════════════════════════════════════════════
-       BOTTOM INFRA
-       Kafka (Aiven)  x=165  y=628  w=710  h=100
-       Redis (Upstash) x=935  y=628  w=570  h=100
-       ══════════════════════════════════════════════ -->
+  <!-- ══════════════════════════════════════════
+       BOTTOM INFRA ZONES
+       Kafka (Aiven) label ABOVE border — same pattern as Vercel/MongoDB
+       Redis (Upstash) label ABOVE border
+       ══════════════════════════════════════════ -->
 
-  <!-- Aiven zone -->
-  <rect x="165" y="620" width="133" height="19" rx="3" fill="#FF6B35"/>
-  <text x="173" y="634" fill="#ffffff" font-size="10" font-weight="700">⚡ Aiven</text>
-  <rect x="165" y="628" width="710" height="100" rx="10"
+  <!-- ── Kafka / Aiven ── smaller: x=200 y=628 w=550 h=90 -->
+  <text x="203" y="624" fill="#FF6B35" font-size="10" font-weight="700">⚡ Aiven</text>
+  <rect x="200" y="628" width="550" height="90" rx="10"
         fill="#161b22" fill-opacity="0.4"
         stroke="#FF6B35" stroke-width="2" stroke-dasharray="10,4"/>
 
   <!-- Kafka card -->
-  <rect x="175" y="638" width="690" height="80" rx="7"
+  <rect x="210" y="638" width="530" height="72" rx="7"
         fill="#1c0f00" stroke="#FF6B35" stroke-width="1.5" filter="url(#sh)"/>
-  <text x="520" y="660" text-anchor="middle" fill="#FF6B35" font-size="12" font-weight="700">Apache Kafka 7.8.0</text>
-  <text x="520" y="676" text-anchor="middle" fill="#94a3b8" font-size="9">Cloud Broker · SSL/TLS</text>
-  <!-- Topic chips inside Kafka card -->
-  <rect x="185" y="684" width="145" height="26" rx="4" fill="#1f0a00" stroke="#fb923c" stroke-width="1"/>
-  <text x="257" y="701" text-anchor="middle" fill="#fb923c" font-size="9" font-weight="700">expense-events</text>
-  <rect x="342" y="684" width="140" height="26" rx="4" fill="#1f0a00" stroke="#fb923c" stroke-width="1"/>
-  <text x="412" y="701" text-anchor="middle" fill="#fb923c" font-size="9" font-weight="700">budget-events</text>
-  <rect x="494" y="684" width="150" height="26" rx="4" fill="#1f0a00" stroke="#fb923c" stroke-width="1"/>
-  <text x="569" y="701" text-anchor="middle" fill="#fb923c" font-size="9" font-weight="700">company-events</text>
+  <text x="475" y="658" text-anchor="middle" fill="#FF6B35" font-size="12" font-weight="700">Apache Kafka 7.8.0</text>
+  <text x="475" y="672" text-anchor="middle" fill="#94a3b8" font-size="9">Cloud Broker · SSL/TLS</text>
+  <!-- Topic chips -->
+  <rect x="218" y="679" width="140" height="22" rx="4" fill="#1f0a00" stroke="#fb923c" stroke-width="1"/>
+  <text x="288" y="695" text-anchor="middle" fill="#fb923c" font-size="9" font-weight="700">expense-events</text>
+  <rect x="368" y="679" width="130" height="22" rx="4" fill="#1f0a00" stroke="#fb923c" stroke-width="1"/>
+  <text x="433" y="695" text-anchor="middle" fill="#fb923c" font-size="9" font-weight="700">budget-events</text>
+  <rect x="508" y="679" width="148" height="22" rx="4" fill="#1f0a00" stroke="#fb923c" stroke-width="1"/>
+  <text x="582" y="695" text-anchor="middle" fill="#fb923c" font-size="9" font-weight="700">company-events</text>
 
-  <!-- Upstash zone -->
-  <rect x="935" y="620" width="130" height="19" rx="3" fill="#00C853"/>
-  <text x="943" y="634" fill="#ffffff" font-size="10" font-weight="700">⚡ Upstash</text>
+  <!-- ── Redis / Upstash ── x=935 y=628 w=570 h=100 -->
+  <text x="938" y="624" fill="#00C853" font-size="10" font-weight="700">⚡ Upstash</text>
   <rect x="935" y="628" width="570" height="100" rx="10"
         fill="#161b22" fill-opacity="0.4"
         stroke="#00C853" stroke-width="2" stroke-dasharray="10,4"/>
@@ -281,105 +266,110 @@
   <text x="1220" y="692" text-anchor="middle" fill="#fb923c" font-size="8">Rate Limiting (API GW) · Response Caching (services)</text>
   <text x="1220" y="706" text-anchor="middle" fill="#64748b" font-size="7">active_users ZSET · @Cacheable / @CacheEvict</text>
 
-  <!-- ══════════════════════════════════════════════
-       ARROWS — Services ↔ Infra
-       ══════════════════════════════════════════════ -->
+  <!-- ══════════════════════════════════════════
+       KAFKA ARROWS
 
-  <!-- ── RIGHT SERVICES → Kafka (publish) ──
-       Stubs from each service bottom to bus y=610, then bus → Kafka right edge (x=865) -->
-  <!-- user bottom (1157,412) → y=600 stub -->
-  <line x1="1147" y1="412" x2="1147" y2="610"
-        stroke="#4ade80" stroke-width="1.5" stroke-dasharray="4,3"/>
-  <!-- budget bottom (1157,492) → y=610 stub -->
-  <line x1="1157" y1="492" x2="1157" y2="610"
-        stroke="#4ade80" stroke-width="1.5" stroke-dasharray="4,3"/>
-  <!-- expense bottom (1157,572) → y=610 stub -->
-  <line x1="1167" y1="572" x2="1167" y2="610"
-        stroke="#4ade80" stroke-width="1.5" stroke-dasharray="4,3"/>
-  <!-- Horizontal collect bus y=610 -->
-  <line x1="1147" y1="610" x2="1167" y2="610"
-        stroke="#4ade80" stroke-width="1.5" stroke-dasharray="4,3"/>
-  <!-- Bus → Kafka right (x=865, y=678) -->
-  <path d="M1147,610 L880,610 L880,638"
+       Right services → Kafka (publish, solid green)
+       Each service bottom exits, stubs converge, bus to Kafka top
+       ══════════════════════════════════════════ -->
+  <!-- user bottom (1157,412) → down to y=613 → left to Kafka -->
+  <path d="M1147,412 L1147,613 L520,613 L520,628"
         fill="none" stroke="#4ade80" stroke-width="2"
         marker-end="url(#arr-green)"/>
-  <text x="1010" y="604" text-anchor="middle" fill="#4ade80" font-size="8">📤 publish events</text>
+  <!-- budget bottom (1157,492) → down to y=617 → left to Kafka -->
+  <path d="M1157,492 L1157,617 L515,617 L515,628"
+        fill="none" stroke="#4ade80" stroke-width="2"
+        marker-end="url(#arr-green)"/>
+  <!-- expense bottom (1157,572) → down to y=621 → left to Kafka -->
+  <path d="M1167,572 L1167,621 L510,621 L510,628"
+        fill="none" stroke="#4ade80" stroke-width="2"
+        marker-end="url(#arr-green)"/>
+  <!-- publish label on horizontal segment of user path -->
+  <text x="835" y="607" text-anchor="middle" fill="#4ade80" font-size="8">📤 publish events</text>
 
-  <!-- ── Kafka → analysis (consume, dashed green) ──
-       From Kafka top at x=310 up to analysis bottom (318,426) -->
-  <path d="M310,638 L310,426"
+  <!-- Kafka → notification (straight up — x=390 = notification center) -->
+  <line x1="390" y1="628" x2="390" y2="507"
         fill="none" stroke="#4ade80" stroke-width="2" stroke-dasharray="6,3"
         marker-end="url(#arr-green)"/>
-  <text x="296" y="530" fill="#4ade80" font-size="7"
-        transform="rotate(-90,296,530)">📥 consume</text>
 
-  <!-- ── Kafka → notification (consume, dashed green) ──
-       From Kafka top at x=340 up to notification bottom (318,507) -->
-  <path d="M340,638 L340,507"
+  <!-- Kafka → analysis:
+       Straight UP at x=255 (corridor left of both left services, clear of MongoDB right edge x=217)
+       then RIGHT to analysis left edge (296,395)
+       This path avoids cutting through notification -->
+  <path d="M255,628 L255,395 L296,395"
         fill="none" stroke="#4ade80" stroke-width="2" stroke-dasharray="6,3"
         marker-end="url(#arr-green)"/>
+  <!-- consume label on vertical segment -->
+  <text x="247" y="522" fill="#4ade80" font-size="7"
+        transform="rotate(-90,247,522)">📥 consume</text>
 
-  <!-- ── API GW → Redis (rate limiting, dashed orange) ──
-       API GW right edge (1040, 240) → right corridor (x=1650) → down to Redis top -->
-  <path d="M1040,240 L1660,240 L1660,678 L1495,678"
-        fill="none" stroke="#fb923c" stroke-width="2" stroke-dasharray="6,3"
+  <!-- ══════════════════════════════════════════
+       REDIS ARROWS
+
+       API GW → Redis: straight vertical from API GW bottom-right
+       x=1040 is between service left edge (1062) and clears all cards
+       Enters Redis zone at (1040,638)
+       ══════════════════════════════════════════ -->
+  <line x1="1040" y1="269" x2="1040" y2="638"
+        stroke="#fb923c" stroke-width="2" stroke-dasharray="6,3"
         marker-end="url(#arr-orange)"/>
-  <text x="1580" y="234" text-anchor="middle" fill="#fb923c" font-size="8">rate limiting</text>
+  <text x="1053" y="450" fill="#fb923c" font-size="7"
+        transform="rotate(90,1053,450)">rate limit</text>
 
-  <!-- ── RIGHT SERVICES → Redis (caching) ──
-       Shared right corridor x=1652, entering Redis from right -->
-  <!-- user right (1252,381) → right corridor → Redis -->
-  <path d="M1252,381 L1648,381 L1648,682"
+  <!-- Right services → Redis: exit service bottom-right, slight right then straight down -->
+  <!-- user: from bottom at x=1220, go right to x=1265, then straight down to Redis top -->
+  <path d="M1220,412 L1265,412 L1265,638"
         fill="none" stroke="#fb923c" stroke-width="1.5" stroke-dasharray="5,3"
         marker-end="url(#arr-orange)"/>
-  <!-- budget right (1252,461) → corridor → Redis -->
-  <path d="M1252,461 L1645,461 L1645,686"
+  <!-- budget: x=1222 → x=1268 → down -->
+  <path d="M1222,492 L1268,492 L1268,638"
         fill="none" stroke="#fb923c" stroke-width="1.5" stroke-dasharray="5,3"
         marker-end="url(#arr-orange)"/>
-  <!-- expense right (1252,541) → corridor → Redis -->
-  <path d="M1252,541 L1642,541 L1642,690"
+  <!-- expense: x=1224 → x=1271 → down -->
+  <path d="M1224,572 L1271,572 L1271,638"
         fill="none" stroke="#fb923c" stroke-width="1.5" stroke-dasharray="5,3"
         marker-end="url(#arr-orange)"/>
 
-  <!-- ══════════════════════════════════════════════
-       LEGEND  y=748
-       ══════════════════════════════════════════════ -->
+  <!-- ══════════════════════════════════════════
+       LEGEND
+       ══════════════════════════════════════════ -->
   <rect x="12" y="744" width="1676" height="68" rx="6"
         fill="#161b22" fill-opacity="0.75" stroke="#334155" stroke-width="1"/>
 
-  <!-- Row 1 -->
   <text x="26" y="762" fill="#94a3b8" font-size="9" font-weight="600">Legend:</text>
 
   <line x1="88"  y1="759" x2="116"  y2="759" stroke="#60a5fa" stroke-width="2" marker-end="url(#arr-blue)"/>
   <text x="121" y="763" fill="#60a5fa" font-size="8">HTTP/HTTPS</text>
 
-  <line x1="208" y1="759" x2="236"  y2="759" stroke="#4ade80" stroke-width="2" marker-end="url(#arr-green)"/>
-  <text x="241" y="763" fill="#4ade80" font-size="8">Kafka publish (solid)</text>
+  <line x1="208" y1="759" x2="236"  y2="759" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arr-gray)"/>
+  <text x="241" y="763" fill="#9ca3af" font-size="8">API GW routing</text>
 
-  <line x1="370" y1="759" x2="398"  y2="759" stroke="#4ade80" stroke-width="2" stroke-dasharray="5,3" marker-end="url(#arr-green)"/>
-  <text x="403" y="763" fill="#4ade80" font-size="8">Kafka consume (dashed)</text>
+  <line x1="360" y1="759" x2="388"  y2="759" stroke="#a855f7" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arr-purple)"/>
+  <text x="393" y="763" fill="#a855f7" font-size="8">Service Discovery</text>
 
-  <line x1="542" y1="759" x2="570"  y2="759" stroke="#fb923c" stroke-width="2" stroke-dasharray="5,3" marker-end="url(#arr-orange)"/>
-  <text x="575" y="763" fill="#fb923c" font-size="8">Redis (rate limit / cache)</text>
+  <line x1="516" y1="759" x2="544"  y2="759" stroke="#4ade80" stroke-width="2" marker-end="url(#arr-green)"/>
+  <text x="549" y="763" fill="#4ade80" font-size="8">Kafka publish</text>
 
-  <line x1="722" y1="759" x2="750"  y2="759" stroke="#818cf8" stroke-width="2" marker-end="url(#arr-indigo)"/>
-  <text x="755" y="763" fill="#818cf8" font-size="8">PostgreSQL (Neon)</text>
+  <line x1="648" y1="759" x2="676"  y2="759" stroke="#4ade80" stroke-width="2" stroke-dasharray="5,3" marker-end="url(#arr-green)"/>
+  <text x="681" y="763" fill="#4ade80" font-size="8">Kafka consume</text>
 
-  <line x1="878" y1="759" x2="906"  y2="759" stroke="#00ed64" stroke-width="2" marker-end="url(#arr-teal)"/>
-  <text x="911" y="763" fill="#00ed64" font-size="8">MongoDB Atlas</text>
+  <line x1="784" y1="759" x2="812"  y2="759" stroke="#fb923c" stroke-width="2" stroke-dasharray="5,3" marker-end="url(#arr-orange)"/>
+  <text x="817" y="763" fill="#fb923c" font-size="8">Redis (rate limit / cache)</text>
 
-  <line x1="1022" y1="759" x2="1050" y2="759" stroke="#a855f7" stroke-width="2" stroke-dasharray="5,3" marker-end="url(#arr-purple)"/>
-  <text x="1055" y="763" fill="#a855f7" font-size="8">Service Discovery (Eureka)</text>
+  <line x1="978" y1="759" x2="1006" y2="759" stroke="#818cf8" stroke-width="2" marker-end="url(#arr-indigo)"/>
+  <text x="1011" y="763" fill="#818cf8" font-size="8">PostgreSQL (Neon)</text>
 
-  <line x1="1220" y1="759" x2="1248" y2="759" stroke="#a855f7" stroke-width="2" marker-end="url(#arr-purple)"/>
-  <text x="1253" y="763" fill="#a855f7" font-size="8">Email / SendGrid</text>
+  <line x1="1130" y1="759" x2="1158" y2="759" stroke="#00ed64" stroke-width="2" marker-end="url(#arr-teal)"/>
+  <text x="1163" y="763" fill="#00ed64" font-size="8">MongoDB Atlas</text>
 
-  <line x1="1365" y1="759" x2="1393" y2="759" stroke="#9ca3af" stroke-width="2" marker-end="url(#arr-gray)"/>
-  <text x="1398" y="763" fill="#9ca3af" font-size="8">Internal HTTP</text>
+  <line x1="1282" y1="759" x2="1310" y2="759" stroke="#a855f7" stroke-width="2" stroke-dasharray="5,3" marker-end="url(#arr-purple)"/>
+  <text x="1315" y="763" fill="#a855f7" font-size="8">Email / SendGrid</text>
 
-  <!-- Row 2 note -->
+  <line x1="1430" y1="759" x2="1458" y2="759" stroke="#9ca3af" stroke-width="2" marker-end="url(#arr-gray)"/>
+  <text x="1463" y="763" fill="#9ca3af" font-size="8">Internal HTTP</text>
+
   <text x="26" y="801" fill="#475569" font-size="7.5">
-    Services (user · budget · expense) are Spring Boot microservices registered with Eureka. analysis=Python FastAPI, notification=Node.js.
-    Kafka SSL certs mounted at /app/certs. artha-net Docker bridge network on Droplet.
+    Services (user · budget · expense) are Spring Boot microservices. analysis=Python FastAPI, notification=Node.js.
+    Kafka SSL certs at /app/certs. artha-net Docker bridge on Droplet.
   </text>
 </svg>

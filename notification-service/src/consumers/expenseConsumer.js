@@ -32,12 +32,8 @@ const startExpenseConsumer = async () => {
 
             await consumer.run({
                 eachMessage: async ({ topic, partition, message }) => {
-                    try {
-                        const eventData = JSON.parse(message.value.toString());
-                        await notificationService.handleExpenseEvent(eventData);
-                    } catch (err) {
-                        console.error('Error processing Kafka message:', err);
-                    }
+                    const eventData = JSON.parse(message.value.toString());
+                    await notificationService.handleExpenseEvent(eventData);
                 },
             });
         } catch (error) {

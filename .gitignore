@@ -21,3 +21,6 @@ certs/
 *.p12
 *.cert
 *.key
+
+nginx/nginx.conf.production
+nginx/nginx.conf

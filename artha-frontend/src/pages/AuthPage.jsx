@@ -5,7 +5,7 @@ import SplitAuthLayout from "../components/auth/SplitAuthLayout";
 import AnimatedStockChart from "../components/auth/AnimatedStockChart";
 import DarkAuthForm, { DarkInput } from "../components/auth/DarkAuthForm";
 
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "http://localhost:8080").replace(/\/$/, "");
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "http://localhost:80").replace(/\/$/, "");
 
 function AuthPage() {
   const navigate = useNavigate();

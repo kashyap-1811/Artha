@@ -22,5 +22,5 @@ certs/
 *.cert
 *.key
 
-# Nginx runtime config (copy from nginx/nginx.conf.example)
+nginx/nginx.conf.production
 nginx/nginx.conf

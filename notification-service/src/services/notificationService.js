@@ -6,26 +6,26 @@ const API_GATEWAY_URL = process.env.API_GATEWAY_URL || 'http://localhost:8080';
 
 // ─── Company Member Email Builder ────────────────────────────────────────────────
 const buildCompanyEmailHtml = ({ eventType, companyName, userFullName, newRole }) => {
-    let headline, subheadline, icon, color;
-    
-    if (eventType === 'MEMBER_ADDED') {
-        headline = 'Welcome to the Team!';
-        subheadline = `You have been added to ${companyName} as a ${newRole}.`;
-        icon = '👋';
-        color = '#4CAF50';
-    } else if (eventType === 'MEMBER_REMOVED') {
-        headline = 'Membership Revoked';
-        subheadline = `You have been removed from ${companyName}.`;
-        icon = '🚪';
-        color = '#e53935';
-    } else if (eventType === 'ROLE_CHANGED') {
-        headline = 'Role Updated';
-        subheadline = `Your role in ${companyName} has been changed to ${newRole}.`;
-        icon = '🔄';
-        color = '#2196F3';
-    }
+  let headline, subheadline, icon, color;
 
-    return `<!DOCTYPE html>
+  if (eventType === 'MEMBER_ADDED') {
+    headline = 'Welcome to the Team!';
+    subheadline = `You have been added to ${companyName} as a ${newRole}.`;
+    icon = '👋';
+    color = '#4CAF50';
+  } else if (eventType === 'MEMBER_REMOVED') {
+    headline = 'Membership Revoked';
+    subheadline = `You have been removed from ${companyName}.`;
+    icon = '🚪';
+    color = '#e53935';
+  } else if (eventType === 'ROLE_CHANGED') {
+    headline = 'Role Updated';
+    subheadline = `Your role in ${companyName} has been changed to ${newRole}.`;
+    icon = '🔄';
+    color = '#2196F3';
+  }
+
+  return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
@@ -58,23 +58,23 @@ const buildCompanyEmailHtml = ({ eventType, companyName, userFullName, newRole }
 
 // ─── HTML Email Builder ────────────────────────────────────────────────────────
 const buildEmailHtml = ({ type, categoryName, budgetName, alertThreshold, spentPercentage, allocatedAmount, totalSpent }) => {
-    const remaining = allocatedAmount - totalSpent;
-    const isExceeded = type === 'EXCEED_ALERT';
+  const remaining = allocatedAmount - totalSpent;
+  const isExceeded = type === 'EXCEED_ALERT';
 
-    const headerBg = isExceeded
-        ? 'linear-gradient(135deg, #e53935 0%, #b71c1c 100%)'
-        : 'linear-gradient(135deg, #FF9800 0%, #F57C00 100%)';
+  const headerBg = isExceeded
+    ? 'linear-gradient(135deg, #e53935 0%, #b71c1c 100%)'
+    : 'linear-gradient(135deg, #FF9800 0%, #F57C00 100%)';
 
-    const icon        = isExceeded ? '🚨' : '⚠️';
-    const headline    = isExceeded ? 'Budget Exceeded!' : 'Budget Alert';
-    const subheadline = isExceeded ? 'You have gone over your allocated budget' : 'Spending threshold reached';
+  const icon = isExceeded ? '🚨' : '⚠️';
+  const headline = isExceeded ? 'Budget Exceeded!' : 'Budget Alert';
+  const subheadline = isExceeded ? 'You have gone over your allocated budget' : 'Spending threshold reached';
 
-    const fmt = (n) => `₹${Number(n).toLocaleString('en-IN', { minimumFractionDigits: 0 })}`;
-    const pct = (n) => `${Number(n).toFixed(0)}%`;
+  const fmt = (n) => `₹${Number(n).toLocaleString('en-IN', { minimumFractionDigits: 0 })}`;
+  const pct = (n) => `${Number(n).toFixed(0)}%`;
 
-    const remainingColor = remaining >= 0 ? '#4CAF50' : '#e53935';
+  const remainingColor = remaining >= 0 ? '#4CAF50' : '#e53935';
 
-    return `<!DOCTYPE html>
+  return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
@@ -179,134 +179,136 @@ const buildEmailHtml = ({ type, categoryName, budgetName, alertThreshold, spentP
 // ─── Notification Service ──────────────────────────────────────────────────────
 class NotificationService {
 
-    async handleExpenseEvent(expenseEvent) {
-        try {
-            console.log('Processing expense event:', expenseEvent);
-            const { companyId, budgetId, allocationId, status } = expenseEvent;
+  async handleExpenseEvent(expenseEvent) {
+    try {
+      console.log('Processing expense event:', expenseEvent);
+      const { companyId, budgetId, allocationId, status } = expenseEvent;
 
-            if (status !== 'APPROVED') {
-                console.log('Expense is not APPROVED, skipping.');
-                return;
-            }
+      if (status !== 'APPROVED') {
+        console.log('Expense is not APPROVED, skipping.');
+        return;
+      }
 
-            // 1. Fetch company members
-            const membersUrl = `${API_GATEWAY_URL}/internal/user/api/companies/${companyId}/members`;
-            const membersResponse = await axios.get(membersUrl);
-            const members = membersResponse.data;
-            const owner = members.find(m => m.role === 'OWNER');
+      // 1. Fetch company members
+      const membersUrl = `${API_GATEWAY_URL}/internal/user/api/companies/${companyId}/members`;
+      const membersResponse = await axios.get(membersUrl);
+      const members = membersResponse.data;
+      const owner = members.find(m => m.role === 'OWNER');
 
-            if (!owner) {
-                console.error('No owner found for company:', companyId);
-                return;
-            }
+      if (!owner) {
+        console.error('No owner found for company:', companyId);
+        return;
+      }
 
-            const ownerId    = owner.userId;
-            const ownerEmail = owner.email;
+      const ownerId = owner.userId;
+      const ownerEmail = owner.email;
 
-            // 2. Fetch budget details
-            const budgetUrl = `${API_GATEWAY_URL}/internal/budget/api/budgets/${budgetId}/details`;
-            const budgetResponse = await axios.get(budgetUrl, {
-                headers: { 'X-User-Id': ownerId }
-            });
-            const budget = budgetResponse.data;
+      // 2. Fetch budget details
+      const budgetUrl = `${API_GATEWAY_URL}/internal/budget/api/budgets/${budgetId}/details`;
+      const budgetResponse = await axios.get(budgetUrl, {
+        headers: { 'X-User-Id': ownerId }
+      });
+      const budget = budgetResponse.data;
 
-            const allocation = budget.allocations.find(a => a.id === allocationId);
-            if (!allocation) {
-                console.error('Allocation not found in budget:', allocationId);
-                return;
-            }
+      const allocation = budget.allocations.find(a => a.id === allocationId);
+      if (!allocation) {
+        console.error('Allocation not found in budget:', allocationId);
+        return;
+      }
 
-            const allocatedAmount = parseFloat(allocation.allocatedAmount);
-            const alertThreshold  = allocation.alertThreshold || 80;
+      const allocatedAmount = parseFloat(allocation.allocatedAmount);
+      const alertThreshold = allocation.alertThreshold || 80;
 
-            // 3. Fetch all expenses for this allocation
-            const expensesUrl = `${API_GATEWAY_URL}/internal/expense/api/expenses/allocation/${allocationId}`;
-            const expensesResponse = await axios.get(expensesUrl, {
-                headers: { 'X-User-Id': ownerId }
-            });
-            const expenses = expensesResponse.data;
+      // 3. Fetch all expenses for this allocation
+      const expensesUrl = `${API_GATEWAY_URL}/internal/expense/api/expenses/allocation/${allocationId}`;
+      const expensesResponse = await axios.get(expensesUrl, {
+        headers: { 'X-User-Id': ownerId }
+      });
+      const expenses = expensesResponse.data;
 
-            const totalSpent = expenses
-                .filter(e => e.status === 'APPROVED')
-                .reduce((sum, e) => sum + parseFloat(e.amount), 0);
+      const totalSpent = expenses
+        .filter(e => e.status === 'APPROVED')
+        .reduce((sum, e) => sum + parseFloat(e.amount), 0);
 
-            const spentPercentage = (totalSpent / allocatedAmount) * 100;
+      const spentPercentage = (totalSpent / allocatedAmount) * 100;
 
-            console.log(`Allocation: ${allocation.categoryName}, Allocated: ${allocatedAmount}, Total Spent: ${totalSpent}, Threshold: ${alertThreshold}%`);
+      console.log(`Allocation: ${allocation.categoryName}, Allocated: ${allocatedAmount}, Total Spent: ${totalSpent}, Threshold: ${alertThreshold}%`);
 
-            // 4. Check alerts
-            if (spentPercentage >= 100) {
-                await this.triggerAlert('EXCEED_ALERT', ownerId, ownerEmail, companyId, budgetId, allocationId, allocation.categoryName, budget.name, allocatedAmount, totalSpent, alertThreshold, spentPercentage);
-            } else if (spentPercentage >= alertThreshold) {
-                await this.triggerAlert('THRESHOLD_ALERT', ownerId, ownerEmail, companyId, budgetId, allocationId, allocation.categoryName, budget.name, allocatedAmount, totalSpent, alertThreshold, spentPercentage);
-            }
+      // 4. Check alerts
+      if (spentPercentage >= 100) {
+        await this.triggerAlert('EXCEED_ALERT', ownerId, ownerEmail, companyId, budgetId, allocationId, allocation.categoryName, budget.name, allocatedAmount, totalSpent, alertThreshold, spentPercentage);
+      } else if (spentPercentage >= alertThreshold) {
+        await this.triggerAlert('THRESHOLD_ALERT', ownerId, ownerEmail, companyId, budgetId, allocationId, allocation.categoryName, budget.name, allocatedAmount, totalSpent, alertThreshold, spentPercentage);
+      }
 
-        } catch (error) {
-            console.error('Error handling expense event:', error.message);
-            if (error.response) {
-                console.error('Axios Error Response Data:', JSON.stringify(error.response.data));
-                console.error('Axios Error Status:', error.response.status);
-                console.error('Axios Error URL:', error.config.url);
-            }
-        }
+    } catch (error) {
+      console.error('Error handling expense event:', error.message);
+      if (error.response) {
+        console.error('Axios Error Response Data:', JSON.stringify(error.response.data));
+        console.error('Axios Error Status:', error.response.status);
+        console.error('Axios Error URL:', error.config.url);
+      }
+      throw error; // Re-throw to prevent Kafka from committing the offset
     }
+  }
 
-    async triggerAlert(type, userId, email, companyId, budgetId, allocationId, categoryName, budgetName, allocatedAmount, totalSpent, alertThreshold, spentPercentage) {
-        try {
-            // Deduplicate — don't send same alert twice
-            const existingAlert = await Notification.findOne({ allocationId, type });
-            if (existingAlert) {
-                console.log(`Alert ${type} already sent for allocation ${allocationId}`);
-                return;
-            }
+  async triggerAlert(type, userId, email, companyId, budgetId, allocationId, categoryName, budgetName, allocatedAmount, totalSpent, alertThreshold, spentPercentage) {
+    try {
+      // Deduplicate — don't send same alert twice
+      const existingAlert = await Notification.findOne({ allocationId, type });
+      if (existingAlert) {
+        console.log(`Alert ${type} already sent for allocation ${allocationId}`);
+        return;
+      }
 
-            const isExceeded = type === 'EXCEED_ALERT';
-            const subject = isExceeded
-                ? `🚨 Artha Alert: Budget Exceeded — ${categoryName}`
-                : `⚠️ Artha Alert: Threshold Reached — ${categoryName}`;
+      const isExceeded = type === 'EXCEED_ALERT';
+      const subject = isExceeded
+        ? `🚨 Artha Alert: Budget Exceeded — ${categoryName}`
+        : `⚠️ Artha Alert: Threshold Reached — ${categoryName}`;
 
-            const html = buildEmailHtml({ type, categoryName, budgetName, alertThreshold, spentPercentage, allocatedAmount, totalSpent });
+      const html = buildEmailHtml({ type, categoryName, budgetName, alertThreshold, spentPercentage, allocatedAmount, totalSpent });
 
-            await sendEmail(email, subject, null, html);
+      await sendEmail(email, subject, null, html);
 
-            const newNotification = new Notification({ userId, companyId, budgetId, allocationId, type });
-            await newNotification.save();
+      const newNotification = new Notification({ userId, companyId, budgetId, allocationId, type });
+      await newNotification.save();
 
-            console.log(`Successfully sent ${type} email to ${email} for allocation ${allocationId}`);
+      console.log(`Successfully sent ${type} email to ${email} for allocation ${allocationId}`);
 
-        } catch (error) {
-            if (error.code === 11000) {
-                console.log(`Alert ${type} concurrently sent for allocation ${allocationId}`);
-            } else {
-                console.error('Error triggering alert:', error);
-            }
-        }
+    } catch (error) {
+      if (error.code === 11000) {
+        console.log(`Alert ${type} concurrently sent for allocation ${allocationId}`);
+      } else {
+        console.error('Error triggering alert:', error);
+      }
     }
+  }
 
-    async handleCompanyEvent(companyEvent) {
-        try {
-            console.log('Processing company event:', companyEvent);
-            const { eventType, companyId, companyName, targetUserId, targetUserEmail, targetUserFullName, newRole } = companyEvent;
+  async handleCompanyEvent(companyEvent) {
+    try {
+      console.log('Processing company event:', companyEvent);
+      const { eventType, companyId, companyName, targetUserId, targetUserEmail, targetUserFullName, newRole } = companyEvent;
 
-            let subject = 'Artha Update';
-            if (eventType === 'MEMBER_ADDED') subject = `You've been added to ${companyName}`;
-            else if (eventType === 'MEMBER_REMOVED') subject = `Update regarding ${companyName}`;
-            else if (eventType === 'ROLE_CHANGED') subject = `Role updated in ${companyName}`;
+      let subject = 'Artha Update';
+      if (eventType === 'MEMBER_ADDED') subject = `You've been added to ${companyName}`;
+      else if (eventType === 'MEMBER_REMOVED') subject = `Update regarding ${companyName}`;
+      else if (eventType === 'ROLE_CHANGED') subject = `Role updated in ${companyName}`;
 
-            const html = buildCompanyEmailHtml({
-                eventType,
-                companyName,
-                userFullName: targetUserFullName,
-                newRole
-            });
+      const html = buildCompanyEmailHtml({
+        eventType,
+        companyName,
+        userFullName: targetUserFullName,
+        newRole
+      });
 
-            await sendEmail(targetUserEmail, subject, null, html);
-            console.log(`Successfully sent ${eventType} email to ${targetUserEmail}`);
+      await sendEmail(targetUserEmail, subject, null, html);
+      console.log(`Successfully sent ${eventType} email to ${targetUserEmail}`);
 
-        } catch (error) {
-            console.error('Error handling company event:', error.message);
-        }
+    } catch (error) {
+      console.error('Error handling company event:', error.message);
+      throw error; // Re-throw to prevent Kafka from committing the offset
     }
+  }
 }
 
 module.exports = new NotificationService();

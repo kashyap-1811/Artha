@@ -70,6 +70,12 @@
   color: #ffffff;
 }
 
+.navLogo {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+
 .brandName {
   font-size: 1.125rem;
   font-weight: 700;

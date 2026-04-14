@@ -49,10 +49,11 @@
 .sidebarBrand {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.5rem 0.25rem 1.5rem;
+  justify-content: center;
+  padding: 1.25rem 0;
   border-bottom: 1px solid #f1f5f9;
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
+  position: relative;
 }
 
 .brandCircle {
@@ -69,6 +70,14 @@
   flex-shrink: 0;
 }
 
+.brandLogo {
+  width: 42px;
+  height: 42px;
+  object-fit: contain;
+  flex-shrink: 0;
+  margin-bottom: 0.25rem;
+}
+
 .brandText {
   font-size: 1.1rem;
   font-weight: 800;
@@ -76,9 +85,25 @@
   letter-spacing: -0.02em;
 }
 
+.brandLink {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.2s ease;
+}
+
+.brandLink:hover {
+  opacity: 0.8;
+}
+
 .sidebarCloseBtn {
   display: none;
-  margin-left: auto;
+  position: absolute;
+  right: 0.75rem;
+  top: 0.75rem;
   background: transparent;
   border: none;
   color: #94a3b8;

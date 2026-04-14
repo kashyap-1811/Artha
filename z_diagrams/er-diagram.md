@@ -1,8 +1,8 @@
 ```mermaid
 erDiagram
-    %% ──────────────────────────────────────────
-    %%  USER-SERVICE  (PostgreSQL)
-    %% ──────────────────────────────────────────
+    %% ══════════════════════════════════════════
+    %%  USER-SERVICE DB  (PostgreSQL)
+    %% ══════════════════════════════════════════
     users {
         string  id          PK  "UUID NOT NULL"
         string  full_name       "NOT NULL"
@@ -29,13 +29,13 @@ erDiagram
         instant joined_at       "NOT NULL"
     }
 
-    %% ──────────────────────────────────────────
-    %%  BUDGET-SERVICE  (PostgreSQL)
-    %% ──────────────────────────────────────────
+    %% ══════════════════════════════════════════
+    %%  BUDGET-SERVICE DB  (PostgreSQL)
+    %% ══════════════════════════════════════════
     budgets {
         uuid    id          PK  "NOT NULL"
-        string  company_id      "NOT NULL  (logical ref)"
-        string  created_by      "NOT NULL  userId ref"
+        string  company_id      "NOT NULL  logical → companies.id"
+        string  created_by      "NOT NULL  logical → users.id"
         string  name            "NOT NULL"
         decimal total_amount    "NOT NULL PRECISION(19,2)"
         date    start_date      "NOT NULL"
@@ -57,50 +57,62 @@ erDiagram
     budget_audit_logs {
         uuid    id          PK  "NOT NULL"
         uuid    budget_id   FK  "NOT NULL → budgets.id"
-        string  user_id         "NOT NULL  (logical ref)"
+        string  user_id         "NOT NULL  logical → users.id"
         string  action          "NOT NULL  ENUM(CREATE,UPDATE,CLOSE,DELETE,ADD_ALLOCATION,UPDATE_ALLOCATION,REMOVE_ALLOCATION)"
         instant created_at      "NOT NULL"
     }
 
-    %% ──────────────────────────────────────────
-    %%  EXPENSE-SERVICE  (PostgreSQL)
-    %% ──────────────────────────────────────────
+    %% ══════════════════════════════════════════
+    %%  EXPENSE-SERVICE DB  (PostgreSQL)
+    %% ══════════════════════════════════════════
     expenses {
         uuid    id              PK  "NOT NULL"
-        string  company_id          "NOT NULL  (logical ref)"
-        uuid    budget_id           "NOT NULL  (logical ref)"
-        uuid    allocation_id       "NOT NULL  (logical ref)"
+        string  company_id          "NOT NULL  logical → companies.id"
+        uuid    budget_id           "NOT NULL  logical → budgets.id"
+        uuid    allocation_id       "NOT NULL  logical → budget_category_allocations.id"
         decimal amount              "NOT NULL PRECISION(19,2)"
         string  reference           "nullable"
         date    spent_date          "nullable"
         string  type                "ENUM(PERSONAL,BUSINESS)"
         string  status              "ENUM(PENDING,APPROVED,REJECTED)"
         boolean warning             "nullable"
-        string  created_by          "nullable  userId ref"
+        string  created_by          "nullable  logical → users.id"
         instant created_at          "NOT NULL"
     }
 
-    %% ──────────────────────────────────────────
-    %%  NOTIFICATION-SERVICE  (MongoDB)
-    %% ──────────────────────────────────────────
+    %% ══════════════════════════════════════════
+    %%  NOTIFICATION-SERVICE DB  (MongoDB)
+    %% ══════════════════════════════════════════
     notifications {
         string  _id             PK  "ObjectId"
-        string  user_id             "NOT NULL  (logical ref)"
-        string  company_id          "NOT NULL  (logical ref)"
-        string  budget_id           "NOT NULL  (logical ref)"
-        string  allocation_id       "NOT NULL  (logical ref)"
+        string  user_id             "NOT NULL  logical → users.id"
+        string  company_id          "NOT NULL  logical → companies.id"
+        string  budget_id           "NOT NULL  logical → budgets.id"
+        string  allocation_id       "NOT NULL  logical → budget_category_allocations.id"
         string  type                "NOT NULL  ENUM(THRESHOLD_ALERT,EXCEED_ALERT)"
         date    sent_at             "NOT NULL DEFAULT now()"
     }
 
-    %% ──────────────────────────────────────────
-    %%  RELATIONSHIPS
-    %% ──────────────────────────────────────────
-    users               ||--o{ user_companies               : "belongs to many"
+    %% ══════════════════════════════════════════
+    %%  PHYSICAL FOREIGN KEYS  (solid lines — same DB)
+    %% ══════════════════════════════════════════
+    users               ||--o{ user_companies               : "has many"
     companies           ||--o{ user_companies               : "has many members"
-    budgets             ||--o{ budget_category_allocations  : "has many"
+    budgets             ||--o{ budget_category_allocations  : "has many allocations"
     budgets             ||--o{ budget_audit_logs            : "audited by"
-    expenses            }o--|| budgets                      : "belongs to (logical)"
-    expenses            }o--|| budget_category_allocations  : "belongs to (logical)"
-    notifications       }o--|| budget_category_allocations  : "triggered by (logical)"
+
+    %% ══════════════════════════════════════════
+    %%  LOGICAL / CROSS-SERVICE REFERENCES  (dashed lines)
+    %% ══════════════════════════════════════════
+    companies           ||..o{ budgets                      : "logical: company_id"
+    users               ||..o{ budgets                      : "logical: created_by"
+    users               ||..o{ budget_audit_logs            : "logical: user_id"
+    companies           ||..o{ expenses                     : "logical: company_id"
+    budgets             ||..o{ expenses                     : "logical: budget_id"
+    budget_category_allocations ||..o{ expenses             : "logical: allocation_id"
+    users               ||..o{ expenses                     : "logical: created_by"
+    users               ||..o{ notifications                : "logical: user_id"
+    companies           ||..o{ notifications                : "logical: company_id"
+    budgets             ||..o{ notifications                : "logical: budget_id"
+    budget_category_allocations ||..o{ notifications        : "logical: allocation_id"
 ```

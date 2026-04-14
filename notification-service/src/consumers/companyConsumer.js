@@ -32,12 +32,8 @@ const startCompanyConsumer = async () => {
 
             await consumer.run({
                 eachMessage: async ({ topic, partition, message }) => {
-                    try {
-                        const eventData = JSON.parse(message.value.toString());
-                        await notificationService.handleCompanyEvent(eventData);
-                    } catch (err) {
-                        console.error('Error processing company Kafka message:', err);
-                    }
+                    const eventData = JSON.parse(message.value.toString());
+                    await notificationService.handleCompanyEvent(eventData);
                 },
             });
         } catch (error) {

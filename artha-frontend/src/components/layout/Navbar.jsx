@@ -50,7 +50,7 @@ export default function Navbar() {
         {/* Left Side: Logo */}
         <div className={styles.logoSection}>
           <NavLink to="/" className={styles.brandLink}>
-            <div className={styles.logoCircle}>A</div>
+            <img src="/logo2.svg" alt="Artha Logo" className={styles.navLogo} />
             <span className={styles.brandName}>Artha</span>
           </NavLink>
         </div>

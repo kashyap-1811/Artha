@@ -137,8 +137,10 @@ export default function DashboardPage() {
         </AnimatePresence>
         <aside className={`${styles.sidebar} ${sidebarOpen ? styles.sidebarOpen : ""}`}>
           <div className={styles.sidebarBrand}>
-            <div className={styles.brandCircle}>A</div>
-            <span className={styles.brandText}>Artha</span>
+            <NavLink to="/" className={styles.brandLink}>
+              <img src="/logo2.svg" alt="Artha Logo" className={styles.brandLogo} />
+              <span className={styles.brandText}>Artha</span>
+            </NavLink>
             <button type="button" className={styles.sidebarCloseBtn} onClick={() => setSidebarOpen(false)}>
               <X size={18} />
             </button>

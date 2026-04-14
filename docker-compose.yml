@@ -120,6 +120,7 @@ services:
       EUREKA_INSTANCE_HOSTNAME: user-service
       EUREKA_INSTANCE_PREFER_IP_ADDRESS: "false"
       EUREKA_INSTANCE_INSTANCE_ID: ${SERVER_IP:-localhost}:user-service:8083
+      FRONTEND_URL: ${FRONTEND_URL}
       SPRING_DEVTOOLS_RESTART_ENABLED: "false"
     healthcheck:
       test: ["CMD", "curl", "-s", "-o", "/dev/null", "http://localhost:8083/actuator/health"]
@@ -250,6 +251,7 @@ services:
       service-registry:
         condition: service_healthy
     environment:
+      API_GATEWAY_URL: ${API_GATEWAY_URL}
       PORT: 8086
       MONGODB_URI: ${MONGODB_URI}
       KAFKA_BROKER: ${KAFKA_BOOTSTRAP_SERVERS}

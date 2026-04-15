@@ -35,8 +35,9 @@ services:
       context: ./service-registry
       dockerfile: Dockerfile
     container_name: artha-service-registry
-    # Port 8761 not exposed publicly — access Eureka only via Docker network
-    # To access locally for debugging: docker compose exec service-registry curl localhost:8761
+    # Temporarily exposed for direct Eureka access/debugging
+    ports:
+      - "8761:8761"
     healthcheck:
       test: ["CMD", "curl", "-s", "-o", "/dev/null", "http://localhost:8761/actuator/health"]
       interval: 20s
@@ -44,6 +45,8 @@ services:
       retries: 5
       start_period: 60s
     restart: unless-stopped
+    environment:
+      SERVER_IP: ${SERVER_IP}
     mem_limit: 384m
     logging:
       driver: json-file

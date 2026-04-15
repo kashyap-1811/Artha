@@ -24,3 +24,7 @@ certs/
 
 nginx/nginx.conf.production
 nginx/nginx.conf
+
+.agents
+.claude
+skills-lock.json

@@ -95,6 +95,9 @@ public class UserService implements IUserService {
 
         existing.setFullName(user.getFullName());
         existing.setActive(user.isActive());
+        existing.setPhoneNumber(user.getPhoneNumber());
+        existing.setBio(user.getBio());
+        existing.setJobTitle(user.getJobTitle());
 
         long dbSaveStart = System.currentTimeMillis();
         User saved = userRepository.save(existing);

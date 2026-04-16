@@ -20,15 +20,16 @@ function getAuthHeaders() {
     return headers;
 }
 
+import { formatFriendlyError } from "../lib/errorParser";
+
 async function parseErrorMessage(response) {
-    try {
-        const body = await response.json();
-        if (typeof body?.message === "string") return body.message;
-        if (typeof body?.error === "string") return body.error;
-        return `Request failed with status ${response.status}`;
-    } catch {
-        return `Request failed with status ${response.status}`;
-    }
+  try {
+    const body = await response.json();
+    const rawError = body?.message || body?.error || `Request failed with status ${response.status}`;
+    return formatFriendlyError(rawError);
+  } catch {
+    return formatFriendlyError(`Request failed with status ${response.status}`);
+  }
 }
 
 export async function createExpense(data) {
@@ -140,6 +141,20 @@ export async function getBudgetSummary(budgetId) {
 export async function getExpenseChart(companyId, days = 30) {
     const query = new URLSearchParams({ companyId, days });
     const response = await fetch(`${API_BASE_URL}${EXPENSES_BASE_PATH}/chart?${query.toString()}`, {
+        method: "GET",
+        headers: getAuthHeaders()
+    });
+
+    if (!response.ok) {
+        throw new Error(await parseErrorMessage(response));
+    }
+
+    return response.json();
+}
+
+export async function getDailyExpenseTrend(companyId) {
+    const query = new URLSearchParams({ companyId });
+    const response = await fetch(`${API_BASE_URL}${EXPENSES_BASE_PATH}/daily-trend?${query.toString()}`, {
         method: "GET",
         headers: getAuthHeaders()
     });

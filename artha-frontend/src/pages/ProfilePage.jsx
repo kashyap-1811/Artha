@@ -1,25 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useNavigate, NavLink } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard, Building2, Settings, Menu, X, User, Mail, Phone, ShieldCheck, LogOut, Edit3, Save, XCircle, Sparkles,
-  Star, CreditCard, BookOpen
+  Star, CreditCard, BookOpen, CheckCircle2, AlertCircle
 } from "lucide-react";
 import { getUserById, updateUser } from "../api/users";
+import AppSidebar from "../components/AppSidebar";
 import styles from "./DashboardPage.module.css";
 
-function SideNavItem({ icon: Icon, label, to, onClick }) {
-  return (
-    <NavLink
-      to={to}
-      className={({ isActive }) => `${styles.sideNavItem} ${isActive ? styles.sideNavActive : ""}`}
-      onClick={onClick}
-    >
-      <Icon size={18} />
-      <span>{label}</span>
-    </NavLink>
-  );
-}
+
+
 
 function handleLogout() {
   localStorage.removeItem("artha_jwt");
@@ -29,16 +20,37 @@ function handleLogout() {
   window.location.href = "/auth";
 }
 
+// Stagger variants for the container
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
+      delayChildren: 0.2,
+    },
+  },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.19, 1, 0.22, 1] } },
+};
+
 export default function ProfilePage() {
   const navigate = useNavigate();
 
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const [isEditing, setIsEditing] = useState(false);
   const [editFullName, setEditFullName] = useState("");
+  const [editPhoneNumber, setEditPhoneNumber] = useState("");
+  const [editBio, setEditBio] = useState("");
+  const [editJobTitle, setEditJobTitle] = useState("");
   const [editActive, setEditActive] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
 
@@ -58,6 +70,9 @@ export default function ProfilePage() {
       const data = await getUserById(userId);
       setUser(data);
       setEditFullName(data.fullName || "");
+      setEditPhoneNumber(data.phoneNumber || "");
+      setEditBio(data.bio || "");
+      setEditJobTitle(data.jobTitle || "");
       setEditActive(data.active !== false);
     } catch (err) {
       setError(err.message || "Failed to load user profile");
@@ -73,21 +88,42 @@ export default function ProfilePage() {
 
     setIsUpdating(true);
     setError("");
+    setSuccess("");
+
+    // --- Pre-flight Frontend Validation ---
+    const errors = [];
+    if (!editFullName.trim()) errors.push("Full Name is required");
+    if (editPhoneNumber.trim() && !/^\+?[\d\s-]{8,20}$/.test(editPhoneNumber.trim())) {
+      errors.push("Please enter a valid phone number (e.g. +91 99999 00000)");
+    }
+    if (editBio.trim().length > 500) errors.push("Bio is too long (max 500 characters)");
+
+    if (errors.length > 0) {
+      setError(errors.join(". "));
+      setIsUpdating(false);
+      return;
+    }
+    // --------------------------------------
+
     try {
       await updateUser(userId, {
         fullName: editFullName.trim(),
+        phoneNumber: editPhoneNumber.trim(),
+        bio: editBio.trim(),
+        jobTitle: editJobTitle.trim(),
         active: editActive
       });
-      // Also update local storage cache for the dashboard
+      
       try {
         const cur = JSON.parse(localStorage.getItem("artha_user") || "{}");
         localStorage.setItem("artha_user", JSON.stringify({ ...cur, fullName: editFullName.trim() }));
       } catch { /* ignore */ }
 
       await fetchUserProfile(userId);
-      setIsEditing(false);
+      setSuccess("Profile settings updated successfully.");
+      setTimeout(() => setIsEditing(false), 2000);
     } catch (err) {
-      setError(err.message || "Failed to update profile");
+      setError(err.message || "Failed to update profile. Please check your network.");
     } finally {
       setIsUpdating(false);
     }
@@ -96,191 +132,199 @@ export default function ProfilePage() {
   const sideNavLinks = [
     { icon: LayoutDashboard, label: "Dashboard", to: "/dashboard" },
     { icon: Building2,       label: "Companies",  to: "/companies" },
-      { icon: Star, label: "Features", to: "/features" },
-    { icon: CreditCard, label: "Pricing", to: "/pricing" },
-    { icon: BookOpen, label: "Blog", to: "/blog" },
+    { icon: Star,            label: "Features",   to: "/features" },
+    { icon: CreditCard,      label: "Pricing",    to: "/pricing" },
+    { icon: BookOpen,        label: "Blog",       to: "/blog" },
   ];
 
+  const membershipDays = useMemo(() => {
+    if (!user?.joinedAt) return 0;
+    return Math.floor((new Date() - new Date(user.joinedAt)) / (1000 * 60 * 60 * 24));
+  }, [user]);
+
+
   return (
-    <div className={styles.appShell}>
-      {/* ═══ LEFT SIDEBAR ═══ */}
-      <>
-        <AnimatePresence>
-          {sidebarOpen && (
-            <motion.div className={styles.sidebarBackdrop}
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={() => setSidebarOpen(false)} />
-          )}
-        </AnimatePresence>
-        <aside className={`${styles.sidebar} ${sidebarOpen ? styles.sidebarOpen : ""}`}>
-          <div className={styles.sidebarBrand}>
-            <NavLink to="/" className={styles.brandLink}>
-              <img src="/logo2.svg" alt="Artha Logo" className={styles.brandLogo} />
-              <span className={styles.brandText}>Artha</span>
-            </NavLink>
-            <button type="button" className={styles.sidebarCloseBtn} onClick={() => setSidebarOpen(false)}>
-              <X size={18} />
-            </button>
-          </div>
-          <nav className={styles.sideNav}>
-            {sideNavLinks.map((link) => (
-              <SideNavItem key={link.label} {...link} onClick={() => setSidebarOpen(false)} />
-            ))}
-          </nav>
-          <div className={styles.sidebarBottom}>
-            <SideNavItem icon={Settings} label="Settings" to="/profile" onClick={() => setSidebarOpen(false)} />
-          </div>
-        </aside>
-      </>
-
-      {/* ═══ MAIN CONTENT ═══ */}
-      <main className={styles.mainContent}>
-        {/* Top bar */}
-        <div className={styles.topBar}>
-          <button type="button" className={styles.hamburger} onClick={() => setSidebarOpen(true)}>
-            <Menu size={22} />
-          </button>
-          <div className={styles.topBarLeft}>
-            <p className={styles.greetingLabel}>Account & settings</p>
-            <h1 className={styles.greetingTitle}>
-              My Profile <Sparkles size={20} className={styles.sparkle} style={{ color: 'var(--accent)' }}/>
-            </h1>
-          </div>
-          <div style={{ display: 'flex', gap: '0.75rem' }}>
-            <button 
-              type="button" 
-              onClick={handleLogout}
-              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', border: '1px solid #fca5a5', background: '#fef2f2', color: '#dc2626', padding: '0.45rem 1rem', borderRadius: 'var(--radius-sm, 8px)', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s' }}
-            >
-              <LogOut size={16} /> Logout
-            </button>
-          </div>
+    <AppSidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen}>
+      <div className={styles.noiseOverlay} />
+      
+      {/* Top bar */}
+      <div className={styles.topBar}>
+        <div className={styles.topBarLeft}>
+          <p className={styles.greetingLabel}>System / Account Settings</p>
+          <h1 className={styles.greetingTitle}>
+            Artha Identity <Sparkles size={20} className={styles.sparkle} style={{ color: '#3b82f6' }}/>
+          </h1>
         </div>
+        <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <button onClick={handleLogout} className={styles.logoutBtn}>
+            <LogOut size={16} /> Logout
+          </button>
+        </div>
+      </div>
 
-        {error && (
-          <p style={{ background: '#fee2e2', color: '#b91c1c', padding: '0.75rem 1rem', borderRadius: '8px', marginBottom: '1.2rem', fontWeight: 600 }}>{error}</p>
-        )}
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', width: '100%', maxWidth: '800px' }}>
+        <section className={styles.vanguardWorkspace}>
           
-          <motion.div className={styles.panel} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-            <div className={styles.panelHeader} style={{ marginBottom: '1.5rem', borderBottom: '1px solid var(--edge)', paddingBottom: '1rem' }}>
-              <div>
-                <h2 className={styles.panelTitle}>Personal Information</h2>
-                <p className={styles.panelSub}>Update your personal details here.</p>
+          <AnimatePresence mode="wait">
+            {error && (
+              <motion.div 
+                key="error"
+                className={`${styles.statusBanner} ${styles.statusError}`} 
+                initial={{ opacity: 0, scale: 0.95, x: 0 }} 
+                animate={{ 
+                  opacity: 1, 
+                  scale: 1,
+                  x: [0, -10, 10, -10, 10, 0],
+                  transition: { type: "spring", stiffness: 300, damping: 20 }
+                }} 
+                exit={{ opacity: 0, scale: 0.95 }}
+                style={{ lineHeight: '1.6' }}
+              >
+                <AlertCircle size={18} style={{ flexShrink: 0, marginTop: '2px' }} /> 
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  {error.split(". ").map((msg, i) => (
+                    <span key={i}>{msg}{i < error.split(". ").length - 1 ? '.' : ''}</span>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+            {success && (
+              <motion.div 
+                key="success"
+                className={`${styles.statusBanner} ${styles.statusSuccess}`} 
+                initial={{ opacity: 0, scale: 0.95 }} 
+                animate={{ opacity: 1, scale: 1 }} 
+                exit={{ opacity: 0, scale: 0.95 }}
+              >
+                <CheckCircle2 size={18} /> {success}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Identity Hero */}
+          {user && (
+            <motion.div className={styles.vanguardHero} initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: [0.19, 1, 0.22, 1] }}>
+              <div className={styles.vanguardHeroMesh} />
+              <div className={styles.vanguardAvatar}>
+                <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400&h=400&fit=crop" alt="Identity" />
               </div>
-              {user && !isEditing && (
-                <button 
-                  onClick={() => setIsEditing(true)} 
-                  style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'var(--surface-hover)', border: '1px solid var(--edge)', color: 'var(--text-main)', padding: '0.4rem 0.85rem', borderRadius: 'var(--radius-sm, 6px)', fontWeight: 600, cursor: 'pointer', fontSize: '0.85rem' }}
-                >
-                  <Edit3 size={14} /> Edit Profile
+              <div style={{ flex: 1, position: 'relative', zIndex: 1 }}>
+                <h2 style={{ fontSize: '2.5rem', fontWeight: 900, color: '#0f172a', marginBottom: '0.5rem', letterSpacing: '-0.04em' }}>
+                  {user.fullName}
+                </h2>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+                  <p style={{ color: '#64748b', fontWeight: 600, fontSize: '1rem' }}>{user.email}</p>
+                  <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#cbd5e1' }} />
+                  <p style={{ color: '#3b82f6', fontWeight: 800, fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                    Active Member / {membershipDays} Days
+                  </p>
+                </div>
+              </div>
+              {!isEditing && (
+                <button onClick={() => setIsEditing(true)} className={styles.primaryBtn} style={{ position: 'relative', zIndex: 2 }}>
+                  <Edit3 size={18} /> Update Identity
                 </button>
               )}
-            </div>
+            </motion.div>
+          )}
 
-            {isLoading ? (
-              <div className={styles.skeletonList}>
-                <div className={styles.skeleton} style={{ height: '40px' }} />
-                <div className={styles.skeleton} style={{ height: '40px' }} />
+          {isEditing ? (
+            <motion.div className={styles.vanguardTile} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+              <div className={styles.panelHeader} style={{ marginBottom: '3rem' }}>
+                <h2 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a' }}>Global Settings</h2>
+                <span className={styles.badge} style={{ background: '#eff6ff', color: '#3b82f6' }}>Draft Mode</span>
               </div>
-            ) : !user ? (
-               <div className={styles.emptyState}>
-                 <User size={38} className={styles.emptyIcon} style={{ opacity: 0.5 }}/>
-                 <p>No user profile details found.</p>
-               </div>
-            ) : isEditing ? (
-              <form onSubmit={handleUpdate} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Full Name</label>
-                  <input
-                    value={editFullName}
-                    onChange={(e) => setEditFullName(e.target.value)}
-                    placeholder="Enter full name"
-                    autoFocus
-                    required
-                    style={{ padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--edge)', background: 'var(--surface-hover)', color: 'var(--text-main)', fontFamily: 'inherit', fontSize: '0.95rem' }}
-                  />
+              
+              <form onSubmit={handleUpdate}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '3rem', marginBottom: '3rem' }}>
+                  {/* Personal */}
+                  <div className={styles.vanguardPanelColumn}>
+                    <h3 className={styles.classicSectionTitle}><User size={18} color="#3b82f6" /> Primary Information</h3>
+                    <div className={styles.classicField}>
+                      <label className={styles.classicFieldLabel}>Full Name</label>
+                      <input value={editFullName} onChange={(e) => setEditFullName(e.target.value)} className={styles.smartInput} required placeholder="John Doe" />
+                    </div>
+                    <div className={styles.classicField}>
+                      <label className={styles.classicFieldLabel}>Contact Number</label>
+                      <input value={editPhoneNumber} onChange={(e) => setEditPhoneNumber(e.target.value)} className={styles.smartInput} placeholder="+91 00000 00000" />
+                    </div>
+                  </div>
+
+                  {/* Professional */}
+                  <div className={styles.vanguardPanelColumn}>
+                    <h3 className={styles.classicSectionTitle}><Building2 size={18} color="#10b981" /> Work Environment</h3>
+                    <div className={styles.classicField}>
+                      <label className={styles.classicFieldLabel}>Internal Job Title</label>
+                      <input value={editJobTitle} onChange={(e) => setEditJobTitle(e.target.value)} className={styles.smartInput} placeholder="e.g. System Architect" />
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '2.5rem' }}>
+                      <input type="checkbox" checked={editActive} onChange={(e) => setEditActive(e.target.checked)} id="vanguard-active" style={{ width: '1.25rem', height: '1.25rem', accentColor: '#3b82f6' }} />
+                      <label htmlFor="vanguard-active" style={{ fontSize: '1rem', fontWeight: 700, color: '#1e293b' }}>Active Profile Access</label>
+                    </div>
+                  </div>
+
+                  {/* Bio */}
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <h3 className={styles.classicSectionTitle}><BookOpen size={18} color="#f59e0b" /> Professional Biography</h3>
+                    <textarea value={editBio} onChange={(e) => setEditBio(e.target.value)} className={styles.smartInput} placeholder="Describe your contribution to the platform..." rows={4} style={{ resize: 'none' }} />
+                  </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginTop: '0.5rem' }}>
-                  <input
-                    type="checkbox"
-                    checked={editActive}
-                    onChange={(e) => setEditActive(e.target.checked)}
-                    id="active-toggle"
-                    style={{ width: '1.2rem', height: '1.2rem', cursor: 'pointer' }}
-                  />
-                  <label htmlFor="active-toggle" style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-main)', cursor: 'pointer' }}>
-                     Active Account
-                  </label>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1rem' }}>
-                  <button 
-                    type="button" 
-                    onClick={() => setIsEditing(false)} 
-                    style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'var(--surface-hover)', border: '1px solid var(--edge)', color: 'var(--text-muted)', padding: '0.55rem 1.1rem', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' }}
-                  >
-                    <XCircle size={16} /> Cancel
-                  </button>
-                  <button 
-                    type="submit" 
-                    disabled={isUpdating}
-                    style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'linear-gradient(135deg, #3b82f6, #4f46e5)', border: 'none', color: '#fff', padding: '0.55rem 1.4rem', borderRadius: '8px', fontWeight: 700, cursor: isUpdating ? 'wait' : 'pointer', opacity: isUpdating ? 0.7 : 1 }}
-                  >
-                    <Save size={16} /> {isUpdating ? "Updating..." : "Save Changes"}
-                  </button>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1.5rem', paddingTop: '2.5rem', borderTop: '2px solid #f8fafc' }}>
+                  <button type="button" onClick={() => setIsEditing(false)} className={styles.secondaryBtn}>Cancel Changes</button>
+                  <button type="submit" disabled={isUpdating} className={styles.primaryBtn}>{isUpdating ? "Processing..." : "Commit Update"}</button>
                 </div>
               </form>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                   <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: 'var(--accent-soft, #DBE4FE)', color: 'var(--accent, #3b82f6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                     <User size={20} />
-                   </div>
-                   <div>
-                     <p style={{ margin: 0, fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Full Name</p>
-                     <p style={{ margin: '0.1rem 0 0', fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-main)' }}>{user.fullName || "Not provided"}</p>
-                   </div>
-                </div>
+            </motion.div>
+          ) : user && (
+            <motion.div className={styles.vanguardGrid} variants={containerVariants} initial="hidden" animate="visible">
+              {/* Identity Detail */}
+              <motion.div className={styles.vanguardTile} style={{ gridColumn: 'span 4' }} variants={itemVariants}>
+                <h3 className={styles.classicSectionTitle}><User size={18} color="#3b82f6" /> Professional Profile</h3>
+                <div className={styles.classicField}><p className={styles.classicFieldLabel}>Official Name</p><p className={styles.classicFieldText}>{user.fullName}</p></div>
+                <div className={styles.classicField}><p className={styles.classicFieldLabel}>System Job Title</p><p className={styles.classicFieldText}>{user.jobTitle || "Not Specified"}</p></div>
+              </motion.div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                   <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: '#f1f5f9', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                     <Mail size={20} />
-                   </div>
-                   <div>
-                     <p style={{ margin: 0, fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Email</p>
-                     <p style={{ margin: '0.1rem 0 0', fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-main)' }}>{user.email}</p>
-                   </div>
+              {/* Organization List */}
+              <motion.div className={styles.vanguardTile} style={{ gridColumn: 'span 4' }} variants={itemVariants}>
+                <h3 className={styles.classicSectionTitle}><Building2 size={18} color="#10b981" /> Linked Organizations</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  {user.memberships?.length > 0 ? (
+                    user.memberships.map((m) => (
+                      <div key={m.companyId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc', padding: '0.75rem 1rem', borderRadius: '16px', border: '1px solid #f1f5f9' }}>
+                        <span style={{ fontSize: '0.9rem', fontWeight: 800, color: '#0f172a' }}>{m.companyName}</span>
+                        <div className={styles.roleBadge} style={{ background: m.role === 'OWNER' ? '#eff6ff' : '#f8fafc', color: m.role === 'OWNER' ? '#1d4ed8' : '#64748b' }}>{m.role}</div>
+                      </div>
+                    ))
+                  ) : (<div className={styles.roleBadge}>Platform Independent</div>)}
                 </div>
+              </motion.div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                   <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: '#f1f5f9', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                     <Phone size={20} />
-                   </div>
-                   <div>
-                     <p style={{ margin: 0, fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Phone Number</p>
-                     <p style={{ margin: '0.1rem 0 0', fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-main)' }}>{user.phoneNumber || "Not provided"}</p>
-                   </div>
-                </div>
+              {/* Contact Detail */}
+              <motion.div className={styles.vanguardTile} style={{ gridColumn: 'span 4' }} variants={itemVariants}>
+                <h3 className={styles.classicSectionTitle}><Mail size={18} color="#3b82f6" /> Network Credentials</h3>
+                <div className={styles.classicField}><p className={styles.classicFieldLabel}>Primary Email</p><p className={styles.classicFieldText}>{user.email}</p></div>
+                <div className={styles.classicField}><p className={styles.classicFieldLabel}>Active Phone</p><p className={styles.classicFieldText}>{user.phoneNumber || "- No Entry -"}</p></div>
+              </motion.div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                   <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: user.active ? '#dcfce7' : '#fee2e2', color: user.active ? '#16a34a' : '#dc2626', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                     <ShieldCheck size={20} />
-                   </div>
-                   <div>
-                     <p style={{ margin: 0, fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Status</p>
-                     <span style={{ display: 'inline-block', marginTop: '0.2rem', padding: '0.2rem 0.6rem', background: user.active ? '#dcfce7' : '#fee2e2', color: user.active ? '#166534' : '#991b1b', fontSize: '0.75rem', fontWeight: 700, borderRadius: '999px', letterSpacing: '0.04em' }}>
-                        {user.active ? "ACTIVE ACCOUNT" : "INACTIVE"}
-                     </span>
-                   </div>
+              {/* Biography Detail */}
+              <motion.div className={styles.vanguardTile} style={{ gridColumn: 'span 8' }} variants={itemVariants}>
+                <h3 className={styles.classicSectionTitle}><BookOpen size={18} color="#f59e0b" /> Career Narrative</h3>
+                <p className={styles.classicBio} style={{ maxWidth: '800px' }}>{user.bio || "No professional biography has been established for this user yet."}</p>
+              </motion.div>
+
+              {/* Security Audit */}
+              <motion.div className={styles.vanguardTile} style={{ gridColumn: 'span 4' }} variants={itemVariants}>
+                <h3 className={styles.classicSectionTitle}><ShieldCheck size={18} color="#6366f1" /> Security Audit</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                  <div className={styles.classicField}><p className={styles.classicFieldLabel}>Access Mode</p><span className={styles.badge} style={{ background: user.active ? '#f0fdf4' : '#fef2f2', color: user.active ? '#166534' : '#b91c1c' }}>{user.active ? "FULL SYSTEM ACCESS" : "RESTRICTED"}</span></div>
+                  <button className={styles.secondaryBtn} style={{ width: '100%' }} onClick={() => alert("Verification center is currently under maintenance.")}>Initiate MFA</button>
                 </div>
-              </div>
-            )}
-          </motion.div>
-        </div>
-      </main>
-    </div>
+              </motion.div>
+            </motion.div>
+          )}
+
+        </section>
+    </AppSidebar>
   );
 }

@@ -1,6 +1,10 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import { Menu } from "lucide-react";
+import AppSidebar from "../components/AppSidebar";
+import styles from "./DashboardPage.module.css";
+
 
 /* ─── Feature Stack Cards ──────────────────────────────────── */
 const CARDS = [
@@ -224,14 +228,23 @@ const COMPANY_ACTIONS = [
 
 /* ─── Main Page ────────────────────────────────────────────── */
 export default function FeaturesPage() {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const navigate = useNavigate();
 
+
   return (
+    <AppSidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen}>
+
+
     <div style={{ background: "rgba(241, 245, 249, 0.8)", minHeight: "100vh", fontFamily: "'Inter','Outfit',sans-serif" }}>
 
       {/* ── HERO ── */}
-      <section style={{ textAlign: "center", padding: "3.5rem 2rem 2rem", maxWidth: 680, margin: "0 auto" }}>
+      <section style={{ textAlign: "center", padding: "3.5rem 2rem 2rem", maxWidth: 680, margin: "0 auto", position: 'relative' }}>
+          <button type="button" className={styles.hamburger} onClick={() => setSidebarOpen(true)} style={{ position: 'absolute', top: '1rem', left: '1rem' }}>
+            <Menu size={22} />
+          </button>
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55 }}>
+
             <span style={{ display: "inline-block", background: "linear-gradient(135deg, #dbeafe, #ede9fe)", border: "1px solid #c7d2fe", borderRadius: 999, padding: "0.3rem 1rem", fontSize: "0.72rem", fontWeight: 700, color: "#4f46e5", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "1rem" }}>
               Everything in one platform
             </span>
@@ -357,6 +370,105 @@ export default function FeaturesPage() {
           </motion.div>
         </section>
 
+        {/* ── HOW IT WORKS ── */}
+        <section style={{ padding: "5rem 2rem 3rem", maxWidth: 900, margin: "0 auto" }}>
+          <motion.div initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} style={{ textAlign: "center", marginBottom: "3rem" }}>
+            <span style={{ display: "inline-block", background: "#dcfce7", border: "1px solid #86efac", borderRadius: 999, padding: "0.3rem 0.9rem", fontSize: "0.7rem", fontWeight: 700, color: "#16a34a", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 12 }}>
+              Getting Started
+            </span>
+            <h2 style={{ fontSize: "clamp(1.5rem, 3vw, 2.4rem)", fontWeight: 900, color: "#0f172a", letterSpacing: "-0.025em", marginBottom: "0.75rem" }}>
+              Up and running in 3 steps
+            </h2>
+            <p style={{ color: "#64748b", fontSize: "0.95rem", maxWidth: 480, margin: "0 auto", lineHeight: 1.65 }}>
+              No credit card. No setup calls. Start tracking your finances in under 2 minutes.
+            </p>
+          </motion.div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "1.5rem" }}>
+            {[
+              { step: "01", emoji: "👤", title: "Create Your Account", desc: "Sign up in seconds with email or Google OAuth. Your Personal workspace is auto-created immediately.", color: "#3b82f6", bg: "#eff6ff" },
+              { step: "02", emoji: "🏢", title: "Set Up a Company", desc: "Create a company, invite team members, and define your first fiscal budget with category allocations.", color: "#10b981", bg: "#f0fdf4" },
+              { step: "03", emoji: "📊", title: "Track & Analyze", desc: "Log expenses, get real-time alerts, and view AI-powered analytics. Financial clarity from day one.", color: "#8b5cf6", bg: "#faf5ff" },
+            ].map((s, i) => (
+              <motion.div key={s.step}
+                initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }} transition={{ delay: i * 0.1 }}
+                style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 20, padding: "2rem 1.8rem", textAlign: "center", position: "relative", overflow: "hidden" }}>
+                <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg, ${s.color}, transparent)` }} />
+                <div style={{ width: 56, height: 56, borderRadius: 16, background: s.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.6rem", margin: "0 auto 1rem" }}>
+                  {s.emoji}
+                </div>
+                <div style={{ fontSize: "0.65rem", fontWeight: 800, color: s.color, letterSpacing: "0.1em", marginBottom: "0.4rem" }}>STEP {s.step}</div>
+                <h3 style={{ fontSize: "1.1rem", fontWeight: 800, color: "#0f172a", marginBottom: "0.5rem" }}>{s.title}</h3>
+                <p style={{ fontSize: "0.85rem", color: "#64748b", lineHeight: 1.6, margin: 0 }}>{s.desc}</p>
+              </motion.div>
+            ))}
+          </div>
+        </section>
+
+        {/* ── PERSONAL vs COMPANY ── */}
+        <section style={{ padding: "4rem 2rem 5rem", maxWidth: 900, margin: "0 auto" }}>
+          <motion.div initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} style={{ textAlign: "center", marginBottom: "2.5rem" }}>
+            <span style={{ display: "inline-block", background: "#fef3c7", border: "1px solid #fcd34d", borderRadius: 999, padding: "0.3rem 0.9rem", fontSize: "0.7rem", fontWeight: 700, color: "#b45309", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 12 }}>
+              For Everyone
+            </span>
+            <h2 style={{ fontSize: "clamp(1.5rem, 3vw, 2.2rem)", fontWeight: 900, color: "#0f172a", letterSpacing: "-0.025em", marginBottom: "0.5rem" }}>
+              Personal vs Company Finance
+            </h2>
+            <p style={{ color: "#64748b", fontSize: "0.95rem", maxWidth: 480, margin: "0 auto", lineHeight: 1.65 }}>
+              Whether you're tracking personal expenses or managing a team's budget — Artha adapts to both.
+            </p>
+          </motion.div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.5rem" }}>
+            {[
+              {
+                title: "Personal Finance",
+                emoji: "👤",
+                color: "#3b82f6",
+                bg: "linear-gradient(135deg, #dbeafe, #ede9fe)",
+                items: [
+                  "Track daily spending with categories like Food, Transport, Subscriptions",
+                  "Set monthly budgets and watch your health score in real time",
+                  "Get alerts before you overspend — not after",
+                  "See where your money actually goes with category analytics",
+                ],
+              },
+              {
+                title: "Company Finance",
+                emoji: "🏢",
+                color: "#10b981",
+                bg: "linear-gradient(135deg, #dcfce7, #d1fae5)",
+                items: [
+                  "Create separate workspaces for each company or project",
+                  "Invite team members and assign Owner or Member roles",
+                  "Require owner approval on all submitted expenses",
+                  "Run AI-powered analytics across budgets and team spending",
+                ],
+              },
+            ].map((col, ci) => (
+              <motion.div key={col.title}
+                initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }} transition={{ delay: ci * 0.1 }}
+                style={{ background: col.bg, borderRadius: 24, padding: "2rem 2rem", border: "1px solid rgba(255,255,255,0.5)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: "1.2rem" }}>
+                  <span style={{ fontSize: "1.8rem" }}>{col.emoji}</span>
+                  <h3 style={{ fontSize: "1.2rem", fontWeight: 800, color: "#0f172a", margin: 0 }}>{col.title}</h3>
+                </div>
+                <ul style={{ paddingLeft: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 10 }}>
+                  {col.items.map((item, ii) => (
+                    <li key={ii} style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: "0.88rem", color: "#334155", lineHeight: 1.5 }}>
+                      <span style={{ width: 20, height: 20, borderRadius: "50%", background: "#fff", border: `1px solid ${col.color}44`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: col.color, flexShrink: 0, marginTop: 1, fontWeight: 800 }}>✓</span>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </motion.div>
+            ))}
+          </div>
+        </section>
+
     </div>
+    </AppSidebar>
   );
 }

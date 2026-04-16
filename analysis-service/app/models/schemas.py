@@ -24,6 +24,19 @@ class ActiveBudgetAnalysisResponse(BaseModel):
     remaining: float
     health_score: str
 
+class BudgetStats(BaseModel):
+    total: int
+    on_track: int
+    at_risk: int
+    over_budget: int
+
+class TopBudget(BaseModel):
+    budget_id: str
+    name: str
+    spent_amount: float
+    total_amount: float
+    usage_percentage: float
+
 class CompanyHealthResponse(BaseModel):
     company_id: str
     total_budget: float
@@ -31,6 +44,10 @@ class CompanyHealthResponse(BaseModel):
     remaining: float
     health_score: str
     category_breakdown: List[CategoryBreakdown]
+    budget_stats: Optional[BudgetStats] = None
+    top_budgets: Optional[List[TopBudget]] = None
+    estimated_runway_months: Optional[float] = None
+
 
 class PercentageBreakdown(BaseModel):
     category: str

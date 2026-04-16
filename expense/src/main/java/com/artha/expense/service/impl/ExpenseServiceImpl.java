@@ -308,6 +308,19 @@ public class ExpenseServiceImpl implements ExpenseService {
     }
 
     @Override
+    @Cacheable(value = "daily_expense_trend", key = "#companyId")
+    public List<com.artha.expense.dto.DailyExpenseDTO> getDailyExpenseTrend(String userId, String companyId) {
+        log.info("Daily trend cache miss for companyId: {}", companyId);
+        authorizationService.checkPermission(userId, companyId, Action.VIEW_EXPENSE);
+
+        java.time.LocalDate now = java.time.LocalDate.now();
+        java.time.LocalDate startDate = now.withDayOfMonth(1);
+        java.time.LocalDate endDate = now.withDayOfMonth(now.lengthOfMonth());
+
+        return expenseRepository.getDailySummary(companyId, startDate, endDate);
+    }
+
+    @Override
     public ExpenseResponse updateExpense(String userId, UUID expenseId, CreateExpenseRequest request) {
         Expense expense = expenseRepository.findById(expenseId)
                 .orElseThrow(() -> new ResourceNotFoundException("Expense not found"));
@@ -370,6 +383,9 @@ public class ExpenseServiceImpl implements ExpenseService {
         
         var chartCache = cacheManager.getCache("company_expense_chart");
         if (chartCache != null) chartCache.evict(companyId);
+
+        var trendCache = cacheManager.getCache("daily_expense_trend");
+        if (trendCache != null) trendCache.evict(companyId);
         
         if (budgetId != null) {
             var summaryCache = cacheManager.getCache("budget_summary");

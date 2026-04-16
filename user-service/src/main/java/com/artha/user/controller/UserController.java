@@ -58,6 +58,9 @@ public class UserController {
             User user = User.builder()
                     .id(userId)
                     .fullName(request.getFullName())
+                    .phoneNumber(request.getPhoneNumber())
+                    .bio(request.getBio())
+                    .jobTitle(request.getJobTitle())
                     .active(request.isActive())
                     .build();
 

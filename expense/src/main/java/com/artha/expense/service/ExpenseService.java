@@ -31,4 +31,6 @@ public interface ExpenseService {
     ExpenseResponse updateExpense(String userId, UUID expenseId, CreateExpenseRequest request);
 
     void deleteExpense(String userId, UUID expenseId);
+
+    List<com.artha.expense.dto.DailyExpenseDTO> getDailyExpenseTrend(String userId, String companyId);
 }

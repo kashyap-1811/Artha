@@ -6,16 +6,18 @@ function normalizeBaseUrl(url) {
 const API_BASE_URL = normalizeBaseUrl(import.meta.env.VITE_API_BASE_URL);
 const AUTH_PREFIXES = ["/auth"];
 
+import { formatFriendlyError } from "../lib/errorParser";
+
 async function parseErrorMessage(response) {
   try {
     const body = await response.json();
-    if (typeof body?.message === "string") return body.message;
-    if (typeof body?.error === "string") return body.error;
-    return `Request failed with status ${response.status}`;
+    const rawError = body?.message || body?.error || `Request failed with status ${response.status}`;
+    return formatFriendlyError(rawError);
   } catch {
-    return `Request failed with status ${response.status}`;
+    return formatFriendlyError(`Request failed with status ${response.status}`);
   }
 }
+
 
 async function postAuth(endpoint, payload) {
   let lastMessage = "Authentication request failed";

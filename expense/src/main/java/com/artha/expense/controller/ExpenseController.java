@@ -149,6 +149,20 @@ public class ExpenseController {
         }
     }
 
+    @GetMapping("/daily-trend")
+    public List<com.artha.expense.dto.DailyExpenseDTO> getDailyTrend(
+            @RequestHeader("X-User-Id") String userId,
+            @RequestParam String companyId
+    ) {
+        long serviceStart = System.currentTimeMillis();
+        try {
+            return expenseService.getDailyExpenseTrend(userId, companyId);
+        } finally {
+            long serviceEnd = System.currentTimeMillis();
+            System.out.println("====== Service Execution Time [Get Daily Trend]: " + (serviceEnd - serviceStart) + "ms ======");
+        }
+    }
+
     @PutMapping("/{id}")
     public ExpenseResponse updateExpense(
             @RequestHeader("X-User-Id") String userId,

@@ -20,16 +20,18 @@ function getAuthHeaders() {
   return headers;
 }
 
+import { formatFriendlyError } from "../lib/errorParser";
+
 async function parseErrorMessage(response) {
   try {
     const body = await response.json();
-    if (typeof body?.message === "string") return body.message;
-    if (typeof body?.error === "string") return body.error;
-    return `Request failed with status ${response.status}`;
+    const rawError = body?.message || body?.error || `Request failed with status ${response.status}`;
+    return formatFriendlyError(rawError);
   } catch {
-    return `Request failed with status ${response.status}`;
+    return formatFriendlyError(`Request failed with status ${response.status}`);
   }
 }
+
 
 export async function getMyCompanies() {
   const response = await fetch(`${API_BASE_URL}${COMPANIES_BASE_PATH}/my`, {

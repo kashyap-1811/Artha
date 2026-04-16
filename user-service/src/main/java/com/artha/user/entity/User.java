@@ -39,6 +39,23 @@ public class User {
     @Column(nullable = false)
     @Builder.Default
     private boolean active = true;
+    
+    @Column(nullable = true)
+    private String phoneNumber;
+    
+    @Column(nullable = true, length = 1000)
+    private String bio;
+    
+    @Column(nullable = true)
+    private String jobTitle;
+
+    @Column(nullable = true, updatable = false)
+    private java.time.Instant joinedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        this.joinedAt = java.time.Instant.now();
+    }
 
     @Builder.Default
     @OneToMany(

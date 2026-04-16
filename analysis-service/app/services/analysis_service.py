@@ -37,19 +37,85 @@ async def fetch_company_health_data(company_id: str, headers: dict, db_client: A
     collection = db.get_collection("budget_expenses")
     
     total_expense = 0.0
+    budget_spend_map = {}
+    
+    # Track monthly spend for runway calculation
+    monthly_spends = {} # e.g. {"2024-03": 500.0}
+
     async for doc in collection.find({"company_id": company_id}):
         spent = doc.get("total_approved_amount", 0.0)
         total_expense += spent
         
-        # Add spent info to categories
+        b_id = doc.get("budget_id")
+        if b_id:
+            budget_spend_map[str(b_id)] = spent
+
+        # Add spent info to categories and track trends
         for exp in doc.get("expense_history", []):
             cat_name = exp.get("category", "Uncategorized") or "Uncategorized"
             amount = float(exp.get("amount", 0.0))
             if cat_name not in category_map:
                 category_map[cat_name] = {"name": cat_name, "allocated": 0.0, "spent": 0.0}
             category_map[cat_name]["spent"] += amount
+
+            # Track for runway (simple version using month string from date)
+            date_raw = exp.get("date")
+            if date_raw:
+                if isinstance(date_raw, list) and len(date_raw) >= 2:
+                    m_key = f"{date_raw[0]}-{date_raw[1]:02d}"
+                else:
+                    m_key = str(date_raw)[:7] # YYYY-MM
+                monthly_spends[m_key] = monthly_spends.get(m_key, 0.0) + amount
+
     db_end = time.time()
     print(f"====== DB Execution Time [Fetch Company Health Data]: API Call {int((ext_end - ext_start) * 1000)}ms, MongoDB fetch {int((db_end - db_start) * 1000)}ms ======")
+
+    # Calculate Budget Stats & Top Budgets
+    on_track, at_risk, over_budget = 0, 0, 0
+    top_budgets_list = []
+
+    for b in budgets:
+        b_id = b.get("id")
+        b_name = b.get("name", "Unnamed")
+        total_val = float(b.get("totalAmount", 0.0))
+        # Normalize IDs to strings for robust matching
+        curr_b_id = str(b_id) if b_id else ""
+        spent_val = budget_spend_map.get(curr_b_id, 0.0)
+        
+        # Fallback: check if the spend map has a case-insensitive match
+        if spent_val == 0.0:
+            for map_id, map_val in budget_spend_map.items():
+                if str(map_id).lower() == curr_b_id.lower():
+                    spent_val = map_val
+                    break
+        
+        usage_pct = (spent_val / total_val) if total_val > 0 else 0.0
+        if usage_pct >= 1.0: over_budget += 1
+        elif usage_pct >= 0.8: at_risk += 1
+        else: on_track += 1
+
+        top_budgets_list.append({
+            "budget_id": b_id,
+            "name": b_name,
+            "spent_amount": spent_val,
+            "total_amount": total_val,
+            "usage_percentage": usage_pct * 100
+        })
+
+    # Sort top budgets by spend volume
+    top_budgets_list.sort(key=lambda x: x["spent_amount"], reverse=True)
+
+    # Calculate Runway
+    avg_monthly_burn = 0.0
+    if monthly_spends:
+        avg_monthly_burn = sum(monthly_spends.values()) / len(monthly_spends)
+    
+    remaining = total_budget - total_expense
+    runway = 99.0 # Placeholder for infinite
+    if avg_monthly_burn > 0:
+        runway = max(0.0, remaining / avg_monthly_burn)
+    elif remaining <= 0:
+        runway = 0.0
 
     health_score = "On Track"
     if total_budget > 0:
@@ -63,10 +129,19 @@ async def fetch_company_health_data(company_id: str, headers: dict, db_client: A
         "company_id": company_id,
         "total_budget": total_budget,
         "total_expense": total_expense,
-        "remaining": total_budget - total_expense,
+        "remaining": remaining,
         "health_score": health_score,
-        "category_breakdown": list(category_map.values())
+        "category_breakdown": list(category_map.values()),
+        "budget_stats": {
+            "total": len(budgets),
+            "on_track": on_track,
+            "at_risk": at_risk,
+            "over_budget": over_budget
+        },
+        "top_budgets": top_budgets_list[:5],
+        "estimated_runway_months": round(runway, 1)
     }
+
 
 async def fetch_budget_analysis_data(budget_id: str, headers: dict, db_client: AsyncIOMotorClient) -> dict:
     ext_start = time.time()
@@ -132,8 +207,10 @@ async def fetch_budget_analysis_data(budget_id: str, headers: dict, db_client: A
     return {
         "budget_id": budget_id,
         "budget_name": budget.get("name"),
+        "start_date": budget.get("startDate"),
+        "end_date": budget.get("endDate"),
         "total_amount": total_amount,
-        "total_expense": total_expense,
+        "total_spent": total_expense,
         "remaining": total_amount - total_expense,
         "health_score": health_score,
         "category_breakdown": category_breakdown

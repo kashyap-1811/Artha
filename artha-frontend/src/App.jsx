@@ -9,6 +9,9 @@ import CompaniesPage from "./pages/CompaniesPage";
 import ProfilePage from "./pages/ProfilePage";
 import AnalysisPage from "./pages/AnalysisPage";
 import OAuth2CallbackPage from "./pages/OAuth2CallbackPage";
+import PricingPage from "./pages/PricingPage";
+import BlogPage from "./pages/BlogPage";
+import FeaturesPage from "./pages/FeaturesPage";
 import DotBackground from "./components/DotBackground";
 
 function App() {
@@ -16,10 +19,13 @@ function App() {
     <>
       <DotBackground />
       <Routes>
-        {/* Public Route */}
+        {/* Public Routes */}
         <Route path="/" element={<HomePage />} />
         <Route path="/auth" element={<AuthPage />} />
         <Route path="/oauth-callback" element={<OAuth2CallbackPage />} />
+        <Route path="/pricing" element={<PricingPage />} />
+        <Route path="/blog" element={<BlogPage />} />
+        <Route path="/features" element={<FeaturesPage />} />
 
         {/* Authenticated Routes wrapped in Layout */}
         <Route

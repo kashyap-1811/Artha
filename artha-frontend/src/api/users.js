@@ -20,16 +20,27 @@ function getAuthHeaders() {
   return headers;
 }
 
+import { formatFriendlyError } from "../lib/errorParser";
+
 async function parseErrorMessage(response) {
   try {
     const body = await response.json();
-    if (typeof body?.message === "string") return body.message;
-    if (typeof body?.error === "string") return body.error;
-    return `Request failed with status ${response.status}`;
+    
+    // 1. Check for Spring Boot validation 'errors' array
+    if (Array.isArray(body?.errors) && body.errors.length > 0) {
+      return formatFriendlyError(body.errors);
+    }
+
+    const rawError = body?.message || body?.error || `Request failed with status ${response.status}`;
+    return formatFriendlyError(rawError);
   } catch {
-    return `Request failed with status ${response.status}`;
+    if (response.status === 502 || response.status === 503) {
+      return "System is currently starting up or offline. Please wait 10 seconds and try again.";
+    }
+    return formatFriendlyError(`Server connection error (Status ${response.status})`);
   }
 }
+
 
 export async function getUserById(userId) {
   const response = await fetch(`${API_BASE_URL}${USERS_BASE_PATH}/${userId}`, {

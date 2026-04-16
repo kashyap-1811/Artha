@@ -1,0 +1,468 @@
+/* ═══════════════════════════════════════════
+   PRICING PAGE — Premium SaaS Design
+   ═══════════════════════════════════════════ */
+
+.page {
+  min-height: 100vh;
+  background: linear-gradient(160deg, rgba(255,255,255,0.85) 0%, rgba(241,245,249,0.85) 60%, rgba(232,240,254,0.85) 100%);
+  font-family: 'Inter','Outfit',system-ui,sans-serif;
+}
+
+/* ── Hero ── */
+.hero {
+  text-align: center;
+  padding: 5rem 2rem 3rem;
+  max-width: 680px;
+  margin: 0 auto;
+}
+
+.badge {
+  display: inline-block;
+  background: linear-gradient(135deg, #dbeafe, #ede9fe);
+  border: 1px solid #c7d2fe;
+  border-radius: 999px;
+  padding: 0.3rem 1rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #4f46e5;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 1.2rem;
+}
+
+.heroTitle {
+  font-size: clamp(2rem, 4.5vw, 3.2rem);
+  font-weight: 900;
+  color: #0f172a;
+  letter-spacing: -0.035em;
+  line-height: 1.1;
+  margin: 0 0 1rem;
+}
+
+.heroGradient {
+  background: linear-gradient(90deg, #3b82f6, #6366f1);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.heroSub {
+  color: #64748b;
+  font-size: 1.05rem;
+  line-height: 1.65;
+  max-width: 480px;
+  margin: 0 auto 2rem;
+}
+
+/* ── Toggle ── */
+.toggle {
+  display: inline-flex;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  padding: 4px;
+  gap: 2px;
+}
+
+.toggleBtn {
+  border: none;
+  background: transparent;
+  padding: 0.5rem 1.4rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.25s;
+}
+
+.toggleBtn.active {
+  background: #fff;
+  color: #0f172a;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.08);
+  font-weight: 700;
+}
+
+.saveTag {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #10b981;
+  background: #dcfce7;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  margin-left: 0.4rem;
+  vertical-align: middle;
+}
+
+/* ── Tier Cards ── */
+.tiersRow {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+  max-width: 1060px;
+  margin: 3rem auto 0;
+  padding: 0 2rem;
+  align-items: start;
+}
+
+@media (max-width: 860px) {
+  .tiersRow {
+    grid-template-columns: 1fr;
+    max-width: 420px;
+  }
+}
+
+.tierCard {
+  background: rgba(255,255,255,0.75);
+  backdrop-filter: blur(12px);
+  border: 1px solid #e2e8f0;
+  border-radius: 24px;
+  padding: 2rem 1.8rem 2.2rem;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.tierCard:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 20px 48px rgba(15,23,42,0.1);
+}
+
+.tierPopular {
+  border: 2px solid #3b82f6;
+  background: rgba(255,255,255,0.9);
+}
+
+.popularRibbon {
+  position: absolute;
+  top: 16px;
+  right: -32px;
+  background: linear-gradient(135deg, #3b82f6, #4f46e5);
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 0.3rem 2.5rem;
+  transform: rotate(45deg);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  box-shadow: 0 2px 8px rgba(59,130,246,0.3);
+}
+
+.tierIcon {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.tierName {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+  margin: 0 0 0.25rem;
+}
+
+.tierDesc {
+  font-size: 0.85rem;
+  color: #64748b;
+  margin: 0 0 1.2rem;
+  line-height: 1.5;
+}
+
+.tierPrice {
+  display: flex;
+  align-items: baseline;
+  gap: 0.15rem;
+  margin-bottom: 0.2rem;
+}
+
+.priceCurrency {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.priceAmount {
+  font-size: 3rem;
+  font-weight: 900;
+  color: #0f172a;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.pricePeriod {
+  font-size: 0.85rem;
+  color: #94a3b8;
+  font-weight: 500;
+  margin-left: 0.2rem;
+}
+
+.strikePrice {
+  font-size: 0.8rem;
+  color: #94a3b8;
+  text-decoration: line-through;
+  margin-bottom: 1.2rem;
+}
+
+.tierFeatures {
+  list-style: none;
+  padding: 0;
+  margin: 1.5rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.tierFeatures li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  font-size: 0.88rem;
+  color: #334155;
+  line-height: 1.45;
+}
+
+.checkIcon {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 900;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.tierCta {
+  display: block;
+  width: 100%;
+  padding: 0.85rem 0;
+  border-radius: 14px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: center;
+  border: none;
+  transition: all 0.2s;
+  margin-top: 0.5rem;
+}
+
+.ctaPrimary {
+  background: linear-gradient(135deg, #3b82f6, #4f46e5);
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(79,70,229,0.25);
+}
+
+.ctaPrimary:hover {
+  box-shadow: 0 8px 28px rgba(79,70,229,0.35);
+  transform: translateY(-1px);
+}
+
+.ctaOutline {
+  background: #fff;
+  color: #0f172a;
+  border: 1.5px solid #e2e8f0;
+}
+
+.ctaOutline:hover {
+  border-color: #3b82f6;
+  color: #3b82f6;
+}
+
+/* ── Trust Bar ── */
+.trustBar {
+  max-width: 860px;
+  margin: 4rem auto 0;
+  padding: 0 2rem;
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  flex-wrap: wrap;
+}
+
+.trustItem {
+  text-align: center;
+  padding: 1rem 1.5rem;
+  background: rgba(255,255,255,0.6);
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  min-width: 150px;
+}
+
+.trustVal {
+  font-size: 1.6rem;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  margin-bottom: 0.25rem;
+}
+
+.trustLabel {
+  font-size: 0.75rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+/* ── Feature Comparison Table ── */
+.compSection {
+  max-width: 960px;
+  margin: 5rem auto 0;
+  padding: 0 2rem;
+}
+
+.compTitle {
+  text-align: center;
+  font-size: 1.8rem;
+  font-weight: 900;
+  color: #0f172a;
+  letter-spacing: -0.025em;
+  margin-bottom: 0.5rem;
+}
+
+.compSub {
+  text-align: center;
+  color: #64748b;
+  font-size: 0.95rem;
+  margin-bottom: 2.5rem;
+}
+
+.compTable {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: rgba(255,255,255,0.7);
+  backdrop-filter: blur(8px);
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  overflow: hidden;
+}
+
+.compTable th,
+.compTable td {
+  padding: 1rem 1.2rem;
+  text-align: center;
+  font-size: 0.85rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.compTable th:first-child,
+.compTable td:first-child {
+  text-align: left;
+  font-weight: 600;
+  color: #334155;
+}
+
+.compTable thead th {
+  background: #f8fafc;
+  font-weight: 800;
+  color: #0f172a;
+  font-size: 0.9rem;
+  letter-spacing: -0.01em;
+}
+
+.compTable tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.compTable tbody tr:hover {
+  background: rgba(241,245,249,0.5);
+}
+
+.compCheck {
+  color: #10b981;
+  font-weight: 800;
+  font-size: 1.1rem;
+}
+
+.compCross {
+  color: #cbd5e1;
+  font-size: 1.1rem;
+}
+
+/* ── FAQ ── */
+.faqSection {
+  max-width: 700px;
+  margin: 5rem auto;
+  padding: 0 2rem 4rem;
+}
+
+.faqTitle {
+  text-align: center;
+  font-size: 1.8rem;
+  font-weight: 900;
+  color: #0f172a;
+  letter-spacing: -0.025em;
+  margin-bottom: 2rem;
+}
+
+.faqItem {
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  margin-bottom: 0.75rem;
+  background: rgba(255,255,255,0.7);
+  overflow: hidden;
+  transition: box-shadow 0.2s;
+}
+
+.faqItem:hover {
+  box-shadow: 0 4px 16px rgba(0,0,0,0.04);
+}
+
+.faqQuestion {
+  width: 100%;
+  padding: 1.1rem 1.4rem;
+  border: none;
+  background: transparent;
+  text-align: left;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0f172a;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.faqArrow {
+  font-size: 1.1rem;
+  color: #94a3b8;
+  transition: transform 0.3s;
+  flex-shrink: 0;
+}
+
+.faqArrow.open {
+  transform: rotate(180deg);
+}
+
+.faqAnswer {
+  padding: 0 1.4rem 1.2rem;
+  font-size: 0.88rem;
+  color: #64748b;
+  line-height: 1.65;
+}
+
+/* ── Guarantee ── */
+.guaranteeStrip {
+  text-align: center;
+  padding: 2.5rem 2rem;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.guaranteeText {
+  font-size: 0.9rem;
+  color: #64748b;
+  line-height: 1.6;
+}
+
+.guaranteeText strong {
+  color: #0f172a;
+}

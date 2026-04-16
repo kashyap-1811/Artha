@@ -70,6 +70,21 @@ public interface ExpenseRepository extends JpaRepository<Expense, UUID> {
      * Part 2 Optimization: Reduces database round-trips from 4 to 1.
      */
     @Query("""
+        SELECT new com.artha.expense.dto.DailyExpenseDTO(e.spentDate, SUM(e.amount))
+        FROM Expense e
+        WHERE e.companyId = :companyId
+        AND e.spentDate BETWEEN :startDate AND :endDate
+        AND e.status = 'APPROVED'
+        GROUP BY e.spentDate
+        ORDER BY e.spentDate
+    """)
+    List<com.artha.expense.dto.DailyExpenseDTO> getDailySummary(
+            @Param("companyId") String companyId,
+            @Param("startDate") java.time.LocalDate startDate,
+            @Param("endDate") java.time.LocalDate endDate
+    );
+
+    @Query("""
         SELECT new com.artha.expense.dto.BudgetExpenseSummaryResponse(
             e.budgetId,
             COALESCE(SUM(CASE WHEN e.status = 'APPROVED' THEN e.amount ELSE 0 END), 0),

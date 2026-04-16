@@ -16,7 +16,7 @@ router = APIRouter(
 )
 
 @router.get("/company/{company_id}/health", response_model=CompanyHealthResponse)
-@cache_response(ttl=300, key_prefix="company_analysis")
+@cache_response(ttl=300, key_prefix="company_analysis_v4")
 async def get_company_health(company_id: str, request: Request):
     start_time = time.time()
     try:
@@ -52,7 +52,7 @@ async def get_budget_analysis(budget_id: str, request: Request):
         print(f"====== Service Execution Time [Get Budget Analysis]: {int((end_time - start_time) * 1000)}ms ======")
 
 @router.get("/company/{company_id}/active-budget", response_model=ActiveBudgetAnalysisResponse)
-@cache_response(ttl=300, key_prefix="company_analysis")
+@cache_response(ttl=300, key_prefix="company_analysis_v4")
 async def get_active_budget_analysis(company_id: str, request: Request):
     start_time = time.time()
     try:

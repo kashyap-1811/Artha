@@ -20,16 +20,16 @@ function getAuthHeaders() {
     return headers;
 }
 
+import { formatFriendlyError } from "../lib/errorParser";
+
 async function parseErrorMessage(response) {
-    try {
-        const body = await response.json();
-        if (typeof body?.message === "string") return body.message;
-        if (typeof body?.error === "string") return body.error;
-        if (typeof body?.detail === "string") return body.detail; // FastAPI convention
-        return `Request failed with status ${response.status}`;
-    } catch {
-        return `Request failed with status ${response.status}`;
-    }
+  try {
+    const body = await response.json();
+    const rawError = body?.message || body?.error || body?.detail || `Request failed with status ${response.status}`;
+    return formatFriendlyError(rawError);
+  } catch {
+    return formatFriendlyError(`Request failed with status ${response.status}`);
+  }
 }
 
 export async function getCompanyHealth(companyId) {

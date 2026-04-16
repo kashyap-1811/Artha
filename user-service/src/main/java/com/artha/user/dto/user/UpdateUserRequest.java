@@ -6,4 +6,7 @@ import lombok.Data;
 public class UpdateUserRequest {
     private String fullName;
     private boolean active;
+    private String phoneNumber;
+    private String bio;
+    private String jobTitle;
 }

@@ -66,6 +66,10 @@ public class BudgetServiceImpl implements BudgetService {
         authorizationService.checkPermission(userId, companyId, Action.CREATE_BUDGET);
 
         // Validations
+        if (endDate.isBefore(LocalDate.now())) {
+            throw new IllegalArgumentException("Budget end date cannot be in the past");
+        }
+
         if (startDate.isAfter(endDate)) {
             throw new IllegalArgumentException("Start date cannot be after end date");
         }
@@ -359,6 +363,10 @@ public class BudgetServiceImpl implements BudgetService {
 
         if (request.getTotalAmount().compareTo(totalAllocated) < 0) {
             throw new RuntimeException("Total budget cannot be less than allocated amount");
+        }
+
+        if (request.getEndDate().isBefore(LocalDate.now())) {
+            throw new IllegalArgumentException("Budget end date cannot be in the past");
         }
 
         budget.setName(request.getName());

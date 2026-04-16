@@ -1,12 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useLocation, useNavigate, useParams, NavLink } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Building2, Users, Wallet, Archive, LayoutDashboard, PieChart, DollarSign, Activity, Settings, Menu, X, ArrowUpRight, Plus, AlertTriangle, Edit3, Trash, Trash2, Star, CreditCard, BookOpen
+  Building2, Users, Wallet, Archive, LayoutDashboard, PieChart, DollarSign, Activity, Settings, Menu, X, ArrowUpRight, Plus, AlertTriangle, Edit3, Trash, Trash2, Star, CreditCard, BookOpen, MoreHorizontal, Receipt
 } from "lucide-react";
 import ConfirmModal from "../components/ConfirmModal";
+import AppSidebar from "../components/AppSidebar";
 import { createAllocation, getBudgetDetails, removeAllocation, updateAllocation } from "../api/budgets";
+
 import { getExpensesByBudget, createExpense, approveExpense, rejectExpense } from "../api/expenses";
 import styles from "./DashboardPage.module.css";
 
@@ -33,6 +35,52 @@ function statusBg(status) {
   return '#f9731622'; // PENDING
 }
 
+// --- Helper Hook & Component for Animations ---
+function useCountUp(end, duration = 1200) {
+  const [count, setCount] = useState(0);
+  const rafRef = useRef(null);
+
+  useEffect(() => {
+    if (typeof end !== 'number' || isNaN(end) || end === 0) { setCount(end || 0); return; }
+    const startTime = performance.now();
+    const step = (now) => {
+      const progress = Math.min((now - startTime) / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setCount(end * eased);
+      if (progress < 1) {
+        rafRef.current = requestAnimationFrame(step);
+      }
+    };
+    rafRef.current = requestAnimationFrame(step);
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
+  }, [end, duration]);
+
+  return count;
+}
+
+function AnimatedValue({ value, prefix = "", suffix = "", decimals }) {
+  const strVal = String(value || 0).replace(/[₹,]/g, '');
+  const hasDecimals = strVal.includes('.');
+  const detectedDecimals = hasDecimals ? strVal.split('.')[1].length : 0;
+  const decimalCount = decimals !== undefined ? decimals : (prefix === '₹' ? 2 : detectedDecimals);
+  const numericVal = parseFloat(strVal);
+
+  const animated = useCountUp(isNaN(numericVal) ? 0 : numericVal);
+
+  if (isNaN(numericVal)) return <>{value}</>;
+
+  return (
+    <>
+      {prefix}
+      {animated.toLocaleString(undefined, { 
+        minimumFractionDigits: decimalCount, 
+        maximumFractionDigits: decimalCount 
+      })}
+      {suffix}
+    </>
+  );
+}
+
 // --- Helper UI Components ---
 function StatCard({ icon: Icon, label, value, colorClass, badge }) {
   return (
@@ -51,23 +99,20 @@ function StatCard({ icon: Icon, label, value, colorClass, badge }) {
         {badge && <span className={styles.cardBadge}>{badge}</span>}
       </div>
       <p className={styles.statLabel}>{label}</p>
-      <p className={styles.statValue}>{value}</p>
+      <div className={styles.statValue}>
+        {typeof value === 'string' && value.includes('₹') ? (
+          <AnimatedValue value={value.replace('₹', '')} prefix="₹" />
+        ) : (typeof value === 'number' || (typeof value === 'string' && !isNaN(parseFloat(value)))) ? (
+          <AnimatedValue value={value} />
+        ) : (
+          value
+        )}
+      </div>
     </motion.div>
   );
 }
 
-function SideNavItem({ icon: Icon, label, to, onClick }) {
-  return (
-    <NavLink
-      to={to}
-      className={({ isActive }) => `${styles.sideNavItem} ${isActive ? styles.sideNavActive : ""}`}
-      onClick={onClick}
-    >
-      <Icon size={18} />
-      <span>{label}</span>
-    </NavLink>
-  );
-}
+
 
 export default function BudgetPage() {
   const navigate = useNavigate();
@@ -82,6 +127,11 @@ export default function BudgetPage() {
   const [expenseError, setExpenseError] = useState("");
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [expandedAllocations, setExpandedAllocations] = useState({});
+
+  const toggleAllocation = (id) => {
+    setExpandedAllocations(prev => ({ ...prev, [id]: !prev[id] }));
+  };
 
   // ── Allocation creation ──────────────────────────────────────
   const [isCreating, setIsCreating] = useState(false);
@@ -318,50 +368,30 @@ export default function BudgetPage() {
   const totalAllocatedAmount = allocations.reduce((sum, a) => sum + Number(a.allocatedAmount), 0);
   const totalApprovedSpent = expenses.filter(e => e.status === 'APPROVED').reduce((sum, e) => sum + Number(e.amount), 0);
 
-  const sideNavLinks = [
-    { icon: LayoutDashboard, label: "Dashboard", to: "/dashboard" },
-    { icon: Building2,       label: "Companies",  to: "/companies" },
-      { icon: Star, label: "Features", to: "/features" },
-    { icon: CreditCard, label: "Pricing", to: "/pricing" },
-    { icon: BookOpen, label: "Blog", to: "/blog" },
-  ];
+
+
+    const selectedAllocationForExpense = allocations.find(a => a.id === expenseAllocationId);
+    const allocationExpensesForCoach = expensesByAllocation[expenseAllocationId] || [];
+    const coachSpent = allocationExpensesForCoach
+      .filter(e => e.status === 'APPROVED')
+      .reduce((sum, e) => sum + Number(e.amount), 0);
+    const coachPct = selectedAllocationForExpense?.allocatedAmount > 0
+      ? (coachSpent / Number(selectedAllocationForExpense.allocatedAmount)) * 100
+      : 0;
+
+    let coachMsg = { text: "Keep tracking your spending!", color: "#64748b", bg: "#f8fafc", icon: Activity };
+    if (coachPct >= 80) {
+      coachMsg = { text: "CRITICAL: You're almost out of budget! Control your money wisely. 🛑", color: "#991b1b", bg: "#fef2f2", icon: AlertTriangle };
+    } else if (coachPct >= 50) {
+      coachMsg = { text: "CAUTION: Budget is getting tight. Spend only if necessary. ⚠️", color: "#92400e", bg: "#fffbeb", icon: AlertTriangle };
+    } else {
+      coachMsg = { text: "CHILL: You're doing great! Plenty of room left in this category. 🌴", color: "#166534", bg: "#f0fdf4", icon: Star };
+    }
 
   return (
-    <div className={styles.appShell}>
-      {/* ═══ LEFT SIDEBAR ═══ */}
-      <>
-        <AnimatePresence>
-          {sidebarOpen && (
-            <motion.div className={styles.sidebarBackdrop}
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={() => setSidebarOpen(false)} />
-          )}
-        </AnimatePresence>
-        <aside className={`${styles.sidebar} ${sidebarOpen ? styles.sidebarOpen : ""}`}>
-          <div className={styles.sidebarBrand}>
-            <NavLink to="/" className={styles.brandLink}>
-              <img src="/logo2.svg" alt="Artha Logo" className={styles.brandLogo} />
-              <span className={styles.brandText}>Artha</span>
-            </NavLink>
-            <button type="button" className={styles.sidebarCloseBtn} onClick={() => setSidebarOpen(false)}>
-              <X size={18} />
-            </button>
-          </div>
-          <nav className={styles.sideNav}>
-            {sideNavLinks.map((link) => (
-              <SideNavItem key={link.label} {...link} onClick={() => setSidebarOpen(false)} />
-            ))}
-          </nav>
-          <div className={styles.sidebarBottom}>
-            <SideNavItem icon={Settings} label="Settings" to="/profile" onClick={() => setSidebarOpen(false)} />
-          </div>
-        </aside>
-      </>
-
-      {/* ═══ MAIN CONTENT ═══ */}
-      <main className={styles.mainContent}>
-        {/* Top bar */}
-        <div className={styles.topBar}>
+    <AppSidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen}>
+      {/* Top bar */}
+      <div className={styles.topBar}>
           <button type="button" className={styles.hamburger} onClick={() => setSidebarOpen(true)}>
             <Menu size={22} />
           </button>
@@ -421,12 +451,14 @@ export default function BudgetPage() {
                 {[1, 2].map((i) => <div key={i} className={styles.skeleton} />)}
               </div>
             ) : allocations.length === 0 ? (
-              <div className={styles.emptyState}>
-                <PieChart size={38} className={styles.emptyIcon} style={{ opacity: 0.5 }}/>
-                <p>No allocations yet. Create one to start tracking spending!</p>
-              </div>
+              <div className={styles.emptyState}>No allocations found.</div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', 
+                gap: '1.5rem',
+                alignItems: 'start'
+              }}>
                 {allocations.map(allocation => {
                   const allocationExpenses = expensesByAllocation[allocation.id] || [];
                   const totalSpent = allocationExpenses
@@ -435,150 +467,176 @@ export default function BudgetPage() {
                   const spentPct = allocation.allocatedAmount > 0
                     ? Math.min(100, (totalSpent / Number(allocation.allocatedAmount)) * 100)
                     : 0;
+                  
+                  // Status color for the vault
+                  const burnStatus = spentPct >= 100 ? '#ef4444' : (spentPct >= 80 ? '#f97316' : '#10b981');
 
                   return (
-                    <motion.section
+                    <motion.div
                       key={allocation.id}
-                      initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-                      style={{
-                        background: 'var(--surface)',
-                        borderRadius: '12px',
-                        border: '1px solid var(--edge)',
-                        padding: '1.25rem'
-                      }}
+                      className={styles.vaultCard}
+                      initial={{ opacity: 0, scale: 0.98 }}
+                      animate={{ opacity: 1, scale: 1 }}
                     >
-                      {/* Allocation Header */}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-                        <div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-main)' }}>{allocation.categoryName}</h3>
-                            {isPrivileged && (
-                              <div style={{ display: 'flex', gap: '0.3rem' }}>
-                                <button
-                                  style={{ border: '1px solid var(--edge)', background: 'var(--surface-hover)', borderRadius: '4px', cursor: 'pointer', padding: '0.15rem 0.4rem', fontSize: '0.7rem', display: 'flex', alignItems: 'center', color: 'var(--text-main)' }}
-                                  onClick={() => openEditAllocation(allocation)}
-                                >
-                                  <Edit3 size={11} style={{ marginRight: '2px' }}/> Edit
-                                </button>
-                                <button
-                                  style={{ border: '1px solid #fca5a5', background: '#fef2f2', borderRadius: '4px', cursor: 'pointer', padding: '0.15rem 0.4rem', fontSize: '0.7rem', display: 'flex', alignItems: 'center', color: '#ef4444' }}
-                                  onClick={() => handleDeleteAllocation(allocation.id)}
-                                >
-                                  <Trash2 size={11} style={{ marginRight: '2px' }}/> Del
-                                </button>
-                              </div>
-                            )}
+                      <div className={styles.vaultHeader}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                          <div style={{ 
+                            width: '40px', height: '40px', borderRadius: '12px', background: `${burnStatus}15`, 
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', color: burnStatus 
+                          }}>
+                            <PieChart size={20} />
                           </div>
-                          <p style={{ margin: '0.3rem 0 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                            Max Limit: <strong>₹{formatAmount(allocation.allocatedAmount)}</strong> &nbsp;·&nbsp; Alert Warning at <strong>{allocation.alertThreshold}%</strong>
-                          </p>
+                          <div>
+                            <h3 className={styles.vaultTitle}>{allocation.categoryName}</h3>
+                          </div>
                         </div>
-                        {!isViewer && (
-                          <button
-                            style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', background: 'var(--surface-hover)', border: '1px solid var(--edge)', color: 'var(--text-main)', padding: '0.4rem 0.8rem', borderRadius: 'var(--radius-sm)', fontWeight: '600', cursor: 'pointer', fontSize: '0.8rem' }}
-                            onClick={() => openAddExpense(allocation)}
-                            type="button"
-                          >
-                            <Plus size={14} /> Add Expense
-                          </button>
+
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          {!isViewer && (
+                            <button
+                              className={styles.miniActionBtn}
+                              style={{ padding: '0.5rem 0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+                              onClick={() => openAddExpense(allocation)}
+                            >
+                              <Plus size={14} /> Add
+                            </button>
+                          )}
+                          {isPrivileged && (
+                            <div style={{ position: 'relative' }}>
+                              <button 
+                                className={styles.miniActionBtn} 
+                                style={{ padding: '0.5rem' }}
+                                onClick={(e) => {
+                                  // Simple toggle logic or just trigger edit for now
+                                  openEditAllocation(allocation);
+                                }}
+                              >
+                                <MoreHorizontal size={14} />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className={styles.vaultStats}>
+                        <span className={styles.vaultAmount}>
+                          <AnimatedValue value={totalSpent} prefix="₹" />
+                        </span>
+                        <span className={styles.vaultLimit} style={{ fontSize: '1.1rem', alignSelf: 'baseline' }}>
+                          / <AnimatedValue value={allocation.allocatedAmount} prefix="₹" />
+                        </span>
+                        <span style={{ fontSize: '0.8rem', color: '#94a3b8', fontWeight: 600, marginLeft: '0.25rem' }}>utilized</span>
+                      </div>
+
+                      <div className={styles.burnBarContainer}>
+                        <div 
+                          className={styles.burnBar} 
+                          style={{ 
+                            width: `${spentPct}%`, 
+                            background: `linear-gradient(90deg, ${burnStatus}aa, ${burnStatus})`,
+                            boxShadow: `0 0 12px ${burnStatus}33`
+                          }} 
+                        />
+                      </div>
+
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                        <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 700 }}>
+                          THRESHOLD ALERT AT {allocation.alertThreshold}%
+                        </span>
+                        <span className={styles.statusChip} style={{ background: `${burnStatus}15`, color: burnStatus }}>
+                          <AnimatedValue value={spentPct} suffix="% Burned" />
+                        </span>
+                      </div>
+
+                      {/* Expense Ledger */}
+                      <div style={{ marginTop: '1.5rem', flex: 1, display: 'flex', flexDirection: 'column' }}>
+                        <h4 style={{ fontSize: '0.7rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.75rem', letterSpacing: '0.05em' }}>
+                          Recent Transactions
+                        </h4>
+                        
+                        {allocationExpenses.length === 0 ? (
+                          <div className={styles.emptyStateWrap}>
+                            <Archive size={32} className={styles.emptyStateIcon} />
+                            <p className={styles.emptyStateText}>
+                              Quiet period. <br/> 
+                              Recording your first entry?
+                            </p>
+                          </div>
+                        ) : (
+                          <>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                              {allocationExpenses.slice(0, expandedAllocations[allocation.id] ? undefined : 3).map(expense => (
+                                <div key={expense.id} className={styles.ledgerRow}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1, minWidth: 0 }}>
+                                    <div style={{ 
+                                      width: '32px', height: '32px', borderRadius: '8px', background: '#f8fafc', 
+                                      display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' 
+                                    }}>
+                                      <Receipt size={14} />
+                                    </div>
+                                    <div style={{ minWidth: 0 }}>
+                                      <p className={styles.expTitle} title={expense.reference}>{expense.reference}</p>
+                                      <p className={styles.expMeta}>{expense.spentDate} · {expense.type}</p>
+                                    </div>
+                                  </div>
+
+                                  <div style={{ textAlign: 'right', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                                      <span style={{ fontWeight: 800, fontSize: '0.9rem', color: '#0f172a' }}>₹{formatAmount(expense.amount)}</span>
+                                      <span className={styles.statusChip} style={{ 
+                                        background: statusBg(expense.status), 
+                                        color: statusColor(expense.status),
+                                        marginTop: '2px',
+                                        fontSize: '0.6rem'
+                                      }}>
+                                        {expense.status}
+                                      </span>
+                                    </div>
+                                    
+                                    {(!expense.status || expense.status === 'PENDING') && isPrivileged && (
+                                      <div style={{ display: 'flex', gap: '0.25rem' }}>
+                                        <button
+                                          type="button"
+                                          className={styles.miniActionBtn}
+                                          style={{ color: '#16a34a', borderColor: '#86efac', background: '#f0fdf4', fontSize: '0.65rem' }}
+                                          onClick={() => handleApproveExpense(expense.id)}
+                                        >
+                                          Approve
+                                        </button>
+                                        <button
+                                          type="button"
+                                          className={styles.miniActionBtn}
+                                          style={{ color: '#dc2626', borderColor: '#fca5a5', background: '#fef2f2', fontSize: '0.65rem' }}
+                                          onClick={() => handleRejectExpense(expense.id)}
+                                        >
+                                          Reject
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+
+                            {allocationExpenses.length > 3 && (
+                              <button 
+                                className={styles.viewAllBtn}
+                                onClick={() => toggleAllocation(allocation.id)}
+                              >
+                                {expandedAllocations[allocation.id] ? "View Less" : `View All (${allocationExpenses.length})`}
+                              </button>
+                            )}
+                          </>
                         )}
                       </div>
-
-                      {/* Spend Progress Bar */}
-                      <div style={{ background: 'var(--edge)', borderRadius: '6px', height: '10px', marginBottom: '0.5rem', overflow: 'hidden' }}>
-                        <div style={{
-                          height: '100%',
-                          width: `${spentPct}%`,
-                          background: spentPct >= 80 ? '#ef4444' : (spentPct > 50 ? '#f97316' : '#22c55e'),
-                          borderRadius: '6px',
-                          transition: 'width 0.4s ease',
-                          minWidth: spentPct > 0 ? '4px' : '0'
-                        }} />
-                      </div>
-                      <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '1.25rem', fontWeight: 500 }}>
-                        <span style={{ color: 'var(--text-main)', fontWeight: 600 }}>₹{formatAmount(totalSpent)}</span> of ₹{formatAmount(allocation.allocatedAmount)} approved &nbsp;·&nbsp; <strong style={{ color: spentPct >= 80 ? '#ef4444' : (spentPct > 50 ? '#f97316' : '#22c55e') }}>{Math.round(spentPct)}% Utilized</strong>
-                      </p>
-
-                      {/* Expense List inside Allocation */}
-                      {allocationExpenses.length === 0 ? (
-                        <div style={{ background: 'var(--surface-hover)', border: '1px dashed var(--edge)', padding: '1rem', borderRadius: '8px', textAlign: 'center', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                           No expenses recorded for this category yet.
-                        </div>
-                      ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                          {allocationExpenses.map(expense => (
-                            <div
-                              key={expense.id}
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                background: 'var(--surface-hover)',
-                                border: '1px solid var(--edge)',
-                                borderRadius: '8px',
-                                padding: '0.75rem 1rem',
-                                transition: 'transform 0.2s',
-                              }}
-                            >
-                              <div style={{ flex: 1, minWidth: 0 }}>
-                                <p style={{ margin: 0, fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                  {expense.reference}
-                                </p>
-                                <p style={{ margin: '0.2rem 0 0', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500 }}>
-                                  {expense.spentDate} &nbsp;·&nbsp; {expense.type}
-                                </p>
-                              </div>
-                              
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-                                  <span style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-main)' }}>
-                                    ₹{formatAmount(expense.amount)}
-                                  </span>
-                                  <span style={{
-                                    fontSize: '0.65rem',
-                                    fontWeight: 700,
-                                    marginTop: '0.2rem',
-                                    padding: '0.15rem 0.5rem',
-                                    borderRadius: '12px',
-                                    background: statusBg(expense.status),
-                                    color: statusColor(expense.status),
-                                    letterSpacing: '0.5px'
-                                  }}>
-                                    {(expense.status || "PENDING").toUpperCase()}
-                                  </span>
-                                </div>
-                                
-                                {(!expense.status || expense.status === 'PENDING') && isPrivileged && (
-                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', marginLeft: '0.5rem' }}>
-                                    <button
-                                      type="button"
-                                      style={{ fontSize: '0.7rem', padding: '0.2rem 0.6rem', borderRadius: '4px', border: '1px solid #86efac', background: '#dcfce7', color: '#166534', cursor: 'pointer', fontWeight: 600 }}
-                                      onClick={() => handleApproveExpense(expense.id)}
-                                    >
-                                      Approve
-                                    </button>
-                                    <button
-                                      type="button"
-                                      style={{ fontSize: '0.7rem', padding: '0.2rem 0.6rem', borderRadius: '4px', border: '1px solid #fca5a5', background: '#fee2e2', color: '#991b1b', cursor: 'pointer', fontWeight: 600 }}
-                                      onClick={() => handleRejectExpense(expense.id)}
-                                    >
-                                      Reject
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </motion.section>
+                    </motion.div>
                   );
-                })}
+                                })}
               </div>
             )}
           </motion.div>
         </div>
-      </main>
+
 
       {/* CONFIRM MODAL */}
       <ConfirmModal
@@ -598,6 +656,23 @@ export default function BudgetPage() {
               <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>New Allocation</h3>
               <button className="create-modal-close" onClick={() => setShowCreate(false)} type="button">×</button>
             </div>
+            
+            <div style={{ 
+              background: 'var(--surface-hover)', 
+              border: '1px solid var(--edge)', 
+              borderRadius: '12px', 
+              padding: '1rem', 
+              marginBottom: '1.5rem',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600 }}>AVAILABLE TO ALLOCATE</span>
+              <span style={{ fontSize: '1.1rem', fontWeight: 800, color: (totalBudgetAmount - totalAllocatedAmount) >= 0 ? 'var(--accent)' : '#ef4444' }}>
+                ₹{formatAmount(Math.max(0, totalBudgetAmount - totalAllocatedAmount))}
+              </span>
+            </div>
+
             <form className="create-modal-form" onSubmit={handleCreateAllocation}>
               {allocError && (
                 <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '8px', padding: '0.6rem 0.85rem', marginBottom: '0.75rem', color: '#dc2626', fontSize: '0.85rem', fontWeight: 500 }}>
@@ -634,6 +709,23 @@ export default function BudgetPage() {
               <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Add Expense — <span style={{ color: 'var(--accent)' }}>{expenseAllocationName}</span></h3>
               <button className="create-modal-close" onClick={() => setShowCreateExpense(false)} type="button">×</button>
             </div>
+
+            <div style={{ 
+              background: coachMsg.bg, 
+              border: `1px solid ${coachMsg.color}22`, 
+              borderRadius: '12px', 
+              padding: '1rem', 
+              marginBottom: '1.5rem',
+              display: 'flex',
+              gap: '0.75rem',
+              alignItems: 'center'
+            }}>
+              <coachMsg.icon size={20} style={{ color: coachMsg.color, flexShrink: 0 }} />
+              <p style={{ margin: 0, fontSize: '0.85rem', color: coachMsg.color, fontWeight: 700, lineHeight: 1.4 }}>
+                {coachMsg.text}
+              </p>
+            </div>
+
             <form className="create-modal-form" onSubmit={handleCreateExpense}>
               {expenseError && (
                 <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '8px', padding: '0.6rem 0.85rem', marginBottom: '0.75rem', color: '#dc2626', fontSize: '0.85rem', fontWeight: 500 }}>
@@ -652,9 +744,24 @@ export default function BudgetPage() {
                 <span className="field-label">Date of expense</span>
                 <input type="date" value={expenseDate} onChange={e => setExpenseDate(e.target.value)} required />
               </label>
+              
+              <div style={{ 
+                margin: '0.5rem 0 1.25rem', 
+                fontSize: '0.75rem', 
+                color: 'var(--text-muted)', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                gap: '6px',
+                fontWeight: 500 
+              }}>
+                <AlertTriangle size={14} style={{ color: '#f97316', flexShrink: 0 }} />
+                <span>Once submitted, this expense cannot be edited or deleted.</span>
+              </div>
+
               <div className="create-modal-actions">
                 <button className="create-cancel-btn" onClick={() => setShowCreateExpense(false)} type="button">Cancel</button>
-                <button className="create-confirm-btn" type="submit" disabled={isCreatingExpense}>{isCreatingExpense ? "Adding…" : "Submit Expense"}</button>
+                <button className="create-confirm-btn" type="submit" disabled={isCreatingExpense}>{isCreatingExpense ? "Adding…" : "Add Expense"}</button>
               </div>
             </form>
           </section>
@@ -670,6 +777,23 @@ export default function BudgetPage() {
               <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>Edit Allocation</h3>
               <button className="create-modal-close" onClick={() => setShowEditAllocation(false)} type="button">×</button>
             </div>
+
+            <div style={{ 
+              background: 'var(--surface-hover)', 
+              border: '1px solid var(--edge)', 
+              borderRadius: '12px', 
+              padding: '1rem', 
+              marginBottom: '1.5rem',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600 }}>REMAINING BUDGET POOL</span>
+              <span style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--accent)' }}>
+                ₹{formatAmount(totalBudgetAmount - (totalAllocatedAmount - (allocations.find(a => a.id === editingAllocationId)?.allocatedAmount || 0)))}
+              </span>
+            </div>
+
             <form className="create-modal-form" onSubmit={handleUpdateAllocation}>
               {allocError && (
                 <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '8px', padding: '0.6rem 0.85rem', marginBottom: '0.75rem', color: '#dc2626', fontSize: '0.85rem', fontWeight: 500 }}>
@@ -697,6 +821,6 @@ export default function BudgetPage() {
         </div>,
         document.body
       )}
-    </div>
+    </AppSidebar>
   );
 }

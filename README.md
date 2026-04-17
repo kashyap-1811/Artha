@@ -156,7 +156,7 @@ All Java/Spring Boot services register with the Eureka service registry. The Pyt
 
 All Docker-based runtime configuration is managed through the root `.env` file.
 
-1. Copy `.env.example` to `.env`.
+1. Copy `.env.example` to `.env` in each service as well as at root level.
 2. Fill in all required values (database URLs, JWT, OAuth, MongoDB, SMTP).
 3. Keep `.env` out of version control.
 
@@ -166,18 +166,12 @@ All Docker-based runtime configuration is managed through the root `.env` file.
 
 Two Docker Compose files are provided for different use cases:
 
-| File | Purpose |
+| File | Command to run |
 |---|---|
-| `docker-compose.yml` | **Production deployment** — all application services behind an Nginx reverse proxy (ports 80 & 443); connects to cloud-managed Kafka (SSL) and Redis (TLS); SSL certificates mounted from host (`/etc/letsencrypt`) |
-| `docker-compose.infra.yml` | **Local dev infrastructure** — Redis, Zookeeper, Kafka, Kafka UI, Redis Insight (no application services) |
+| `docker-compose.yml` | **Production deployment** — *docker compose up -d* |
+| `docker-compose.infra.yml` | **Local dev infrastructure** — *docker compose -f docker-compose.infra.yml up -d* | Redis, Zookeeper, Kafka, Kafka UI, Redis Insight (no application services) |
 
 > **Note:** Each backend service uses its own PostgreSQL database. No local Postgres container is created. Service-to-service communication uses the internal `artha-net` Docker bridge network.
-
-### Production Deployment (`docker-compose.yml`)
-
-The live deployment runs on **DigitalOcean** with HTTPS enabled via Let's Encrypt SSL certificates. The React frontend is served at your frontend domain and the API is exposed at your API domain.
-
-**Prerequisites:** Cloud-managed Kafka (e.g., Confluent Cloud) with SSL certificate files, a cloud-managed Redis instance (e.g., Redis Cloud), and a domain name with DNS pointing to your server.
 
 **1. Create and populate the `.env` file:**
 
@@ -198,6 +192,7 @@ mkdir certs
 cp /path/to/client.truststore.jks certs/
 cp /path/to/client.keystore.p12   certs/
 ```
+
 
 **3. Obtain SSL certificates with Certbot** (first-time setup):
 

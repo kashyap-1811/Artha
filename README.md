@@ -15,6 +15,9 @@
 - [Services](#services)
 - [Getting Started](#getting-started)
 - [Run with Docker Compose](#run-with-docker-compose)
+- [Manual / Local Development Setup](#manual--local-development-setup)
+- [Distributed Running](#distributed-running-multiple-machines-on-the-same-network)
+- [Running on the Same Machine / Sharing Across the Network](#running-on-the-same-machine--sharing-across-the-network)
 - [Event-Driven Flow](#event-driven-flow)
 - [Implementation Deep-Dives](#implementation-deep-dives)
 - [⚡ Optimization & Refactoring](#-optimization--refactoring)
@@ -106,8 +109,8 @@ All Java/Spring Boot services register with the Eureka service registry. The Pyt
 | API Gateway | Spring Cloud Gateway, Redis (rate limiting) |
 | Security | Spring Security, JWT (jjwt 0.12.6), OAuth 2.0 (Google) |
 | Relational Database | PostgreSQL (via Spring Data JPA / Neon) |
-| NoSQL / Cache | MongoDB Atlas (Motor async driver), Redis (Spring Cache — expense & budget services) |
-| Message Broker | Apache Kafka 7.8.0 + Zookeeper |
+| NoSQL / Cache | MongoDB Atlas (Motor async driver), Redis — **Upstash** (cloud-managed, Spring Cache — expense & budget services) |
+| Message Broker | Apache Kafka — **Aiven** (cloud-managed) |
 | Data Processing | Pandas, NumPy (Python analysis engine) |
 | Observability | Spring Boot Actuator, Kafka UI |
 | Containerization | Docker, Docker Compose (multi-stage builds) |
@@ -164,93 +167,46 @@ All Docker-based runtime configuration is managed through the root `.env` file.
 
 ## Run with Docker Compose
 
-Two Docker Compose files are provided for different use cases:
+Two Docker Compose files are provided:
 
-| File | Purpose |
+| File | Command |
 |---|---|
-| `docker-compose.yml` | **Production deployment** — all application services behind an Nginx reverse proxy (ports 80 & 443); connects to cloud-managed Kafka (SSL) and Redis (TLS); SSL certificates mounted from host (`/etc/letsencrypt`) |
-| `docker-compose.infra.yml` | **Local dev infrastructure** — Redis, Zookeeper, Kafka, Kafka UI, Redis Insight (no application services) |
+| `docker-compose.yml` | `docker compose up --build` |
+| `docker-compose.infra.yml` | `docker compose -f docker-compose.infra.yml up -d` |
 
-> **Note:** Each backend service uses its own PostgreSQL database. No local Postgres container is created. Service-to-service communication uses the internal `artha-net` Docker bridge network.
+> **Note:** Both files need to be started — `docker-compose.infra.yml` brings up the local infrastructure (Redis, Kafka, Zookeeper, Kafka UI), and `docker-compose.yml` brings up all application services behind Nginx.
 
-### Production Deployment (`docker-compose.yml`)
+### Steps
 
-The live deployment runs on **DigitalOcean** with HTTPS enabled via Let's Encrypt SSL certificates. The React frontend is served at your frontend domain and the API is exposed at your API domain.
-
-**Prerequisites:** Cloud-managed Kafka (e.g., Confluent Cloud) with SSL certificate files, a cloud-managed Redis instance (e.g., Redis Cloud), and a domain name with DNS pointing to your server.
-
-**1. Create and populate the `.env` file:**
+**1. Set up environment variables:**
 
 ```bash
 cp .env.example .env
 ```
 
-Fill in all required values — database URLs, JWT secret, OAuth credentials, MongoDB URIs, SendGrid key, and cloud Kafka/Redis connection details. Key variables:
+Fill in all required values (database URLs, JWT secret, OAuth credentials, MongoDB URIs, SendGrid key, Kafka bootstrap servers, Redis URL).
 
-- **`SERVER_IP`** — your server's public IP, used for Eureka instance IDs.
-- **`KAFKA_BOOTSTRAP_SERVERS`** — your cloud Kafka broker address (e.g., `pkc-xxx.region.confluent.cloud:9092`).
-- **`ALLOWED_ORIGINS`** — comma-separated CORS origins for the API Gateway (e.g., `https://your_frontend_url,https://your_backend_url`).
-
-**2. Place Kafka SSL certificates** in `./certs/` (gitignored, never commit these):
+**2. Create Nginx config from the Docker template:**
 
 ```bash
-mkdir certs
-cp /path/to/client.truststore.jks certs/
-cp /path/to/client.keystore.p12   certs/
+cp nginx/nginx.conf.example.docker nginx/nginx.conf
 ```
 
-**3. Obtain SSL certificates with Certbot** (first-time setup):
-
-```bash
-# Install Certbot on the server and obtain a certificate for your domain
-certbot certonly --standalone -d your_backend_url
-```
-
-Nginx mounts `/etc/letsencrypt` from the host and serves the certificates at runtime. A `/.well-known/acme-challenge/` location is already configured for automatic renewal.
-
-**4. Build and start the stack:**
-
-```bash
-docker compose up --build
-```
-
-All containers start in dependency order behind Nginx. The stack is ready when Eureka registration messages appear for each service.
-
-| Container | Access |
-|---|---|
-| `nginx` (reverse proxy) | http://your-server-ip (port 80) — redirects to HTTPS |
-| `nginx` (HTTPS) | https://your_backend_url (port 443) — TLS 1.2/1.3 with Let's Encrypt |
-| `service-registry` | Internal only — `docker compose exec service-registry curl localhost:8761` |
-| `api-gateway` | Internal only — routed via Nginx |
-| `user-service` | Internal only |
-| `budget-service` | Internal only |
-| `expense-service` | Internal only |
-| `analysis-service` | Internal only |
-| `notification-service` | Internal only |
-
-To stop all containers:
-
-```bash
-docker compose down
-```
-
-### Infrastructure Only (for local development)
-
-Spin up Kafka, Redis, and their admin UIs while running the application services natively with hot-reload:
+**3. Build and start the full stack:**
 
 ```bash
 docker compose -f docker-compose.infra.yml up -d
+docker compose up --build
 ```
 
-This starts:
+The stack is ready when Eureka registration messages appear for each service.
 
-| Container | URL |
-|---|---|
-| `redis` | localhost:6379 |
-| `redis-insight` | http://localhost:8087 |
-| `zookeeper` | localhost:2181 |
-| `kafka` | localhost:9092 |
-| `kafka-ui` | http://localhost:8085 |
+To stop:
+
+```bash
+docker compose down
+docker compose -f docker-compose.infra.yml down
+```
 
 ---
 
@@ -262,14 +218,32 @@ This starts:
 docker compose -f docker-compose.infra.yml up -d
 ```
 
-### 2. Start the Service Registry
+### 2. Set up and Start Nginx
+
+Copy the local Nginx config template:
+
+```bash
+cp nginx/nginx.local.conf.example nginx/nginx.local.conf
+```
+
+Run Nginx in a separate Docker container using this local config:
+
+```bash
+docker run -d --name artha-nginx \
+  -p 80:80 \
+  -v $(pwd)/nginx/nginx.local.conf:/etc/nginx/nginx.conf:ro \
+  --network host \
+  nginx:alpine
+```
+
+### 3. Start the Service Registry
 
 ```bash
 cd service-registry
 ./mvnw spring-boot:run
 ```
 
-### 3. Start the Java Backend Services
+### 4. Start the Java Backend Services
 
 Start each of the following in separate terminals (in any order after the registry is up):
 
@@ -282,7 +256,7 @@ cd expense      && ./mvnw spring-boot:run
 
 > Configure your PostgreSQL connection details in each service's `src/main/resources/application.properties` (or `application.yml`) before starting.
 
-### 4. Start the Analysis Service (Python / FastAPI)
+### 5. Start the Analysis Service (Python / FastAPI)
 
 ```bash
 cd analysis-service
@@ -295,7 +269,7 @@ The Analysis Service will:
 - Connect to MongoDB Atlas to read pre-cached expense data.
 - Start a background Kafka consumer on the `expense-events` topic to update its MongoDB cache in real time.
 
-### 5. Start the Notification Service (Node.js)
+### 6. Start the Notification Service (Node.js)
 
 ```bash
 cd notification-service
@@ -310,7 +284,7 @@ The Notification Service will:
 - Start a Kafka consumer on the `company-events` topic, and send personalised HTML emails to users when they are added to, removed from, or have their role changed in a company.
 - Deliver all emails via **SendGrid** — set `SENDGRID_API_KEY` and `FROM_EMAIL` in your environment (see `.env.example`).
 
-### 6. Start the Frontend
+### 7. Start the Frontend
 
 ```bash
 cd artha-frontend
@@ -321,6 +295,122 @@ npm run dev
 The app will be available at `http://localhost:5173`.
 
 ---
+
+## Distributed Running (Multiple Machines on the Same Network)
+
+For running different services on different computers in the same local network, keep Nginx and the API Gateway on the **same machine**, and run any other service on any other machine. You will need to pass environment variables explicitly from the terminal for each service.
+
+Replace `10.17.43.98` in the examples below with the actual LAN IP of the machine running Nginx / API Gateway / Service Registry.
+
+### 1. Infrastructure
+
+Start infra (Redis, Kafka, Zookeeper, Kafka UI) on one machine:
+
+```bash
+docker compose -f docker-compose.infra.yml up -d
+```
+
+### 2. Service Registry (Eureka)
+
+Acts as a service discovery server.
+
+```bash
+cd service-registry
+./mvnw spring-boot:run
+```
+
+### 3. API Gateway
+
+Entry point for frontend requests. Must run on the **same machine as Nginx**.
+
+```bash
+export EUREKA_SERVER_URL=http://10.17.43.98:8761/eureka/
+export REDIS_HOST=10.17.43.98
+./mvnw spring-boot:run
+```
+
+### 4. Backend Services (Java Microservices)
+
+🔹 **User Service**
+
+```bash
+export EUREKA_SERVER_URL=http://10.17.43.98:8761/eureka/
+export KAFKA_BOOTSTRAP_SERVERS=http://10.17.43.98:9092
+./mvnw spring-boot:run
+```
+
+🔹 **Budget Service**
+
+```bash
+export EUREKA_SERVER_URL=http://10.17.43.98:8761/eureka/
+export KAFKA_BOOTSTRAP_SERVERS=10.17.43.98:9092
+export REDIS_HOST=10.17.43.98
+./mvnw spring-boot:run
+```
+
+🔹 **Expense Service** (Kafka Producer)
+
+```bash
+export EUREKA_SERVER_URL=http://10.17.43.98:8761/eureka
+export KAFKA_BOOTSTRAP_SERVERS=10.17.43.98:9092
+export REDIS_HOST=10.17.43.98
+./mvnw spring-boot:run
+```
+
+### 5. Analysis Service (Python / FastAPI)
+
+Activate virtual environment first (Windows: use `.\venv\Scripts\activate`):
+
+```bash
+source venv/bin/activate
+
+export API_GATEWAY_URL=http://192.168.x.x:8080
+export EUREKA_SERVER_URL=http://10.17.43.98:8761/eureka/
+export KAFKA_BOOTSTRAP_SERVERS=10.17.43.98:9092
+export REDIS_HOST=10.17.43.98
+
+uvicorn app.main:app --host 0.0.0.0 --port 8084 --reload
+```
+
+### 6. Notification Service (Node.js)
+
+```bash
+cd notification-service
+
+export API_GATEWAY_URL=http://192.168.x.x:8080
+export EUREKA_HOST=10.17.43.98
+export KAFKA_BROKER=10.17.43.98:9092
+
+npm run dev
+```
+
+### 7. Frontend (React – Artha UI)
+
+```bash
+export VITE_DEV_PROXY_TARGET=http://192.168.x.x:8080
+npm run dev
+```
+
+---
+
+## Running on the Same Machine / Sharing Across the Network
+
+**Single machine:** No changes are needed — the default configuration works out of the box for running everything on one computer.
+
+**Sharing the app across all machines in the same network:** you need to expose your machine's LAN IP so other devices can reach it.
+
+1. Find the LAN IP address of the laptop/machine connected to the network (e.g., `192.168.1.x`).
+2. In the root `.env` file, set `SERVER_IP` to that LAN IP.
+3. Update the frontend environment variable `VITE_API_BASE_URL` to point to your LAN IP (e.g., `http://192.168.1.x:8080`).
+4. Add your LAN IP (and any origin URLs) to the `ALLOWED_ORIGINS` variable in `.env` so the API Gateway permits CORS from other devices on the network.
+
+```env
+SERVER_IP=192.168.1.x
+VITE_API_BASE_URL=http://192.168.1.x:8080
+ALLOWED_ORIGINS=http://192.168.1.x,http://192.168.1.x:5173
+```
+
+After these changes, other devices on the same network can access the app by navigating to `http://192.168.1.x` in their browser.
 
 ## Event-Driven Flow
 

@@ -300,7 +300,7 @@ The app will be available at `http://localhost:5173`.
 
 For running different services on different computers in the same local network, keep Nginx and the API Gateway on the **same machine**, and run any other service on any other machine. You will need to pass environment variables explicitly from the terminal for each service.
 
-Replace `10.17.43.98` in the examples below with the actual LAN IP of the machine running Nginx / API Gateway / Service Registry.
+Use `192.168.1.x` as a placeholder — replace it with the actual LAN IP of the machine running Nginx / API Gateway / Service Registry.
 
 ### 1. Infrastructure
 
@@ -324,8 +324,8 @@ cd service-registry
 Entry point for frontend requests. Must run on the **same machine as Nginx**.
 
 ```bash
-export EUREKA_SERVER_URL=http://10.17.43.98:8761/eureka/
-export REDIS_HOST=10.17.43.98
+export EUREKA_SERVER_URL=http://192.168.1.x:8761/eureka/
+export REDIS_HOST=192.168.1.x
 ./mvnw spring-boot:run
 ```
 
@@ -334,26 +334,26 @@ export REDIS_HOST=10.17.43.98
 🔹 **User Service**
 
 ```bash
-export EUREKA_SERVER_URL=http://10.17.43.98:8761/eureka/
-export KAFKA_BOOTSTRAP_SERVERS=http://10.17.43.98:9092
+export EUREKA_SERVER_URL=http://192.168.1.x:8761/eureka/
+export KAFKA_BOOTSTRAP_SERVERS=http://192.168.1.x:9092
 ./mvnw spring-boot:run
 ```
 
 🔹 **Budget Service**
 
 ```bash
-export EUREKA_SERVER_URL=http://10.17.43.98:8761/eureka/
-export KAFKA_BOOTSTRAP_SERVERS=10.17.43.98:9092
-export REDIS_HOST=10.17.43.98
+export EUREKA_SERVER_URL=http://192.168.1.x:8761/eureka/
+export KAFKA_BOOTSTRAP_SERVERS=192.168.1.x:9092
+export REDIS_HOST=192.168.1.x
 ./mvnw spring-boot:run
 ```
 
 🔹 **Expense Service** (Kafka Producer)
 
 ```bash
-export EUREKA_SERVER_URL=http://10.17.43.98:8761/eureka
-export KAFKA_BOOTSTRAP_SERVERS=10.17.43.98:9092
-export REDIS_HOST=10.17.43.98
+export EUREKA_SERVER_URL=http://192.168.1.x:8761/eureka
+export KAFKA_BOOTSTRAP_SERVERS=192.168.1.x:9092
+export REDIS_HOST=192.168.1.x
 ./mvnw spring-boot:run
 ```
 
@@ -365,9 +365,9 @@ Activate virtual environment first (Windows: use `.\venv\Scripts\activate`):
 source venv/bin/activate
 
 export API_GATEWAY_URL=http://192.168.x.x:8080
-export EUREKA_SERVER_URL=http://10.17.43.98:8761/eureka/
-export KAFKA_BOOTSTRAP_SERVERS=10.17.43.98:9092
-export REDIS_HOST=10.17.43.98
+export EUREKA_SERVER_URL=http://192.168.1.x:8761/eureka/
+export KAFKA_BOOTSTRAP_SERVERS=192.168.1.x:9092
+export REDIS_HOST=192.168.1.x
 
 uvicorn app.main:app --host 0.0.0.0 --port 8084 --reload
 ```
@@ -378,8 +378,8 @@ uvicorn app.main:app --host 0.0.0.0 --port 8084 --reload
 cd notification-service
 
 export API_GATEWAY_URL=http://192.168.x.x:8080
-export EUREKA_HOST=10.17.43.98
-export KAFKA_BROKER=10.17.43.98:9092
+export EUREKA_HOST=192.168.1.x
+export KAFKA_BROKER=192.168.1.x:9092
 
 npm run dev
 ```
@@ -407,6 +407,7 @@ npm run dev
 ```env
 SERVER_IP=192.168.1.x
 VITE_API_BASE_URL=http://192.168.1.x:8080
+FRONTEND_URL=http://192.168.1.x:8080
 ALLOWED_ORIGINS=http://192.168.1.x,http://192.168.1.x:5173
 ```
 

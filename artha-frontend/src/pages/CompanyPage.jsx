@@ -9,34 +9,15 @@ import {
 } from "lucide-react";
 import ConfirmModal from "../components/ConfirmModal";
 import { createBudget, getAllBudgets, updateBudget, closeBudget, removeBudget } from "../api/budgets";
-import { getCompanyMembers, addCompanyMember, removeCompanyMember, changeMemberRole } from "../api/companies";
+import { getMyCompanies, getCompanyMembers, changeMemberRole, addCompanyMember } from "../api/companies";
 import { getUserByEmail } from "../api/users";
 import AppSidebar from "../components/AppSidebar";
-import styles from "./DashboardPage.module.css";
+import StatCard from "../components/StatCard";
+import FloatingActionButton from "../components/FloatingActionButton";
+import dashStyles from "./DashboardPage.module.css";
 import companyStyles from "./CompanyPage.module.css";
 
 // --- Helper UI Components ---
-function StatCard({ icon: Icon, label, value, colorClass, badge }) {
-  return (
-    <motion.div
-      className={`${styles.statCard} ${styles[colorClass]}`}
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
-      whileHover={{ y: -4, transition: { type: "spring", stiffness: 300, damping: 18 } }}
-    >
-      <svg className={styles.cardWave} viewBox="0 0 200 60" preserveAspectRatio="none" aria-hidden="true">
-        <path d="M0,30 C40,10 80,50 120,30 C160,10 180,40 200,25 L200,60 L0,60 Z" />
-      </svg>
-      <div className={styles.statCardTop}>
-        <div className={styles.statIconWrap}><Icon size={18} /></div>
-        {badge && <span className={styles.cardBadge}>{badge}</span>}
-      </div>
-      <p className={styles.statLabel}>{label}</p>
-      <p className={styles.statValue}>{value}</p>
-    </motion.div>
-  );
-}
 
 // --- Main Page Component ---
 export default function CompanyPage() {
@@ -72,6 +53,7 @@ export default function CompanyPage() {
 
   const [currentUserId, setCurrentUserId] = useState(null);
   const [currentUserRole, setCurrentUserRole] = useState("MEMBER");
+  const [companyName, setCompanyName] = useState(location.state?.companyName || "Company Overview");
 
   const requestConfirm = (title, message, actionFn) => {
     setConfirmConfig({
@@ -85,31 +67,33 @@ export default function CompanyPage() {
   };
 
   const fetchData = useCallback(async () => {
-    const userId = localStorage.getItem("artha_user_id");
     setIsLoading(true);
-    setError("");
     try {
-      const [budgetsData, membersData] = await Promise.all([
-        getAllBudgets(companyId).catch(() => []),
-        getCompanyMembers(companyId).catch(() => [])
+      const [membersData, budgetsData] = await Promise.all([
+        getCompanyMembers(companyId).catch(() => []),
+        getAllBudgets(companyId).catch(() => [])
       ]);
+      setMembers(membersData);
+      setBudgets(budgetsData);
+
+      // Fetch company name if missing
+      if (companyName === "Company Overview") {
+        const myCompanies = await getMyCompanies().catch(() => []);
+        const current = myCompanies.find(c => c.id === companyId);
+        if (current) setCompanyName(current.name);
+      }
       
-      const budgetsList = Array.isArray(budgetsData) ? budgetsData : [];
-      setBudgets(budgetsList);
-      
-      const membersList = Array.isArray(membersData) ? membersData : [];
-      setMembers(membersList);
-      
-      const myMembership = membersList.find(m => String(m.userId) === String(userId));
+      const userId = localStorage.getItem("artha_user_id");
+      const myMembership = membersData.find(m => String(m.userId) === String(userId));
       if (myMembership?.role) {
         setCurrentUserRole(myMembership.role);
       }
-    } catch (requestError) {
-      setError(requestError.message || "Failed to load company data.");
+    } catch (err) {
+      setError(err.message || "Failed to load company data.");
     } finally {
       setIsLoading(false);
     }
-  }, [companyId]);
+  }, [companyId, companyName]);
 
   useEffect(() => {
     const token = localStorage.getItem("artha_jwt");
@@ -166,7 +150,6 @@ export default function CompanyPage() {
     };
   }, [showCreateBudget, showShareModal, showEditBudget]);
 
-  const companyName = location.state?.companyName || "Company Overview";
   const isPrivileged = currentUserRole === 'OWNER';
 
   const sortedBudgets = useMemo(() => {
@@ -252,34 +235,29 @@ export default function CompanyPage() {
 
   return (
     <AppSidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen}>
-      <div className={companyStyles.container}>
+      <>
         {/* ── HEADER ── */}
-        <div className={companyStyles.header}>
-          <button type="button" className={styles.hamburger} onClick={() => setSidebarOpen(true)}>
-            <Menu size={22} />
-          </button>
-
-          <div className={companyStyles.titleBox}>
-
-            <p className={styles.greetingLabel}>Business Code: {companyId.split("-")[0].toUpperCase()}</p>
-            <h1 className={styles.greetingTitle}>{companyName} <Sparkles size={20} className={styles.sparkle} /></h1>
-          </div>
-          <div className={companyStyles.actions}>
-            <button className={`${companyStyles.actionBtn} ${companyStyles.btnSecondary}`} onClick={() => setShowShareModal(true)}>
-              <Users size={16} /> Share
-            </button>
-            <button className={`${companyStyles.actionBtn} ${companyStyles.btnGreen}`} onClick={() => navigate(`/company/${companyId}/analysis`)}>
-              <Activity size={16} /> Analytics
-            </button>
-            {isPrivileged && (
-              <button className={`${companyStyles.actionBtn} ${companyStyles.btnPrimary}`} onClick={() => setShowCreateBudget(true)}>
-                <Plus size={18} /> New Budget
-              </button>
-            )}
+      <div className={companyStyles.header}>
+        <div className={companyStyles.topBarLeft}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p className={dashStyles.greetingLabel} style={{ fontSize: '0.65rem' }}>BUSINESS CODE: {companyId.split("-")[0].toUpperCase()}</p>
+            <h1 className={dashStyles.greetingTitle}>
+              {companyName} <Sparkles size={16} className={dashStyles.sparkle} />
+            </h1>
           </div>
         </div>
+        
+        <div className={companyStyles.actions}>
+          <button className={`${companyStyles.actionBtn} ${companyStyles.btnSecondary}`} onClick={() => setShowShareModal(true)}>
+            <Users size={14} /> Share
+          </button>
+          <button className={`${companyStyles.actionBtn} ${companyStyles.btnGreen}`} onClick={() => navigate(`/company/${companyId}/analysis`)}>
+            <Activity size={14} /> Analytics
+          </button>
+        </div>
+      </div>
 
-        {error && (
+      {error && (
           <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} 
             style={{ background: '#fee2e2', color: '#b91c1c', padding: '0.85rem 1.25rem', borderRadius: '12px', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', border: '1px solid #fecaca' }}>
             <AlertTriangle size={16} /> {error}
@@ -287,7 +265,7 @@ export default function CompanyPage() {
         )}
 
         {/* ── STATS ── */}
-        <div className={styles.statsRow}>
+        <div className={dashStyles.statsRow}>
           <StatCard icon={Wallet} label="Total Budgets" value={isLoading ? "–" : budgets.length} colorClass="cardBlue" />
           <StatCard icon={Building2} label="Active" value={isLoading ? "–" : activeBudgets.length} colorClass="cardGreen" badge={activeBudgets.length > 0 ? "Running" : undefined} />
           <StatCard icon={Archive} label="Closed" value={isLoading ? "–" : closedBudgets.length} colorClass="cardPurple" />
@@ -303,31 +281,40 @@ export default function CompanyPage() {
             </div>
           </div>
 
-          <div className={styles.companyList}>
-            {isLoading ? [1, 2].map(i => <div key={i} className={styles.skeleton} />) : activeBudgets.length === 0 ? (
-              <div className={styles.emptyState}><Wallet size={34} className={styles.emptyIcon} /><p>No active budgets.</p></div>
+          <div className={dashStyles.companyList}>
+            {isLoading ? [1, 2].map(i => <div key={i} className={dashStyles.skeleton} />) : activeBudgets.length === 0 ? (
+              <div className={dashStyles.emptyState}><Wallet size={34} className={dashStyles.emptyIcon} /><p>No active budgets.</p></div>
             ) : activeBudgets.map(b => (
-              <motion.div key={b.id} className={styles.companyTile} onClick={() => navigate(`/company/${companyId}/budget/${b.id}`, { state: { budgetName: b.name, companyName, userRole: currentUserRole } })}
+              <motion.div key={b.id} className={companyStyles.compactTile} onClick={() => navigate(`/company/${companyId}/budget/${b.id}`, { state: { budgetName: b.name, companyName, userRole: currentUserRole } })}
                 whileHover={{ x: 6, backgroundColor: '#f8fafc' }} transition={{ type: "spring", stiffness: 400, damping: 25 }}>
-                <div className={styles.tileAvatar} style={{ background: '#e0e7ff', color: '#4f46e5' }}>AB</div>
-                <div className={styles.tileInfo}>
-                  <strong style={{ fontSize: '1.05rem' }}>{b.name}</strong>
-                  <span>{b.startDate} to {b.endDate}</span>
-                </div>
-                <div style={{ textAlign: "right", marginRight: "1.5rem" }}>
-                  <strong style={{ display: "block", color: '#0f172a' }}>{formatAmount(b.totalAmount)}</strong>
-                  <span className={styles.roleOwner}>{b.status}</span>
-                </div>
-                {isPrivileged && (
-                  <div className={styles.tileActions} onClick={e => e.stopPropagation()}>
-                    <button className={styles.miniActionBtn} onClick={(e) => {
-                      e.stopPropagation(); setEditingBudgetId(b.id); setBudgetName(b.name); setTotalAmount(b.totalAmount);
-                      setStartDate(b.startDate); setEndDate(b.endDate); setEditBudgetStatus(b.status); setShowEditBudget(true);
-                    }}><Edit3 size={15} /></button>
-                    <button className={styles.miniActionBtn} style={{ color: '#ef4444', borderColor: '#fee2e2' }} onClick={(e) => { e.stopPropagation(); handleCloseBudget(b.id); }}>Close</button>
+                
+                <div className={companyStyles.tileMain}>
+                  <div className={dashStyles.tileAvatar} style={{ background: '#e0e7ff', color: '#4f46e5' }}>AB</div>
+                  <div className={dashStyles.tileInfo}>
+                    <strong style={{ fontSize: '1.05rem', color: '#0f172a' }}>{b.name}</strong>
+                    <span style={{ fontSize: '0.8rem', color: '#64748b' }}>{b.startDate} to {b.endDate}</span>
                   </div>
-                )}
-                <ArrowUpRight size={18} className={styles.tileArrow} />
+                </div>
+
+                <div className={companyStyles.budgetMetaRow}>
+                  <div className={companyStyles.tileFinance}>
+                    <strong className={companyStyles.tileAmount}>{formatAmount(b.totalAmount)}</strong>
+                    <span className={dashStyles.roleOwner}>{b.status}</span>
+                  </div>
+                  
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {isPrivileged && (
+                      <div className={dashStyles.tileActions} onClick={e => e.stopPropagation()}>
+                        <button className={dashStyles.miniActionBtn} style={{ padding: '4px 8px' }} onClick={(e) => {
+                          e.stopPropagation(); setEditingBudgetId(b.id); setBudgetName(b.name); setTotalAmount(b.totalAmount);
+                          setStartDate(b.startDate); setEndDate(b.endDate); setEditBudgetStatus(b.status); setShowEditBudget(true);
+                        }}><Edit3 size={14} /></button>
+                        <button className={dashStyles.miniActionBtn} style={{ color: '#ef4444', borderColor: '#fee2e2', padding: '4px 8px' }} onClick={(e) => { e.stopPropagation(); handleCloseBudget(b.id); }}>Close</button>
+                      </div>
+                    )}
+                    <ArrowUpRight size={18} className={dashStyles.tileArrow} />
+                  </div>
+                </div>
               </motion.div>
             ))}
           </div>
@@ -340,30 +327,37 @@ export default function CompanyPage() {
               <p className={companyStyles.sectionSub}>Closed, historical, or auto-expired records</p>
             </div>
           </div>
-          <div className={styles.companyList}>
-            {isLoading ? [1].map(i => <div key={i} className={styles.skeleton} />) : closedBudgets.length === 0 ? (
-              <div className={styles.emptyState}><Archive size={34} style={{ opacity: 0.5 }} /><p>No archived budgets.</p></div>
+          <div className={dashStyles.companyList}>
+            {isLoading ? [1].map(i => <div key={i} className={dashStyles.skeleton} />) : closedBudgets.length === 0 ? (
+              <div className={dashStyles.emptyState}><Archive size={34} style={{ opacity: 0.5 }} /><p>No archived budgets.</p></div>
             ) : closedBudgets.map(b => (
-              <motion.div key={b.id} className={styles.companyTile} onClick={() => navigate(`/company/${companyId}/budget/${b.id}`, { state: { budgetName: b.name, companyName, userRole: currentUserRole } })}
+              <motion.div key={b.id} className={companyStyles.compactTile} onClick={() => navigate(`/company/${companyId}/budget/${b.id}`, { state: { budgetName: b.name, companyName, userRole: currentUserRole } })}
                 whileHover={{ x: 6, opacity: 0.9 }}>
-                <div className={styles.tileAvatar} style={{ background: '#f1f5f9', color: '#64748b' }}>CB</div>
-                <div className={styles.tileInfo}>
-                  <strong>{b.name}</strong>
-                  <span>{b.startDate} to {b.endDate}</span>
+                
+                <div className={companyStyles.tileMain}>
+                  <div className={dashStyles.tileAvatar} style={{ background: '#f1f5f9', color: '#64748b' }}>CB</div>
+                  <div className={dashStyles.tileInfo}>
+                    <strong style={{ fontSize: '1.05rem', color: '#475569' }}>{b.name}</strong>
+                    <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>{b.startDate} to {b.endDate}</span>
+                  </div>
                 </div>
-                <div style={{ textAlign: "right", marginRight: "1.5rem" }}>
-                  <strong style={{ display: "block", color: '#64748b' }}>{formatAmount(b.totalAmount)}</strong>
-                  <span className={styles.roleOwner} style={{ background: '#f1f5f9', color: '#475569' }}>{b.status}</span>
+
+                <div className={companyStyles.budgetMetaRow}>
+                  <div className={companyStyles.tileFinance}>
+                    <strong className={companyStyles.tileAmount}>{formatAmount(b.totalAmount)}</strong>
+                    <span className={dashStyles.roleOwner} style={{ background: '#f1f5f9', color: '#475569' }}>{b.status}</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {isPrivileged && (
+                      <button className={dashStyles.miniActionBtn} style={{ color: '#ef4444', padding: '4px 8px' }} onClick={(e) => { e.stopPropagation(); handleDeleteBudget(b.id); }}><Trash2 size={14} /></button>
+                    )}
+                    <ArrowUpRight size={18} className={dashStyles.tileArrow} style={{ opacity: 0.4 }} />
+                  </div>
                 </div>
-                {isPrivileged && (
-                  <button className={styles.miniActionBtn} style={{ color: '#ef4444' }} onClick={(e) => { e.stopPropagation(); handleDeleteBudget(b.id); }}><Trash2 size={15} /></button>
-                )}
-                <ArrowUpRight size={18} className={styles.tileArrow} style={{ opacity: 0.4 }} />
               </motion.div>
             ))}
           </div>
         </div>
-      </div>
 
       {/* CREATE BUDGET MODAL */}
       {createPortal(
@@ -379,10 +373,10 @@ export default function CompanyPage() {
               <motion.div 
                 className={companyStyles.modal} 
                 onClick={e => e.stopPropagation()} 
-                initial={{ opacity: 0, scale: 0.9, y: 20 }} 
-                animate={{ opacity: 1, scale: 1, y: 0 }} 
-                exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                initial={{ y: "100%" }} 
+                animate={{ y: 0 }} 
+                exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 25, stiffness: 200 }}
               >
                 <div className={companyStyles.modalHead}>
                   <h3 className={companyStyles.modalTitle}>New Budget</h3>
@@ -424,7 +418,7 @@ export default function CompanyPage() {
                       placeholder="50,000"
                     />
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div className={companyStyles.dateGrid}>
                     <div className={companyStyles.field}>
                       <label className={companyStyles.label}>Start Date</label>
                       <input 
@@ -476,10 +470,10 @@ export default function CompanyPage() {
               <motion.div 
                 className={companyStyles.modal} 
                 onClick={e => e.stopPropagation()} 
-                initial={{ opacity: 0, scale: 0.9, y: 20 }} 
-                animate={{ opacity: 1, scale: 1, y: 0 }} 
-                exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                initial={{ y: "100%" }} 
+                animate={{ y: 0 }} 
+                exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 25, stiffness: 200 }}
               >
                 <div className={companyStyles.modalHead}>
                   <h3 className={companyStyles.modalTitle}>Edit Budget</h3>
@@ -507,7 +501,7 @@ export default function CompanyPage() {
                     <label className={companyStyles.label}>Total Amount (₹)</label>
                     <input type="number" required className={companyStyles.input} value={totalAmount} onChange={e => setTotalAmount(e.target.value)}/>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div className={companyStyles.dateGrid}>
                     <div className={companyStyles.field}>
                       <label className={companyStyles.label}>Start Date</label>
                       <input type="date" required className={companyStyles.input} value={startDate} onChange={e => setStartDate(e.target.value)}/>
@@ -555,10 +549,10 @@ export default function CompanyPage() {
                 className={companyStyles.modal} 
                 onClick={e => e.stopPropagation()} 
                 style={{ maxWidth: '500px' }} 
-                initial={{ opacity: 0, scale: 0.9, y: 20 }} 
-                animate={{ opacity: 1, scale: 1, y: 0 }} 
-                exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                initial={{ y: "100%" }} 
+                animate={{ y: 0 }} 
+                exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 25, stiffness: 200 }}
               >
                 <div className={companyStyles.modalHead}>
                   <h3 className={companyStyles.modalTitle}>Manage Access</h3>
@@ -578,7 +572,7 @@ export default function CompanyPage() {
                 )}
                 
                 {isPrivileged && (
-                  <form onSubmit={handleAddMember} style={{ display: 'flex', gap: '8px', marginBottom: '2rem' }}>
+                  <form onSubmit={handleAddMember} className={companyStyles.inviteRow}>
                     <input 
                       type="email" 
                       required 
@@ -615,22 +609,22 @@ export default function CompanyPage() {
                   </h4>
                   {members.map(m => (
                     <div key={m.userId} className={companyStyles.memberItem}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <div style={{ width: '38px', height: '38px', borderRadius: '50%', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, color: '#3b82f6' }}>
+                      <div className={companyStyles.memberInfo}>
+                        <div style={{ width: '38px', height: '38px', borderRadius: '50%', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, color: '#3b82f6', flexShrink: 0 }}>
                           { (m.fullName || m.email || "?").charAt(0).toUpperCase() }
                         </div>
-                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                          <strong style={{ fontSize: '0.95rem' }}>
+                        <div className={companyStyles.memberText}>
+                          <strong className={companyStyles.deviceName}>
                             {m.fullName || "User"} {String(m.userId) === String(currentUserId) ? "(you)" : ""}
                           </strong>
-                          <span style={{ fontSize: '0.8rem', color: '#64748b' }}>{m.email}</span>
+                          <span className={companyStyles.deviceEmail}>{m.email}</span>
                         </div>
                       </div>
                       {isPrivileged && m.userId !== currentUserId ? (
                         <select 
                           value={m.role} 
                           onChange={e => handleChangeRole(m.userId, e.target.value)} 
-                          style={{ background: 'transparent', border: 'none', color: '#3b82f6', fontWeight: 700, fontSize: '0.85rem', outline: 'none' }}
+                          style={{ background: 'transparent', border: 'none', color: '#3b82f6', fontWeight: 700, fontSize: '0.85rem', outline: 'none', flexShrink: 0 }}
                         >
                           <option value="MEMBER">Member</option>
                           <option value="OWNER">Owner</option>
@@ -638,7 +632,7 @@ export default function CompanyPage() {
                           <option value="REMOVE">Remove</option>
                         </select>
                       ) : (
-                        <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#94a3b8' }}>
+                        <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#94a3b8', flexShrink: 0 }}>
                           {m.role}
                         </span>
                       )}
@@ -653,9 +647,18 @@ export default function CompanyPage() {
       )}
 
       <ConfirmModal isOpen={confirmConfig.isOpen} title={confirmConfig.title} message={confirmConfig.message} onConfirm={confirmConfig.onConfirm} onCancel={() => setConfirmConfig(prev => ({ ...prev, isOpen: false }))} isProcessing={confirmConfig.isProcessing} />
+
+      {/* ── MOBILE FAB ── */}
+      {isPrivileged && !showCreateBudget && !showShareModal && !showEditBudget && (
+        <FloatingActionButton 
+          onClick={() => setShowCreateBudget(true)}
+          label="New Budget"
+          icon={Plus}
+        />
+      )}
       
       <style>{`
-        .${styles.miniActionBtn} {
+        .${dashStyles.miniActionBtn} {
           padding: 4px 10px;
           border-radius: 8px;
           border: 1px solid #e2e8f0;
@@ -665,24 +668,25 @@ export default function CompanyPage() {
           cursor: pointer;
           transition: all 0.2s;
         }
-        .${styles.miniActionBtn}:hover {
+        .${dashStyles.miniActionBtn}:hover {
           background: #f8fafc;
           border-color: #cbd5e1;
         }
-        .${styles.tileActions} {
+        .${dashStyles.tileActions} {
           display: flex;
           gap: 6px;
           margin-right: 1rem;
         }
-        .${styles.tileArrowWrap} {
+        .${dashStyles.tileArrowWrap} {
           color: #94a3b8;
           transition: transform 0.2s;
         }
-        .${styles.companyTile}:hover .${styles.tileArrowWrap} {
+        .${dashStyles.companyTile}:hover .${dashStyles.tileArrowWrap} {
           transform: translate(2px, -2px);
           color: #3b82f6;
         }
       `}</style>
+      </>
     </AppSidebar>
   );
 }

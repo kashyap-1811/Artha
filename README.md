@@ -229,7 +229,7 @@ cp nginx/nginx.local.conf.example nginx/nginx.local.conf
 Run Nginx in a separate Docker container using this local config:
 
 ```bash
-docker run -d --name artha-nginx \
+docker run -d --name artha-nginx-local \
   -p 80:80 \
   -v $(pwd)/nginx/nginx.local.conf:/etc/nginx/nginx.conf:ro \
   --network host \

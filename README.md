@@ -337,7 +337,7 @@ To run on one machine and share across the same network, use the **same IP-based
 - `API_GATEWAY_URL`
 - `SERVER_IP`
 
-Then run services normally. Devices on the same network can access the app using that machine IP.
+Then run services normally, following the same commands in [Manual / Local Development Setup](#manual--local-development-setup). Devices on the same network can access the app using that machine IP.
 
 ## Event-Driven Flow
 
@@ -490,5 +490,4 @@ All analytics endpoints are routed through the API Gateway at `/analysis/**`.
 | GET | `/analysis/company/{companyId}/category-breakdown` | Company-wide spending grouped by category with percentages — optimised for Pie/Donut charts |
 | GET | `/analysis/company/{companyId}/spending-trend` | Month-over-month spending trend with growth percentages and trend direction (*UP / DOWN / FLAT*) — optimised for Line/Bar charts |
 | GET | `/analysis/budget/{budgetId}/top-spenders` | Leaderboard of allocations ranked by total spend for a specific budget — optimised for horizontal Bar charts |
-
 

@@ -6,6 +6,7 @@ import {
   Settings, X
 } from "lucide-react";
 import styles from "../pages/DashboardPage.module.css";
+import BottomNav from "./BottomNav";
 
 const NAV_LINKS = [
   { icon: LayoutDashboard, label: "Dashboard", to: "/dashboard" },
@@ -70,6 +71,9 @@ export default function AppSidebar({ children, sidebarOpen: outerOpen, setSideba
       <main className={styles.mainContent}>
         {children}
       </main>
+
+      {/* ═══ MOBILE BOTTOM NAV ═══ */}
+      <BottomNav />
     </div>
   );
 }

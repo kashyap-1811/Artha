@@ -8,6 +8,8 @@ import {
 import { getMyCompanies, createCompany } from "../api/companies";
 import { getUserById } from "../api/users";
 import AppSidebar from "../components/AppSidebar";
+import StatCard from "../components/StatCard";
+import FloatingActionButton from "../components/FloatingActionButton";
 import styles from "./DashboardPage.module.css";
 import companyStyles from "./CompaniesPage.module.css";
 
@@ -20,28 +22,6 @@ function getGreeting() {
 
 function getDateString() {
   return new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
-}
-
-function StatCard({ icon: Icon, label, value, colorClass, badge }) {
-  return (
-    <motion.div
-      className={`${styles.statCard} ${styles[colorClass]}`}
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
-      whileHover={{ y: -4, transition: { type: "spring", stiffness: 300, damping: 18 } }}
-    >
-      <svg className={styles.cardWave} viewBox="0 0 200 60" preserveAspectRatio="none" aria-hidden="true">
-        <path d="M0,30 C40,10 80,50 120,30 C160,10 180,40 200,25 L200,60 L0,60 Z" />
-      </svg>
-      <div className={styles.statCardTop}>
-        <div className={styles.statIconWrap}><Icon size={18} /></div>
-        {badge && <span className={styles.cardBadge}>{badge}</span>}
-      </div>
-      <p className={styles.statLabel}>{label}</p>
-      <p className={styles.statValue}>{value}</p>
-    </motion.div>
-  );
 }
 
 export default function CompaniesPage() {
@@ -107,28 +87,26 @@ export default function CompaniesPage() {
 
   return (
     <AppSidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen}>
-      <div className={companyStyles.pageContainer}>
-        {/* ── HEADER ── */}
-        <div className={companyStyles.headerRow}>
-          <button type="button" className={styles.hamburger} onClick={() => setSidebarOpen(true)}>
-            <Menu size={22} />
-          </button>
-          <div className={companyStyles.titleArea}>
-
+      {/* ── HEADER ── */}
+        <div className={styles.topBar}>
+          <div className={styles.topBarLeft}>
             <p className={styles.greetingLabel}>{getDateString()}</p>
             <h1 className={styles.greetingTitle}>
-              {getGreeting()}, <span className={styles.userName}>{userName || "there"}</span>
-              <Sparkles size={20} className={styles.sparkle} />
+              {getGreeting()}, <span className={styles.userName}>{userName.split(' ')[0] || "there"}</span>
+              <Sparkles size={18} className={styles.sparkle} />
             </h1>
           </div>
-          <button 
-            type="button" 
-            className={companyStyles.addBtn}
-            onClick={() => setIsModalOpen(true)}
-          >
-            <Plus size={20} />
-            New Company
-          </button>
+          
+          <div className={styles.desktopOnly}>
+            <button 
+              type="button" 
+              className={companyStyles.addBtn}
+              onClick={() => setIsModalOpen(true)}
+            >
+              <Plus size={20} />
+              New Company
+            </button>
+          </div>
         </div>
 
         {/* ── STATS ── */}
@@ -206,9 +184,10 @@ export default function CompaniesPage() {
             <div className={companyStyles.modalOverlay}>
               <motion.div 
                 className={companyStyles.modalContent}
-                initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                initial={{ y: "100%" }}
+                animate={{ y: 0 }}
+                exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 25, stiffness: 200 }}
               >
                 <div className={companyStyles.modalHeader}>
                   <h2 className={companyStyles.modalTitle}>Create New Company</h2>
@@ -257,7 +236,14 @@ export default function CompaniesPage() {
             </div>
           )}
         </AnimatePresence>
-      </div>
+
+      {!isModalOpen && (
+        <FloatingActionButton 
+          onClick={() => setIsModalOpen(true)}
+          label="New Company"
+          icon={Plus}
+        />
+      )}
     </AppSidebar>
   );
 }

@@ -1,0 +1,68 @@
+.bottomNav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+  padding: 0.75rem 0.5rem calc(0.75rem + env(safe-area-inset-bottom));
+  z-index: 1010;
+  display: none;
+  box-shadow: 0 -12px 30px rgba(15, 23, 42, 0.06);
+}
+
+@media (max-width: 768px) {
+  .bottomNav {
+    display: block;
+  }
+}
+
+.navContainer {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.navItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  text-decoration: none;
+  color: #94a3b8;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 0.5rem 1rem;
+  border-radius: 12px;
+  min-width: 64px;
+}
+
+.navItem:active {
+  transform: scale(0.92);
+}
+
+.active {
+  color: #3b82f6;
+}
+
+.icon {
+  transition: transform 0.2s ease;
+}
+
+.active .icon {
+  transform: translateY(-2px);
+}
+
+.label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.active .label {
+  color: #1e40af;
+}

@@ -298,120 +298,46 @@ The app will be available at `http://localhost:5173`.
 
 ## Distributed Running (Multiple Machines on the Same Network)
 
-For running different services on different computers in the same local network, keep Nginx and the API Gateway on the **same machine**, and run any other service on any other machine. You will need to pass environment variables explicitly from the terminal for each service.
+For distributed running, only update the root `.env` values below with the correct machine IPs.
 
-Use `192.168.1.x` as a placeholder — replace it with the actual LAN IP of the machine running Nginx / API Gateway / Service Registry.
+> Keep **Nginx and API Gateway on the same machine**.
+> Set `SERVER_IP` to the IP of the machine where that specific service is running.
 
-### 1. Infrastructure
+```env
+# -----------------------------
+# CORS Configuration
+# -----------------------------
+# Comma-separated list of allowed origins.
+FRONTEND_URL=http://localhost:5173
+ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+VITE_API_BASE_URL=http://localhost:8080
 
-Start infra (Redis, Kafka, Zookeeper, Kafka UI) on one machine:
+EUREKA_SERVER_URL=http://localhost:8761/eureka/
+API_GATEWAY_URL=http://localhost:8080
 
-```bash
-docker compose -f docker-compose.infra.yml up -d
+# -----------------------------
+# Distributed Deployment
+# -----------------------------
+# Set this to your machine's actual IP address (e.g. 192.168.1.10)
+SERVER_IP=localhost
 ```
 
-### 2. Service Registry (Eureka)
-
-Acts as a service discovery server.
-
-```bash
-cd service-registry
-./mvnw spring-boot:run
-```
-
-### 3. API Gateway
-
-Entry point for frontend requests. Must run on the **same machine as Nginx**.
-
-```bash
-export EUREKA_SERVER_URL=http://192.168.1.x:8761/eureka/
-export REDIS_HOST=192.168.1.x
-./mvnw spring-boot:run
-```
-
-### 4. Backend Services (Java Microservices)
-
-🔹 **User Service**
-
-```bash
-export EUREKA_SERVER_URL=http://192.168.1.x:8761/eureka/
-export KAFKA_BOOTSTRAP_SERVERS=http://192.168.1.x:9092
-./mvnw spring-boot:run
-```
-
-🔹 **Budget Service**
-
-```bash
-export EUREKA_SERVER_URL=http://192.168.1.x:8761/eureka/
-export KAFKA_BOOTSTRAP_SERVERS=192.168.1.x:9092
-export REDIS_HOST=192.168.1.x
-./mvnw spring-boot:run
-```
-
-🔹 **Expense Service** (Kafka Producer)
-
-```bash
-export EUREKA_SERVER_URL=http://192.168.1.x:8761/eureka
-export KAFKA_BOOTSTRAP_SERVERS=192.168.1.x:9092
-export REDIS_HOST=192.168.1.x
-./mvnw spring-boot:run
-```
-
-### 5. Analysis Service (Python / FastAPI)
-
-Activate virtual environment first (Windows: use `.\venv\Scripts\activate`):
-
-```bash
-source venv/bin/activate
-
-export API_GATEWAY_URL=http://192.168.x.x:8080
-export EUREKA_SERVER_URL=http://192.168.1.x:8761/eureka/
-export KAFKA_BOOTSTRAP_SERVERS=192.168.1.x:9092
-export REDIS_HOST=192.168.1.x
-
-uvicorn app.main:app --host 0.0.0.0 --port 8084 --reload
-```
-
-### 6. Notification Service (Node.js)
-
-```bash
-cd notification-service
-
-export API_GATEWAY_URL=http://192.168.x.x:8080
-export EUREKA_HOST=192.168.1.x
-export KAFKA_BROKER=192.168.1.x:9092
-
-npm run dev
-```
-
-### 7. Frontend (React – Artha UI)
-
-```bash
-export VITE_DEV_PROXY_TARGET=http://192.168.x.x:8080
-npm run dev
-```
+After updating `.env`, run services normally using the same commands from the manual/local setup sections.
 
 ---
 
 ## Running on the Same Machine / Sharing Across the Network
 
-**Single machine:** No changes are needed — the default configuration works out of the box for running everything on one computer.
+To run on one machine and share across the same network, use the **same IP-based `.env` settings shown above** for:
 
-**Sharing the app across all machines in the same network:** you need to expose your machine's LAN IP so other devices can reach it.
+- `FRONTEND_URL`
+- `ALLOWED_ORIGINS`
+- `VITE_API_BASE_URL`
+- `EUREKA_SERVER_URL`
+- `API_GATEWAY_URL`
+- `SERVER_IP`
 
-1. Find the LAN IP address of the laptop/machine connected to the network (e.g., `192.168.1.x`).
-2. In the root `.env` file, set `SERVER_IP` to that LAN IP.
-3. Update the frontend environment variable `VITE_API_BASE_URL` to point to your LAN IP (e.g., `http://192.168.1.x:8080`).
-4. Add your LAN IP (and any origin URLs) to the `ALLOWED_ORIGINS` variable in `.env` so the API Gateway permits CORS from other devices on the network.
-
-```env
-SERVER_IP=192.168.1.x
-VITE_API_BASE_URL=http://192.168.1.x:8080
-FRONTEND_URL=http://192.168.1.x:8080
-ALLOWED_ORIGINS=http://192.168.1.x,http://192.168.1.x:5173
-```
-
-After these changes, other devices on the same network can access the app by navigating to `http://192.168.1.x` in their browser.
+Then run services normally. Devices on the same network can access the app using that machine IP.
 
 ## Event-Driven Flow
 
@@ -564,6 +490,5 @@ All analytics endpoints are routed through the API Gateway at `/analysis/**`.
 | GET | `/analysis/company/{companyId}/category-breakdown` | Company-wide spending grouped by category with percentages — optimised for Pie/Donut charts |
 | GET | `/analysis/company/{companyId}/spending-trend` | Month-over-month spending trend with growth percentages and trend direction (*UP / DOWN / FLAT*) — optimised for Line/Bar charts |
 | GET | `/analysis/budget/{budgetId}/top-spenders` | Leaderboard of allocations ranked by total spend for a specific budget — optimised for horizontal Bar charts |
-
 
 

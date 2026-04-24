@@ -32,8 +32,11 @@ function getServiceHost() {
 const SERVICE_HOST = process.env.SERVICE_HOST || getServiceHost();
 
 // 🔴 Critical fix: explicit host resolution
-const EUREKA_HOST = process.env.EUREKA_HOST || 'localhost';
-const EUREKA_PORT = parseInt(process.env.EUREKA_PORT, 10) || 8761;
+const EUREKA_SERVER_URL = process.env.EUREKA_SERVER_URL || 'http://localhost:8761/eureka/';
+const eurekaUrl = new URL(EUREKA_SERVER_URL);
+const EUREKA_HOST = eurekaUrl.hostname;
+const EUREKA_PORT = parseInt(eurekaUrl.port, 10) || (eurekaUrl.protocol === 'https:' ? 443 : 80);
+const EUREKA_PATH = eurekaUrl.pathname.endsWith('/') ? `${eurekaUrl.pathname}apps/` : `${eurekaUrl.pathname}/apps/`;
 
 const client = new Eureka({
     instance: {
@@ -55,7 +58,7 @@ const client = new Eureka({
     eureka: {
         host: EUREKA_HOST,
         port: EUREKA_PORT,
-        servicePath: '/eureka/apps/',
+        servicePath: EUREKA_PATH,
     },
 });
 

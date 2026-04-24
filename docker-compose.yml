@@ -261,8 +261,7 @@ services:
       KAFKAJS_SSL: ${KAFKAJS_SSL:-true}
       NOTIFICATION_EXPENSE_GROUP_ID: ${NOTIFICATION_EXPENSE_GROUP_ID:-notification-expense-group}
       NOTIFICATION_COMPANY_GROUP_ID: ${NOTIFICATION_COMPANY_GROUP_ID:-notification-company-group}
-      EUREKA_HOST: service-registry
-      EUREKA_PORT: 8761
+      EUREKA_SERVER_URL: http://service-registry:8761/eureka/
       SENDGRID_API_KEY: ${SENDGRID_API_KEY}
       FROM_EMAIL: ${FROM_EMAIL}
       SERVER_IP: ${SERVER_IP:-localhost}
@@ -299,7 +298,7 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
       ANALYSIS_EXPENSE_GROUP_ID: ${ANALYSIS_EXPENSE_GROUP_ID:-analysis-expense-group}
       ANALYSIS_BUDGET_GROUP_ID: ${ANALYSIS_BUDGET_GROUP_ID:-analysis-budget-group}
-      EUREKA_SERVER: http://service-registry:8761/eureka/
+      EUREKA_SERVER_URL: http://service-registry:8761/eureka/
       API_GATEWAY_URL: http://api-gateway:8080
       MONGO_DETAILS: ${MONGO_DETAILS}
       REDIS_HOST: ${REDIS_HOST}

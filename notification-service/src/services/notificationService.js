@@ -306,6 +306,14 @@ class NotificationService {
 
     } catch (error) {
       console.error('Error handling company event:', error.message);
+      
+      // SendGrid Rate Limit (429), Quota Exceeded (403), or Maximum Credits Exceeded (401)
+      const statusCode = error.code || (error.response && error.response.status);
+      if (statusCode === 429 || statusCode === 403 || statusCode === 401) {
+        console.warn(`SendGrid limit exceeded (${statusCode}). Dropping Kafka event to prevent infinite retries.`);
+        return; // Drop the event
+      }
+
       throw error; // Re-throw to prevent Kafka from committing the offset
     }
   }

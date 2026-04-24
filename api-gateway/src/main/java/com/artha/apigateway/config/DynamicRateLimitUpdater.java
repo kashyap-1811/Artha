@@ -174,7 +174,7 @@ public class DynamicRateLimitUpdater {
      *   7. final_limit = clamp(min(userBased, healthBased), MIN, MAX)
      *   8. Apply if changed, store result in Redis for visibility
      */
-    @Scheduled(fixedRate = 10_000)
+    @Scheduled(fixedRate = 60_000)
     public void adaptRateLimits() {
         try {
             long nowEpoch   = Instant.now().getEpochSecond();

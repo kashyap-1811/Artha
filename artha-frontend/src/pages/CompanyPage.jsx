@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import ConfirmModal from "../components/ConfirmModal";
 import { createBudget, getAllBudgets, updateBudget, closeBudget, removeBudget } from "../api/budgets";
-import { getMyCompanies, getCompanyMembers, changeMemberRole, addCompanyMember } from "../api/companies";
+import { getMyCompanies, getCompanyMembers, changeMemberRole, addCompanyMember, removeCompanyMember } from "../api/companies";
 import { getUserByEmail } from "../api/users";
 import AppSidebar from "../components/AppSidebar";
 import StatCard from "../components/StatCard";

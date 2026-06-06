@@ -102,7 +102,7 @@ jobs:
           host: ${{ secrets.SERVER_IP }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "docker-compose.yml,docker-compose.infra.yml,scripts/deploy.sh"
+          source: "docker-compose.yml,docker-compose.infra.yml,scripts/deploy.sh,nginx"
           target: "/opt/artha"
 
       - name: SSH and run deploy script
@@ -113,6 +113,11 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           envs: GHCR_PAT,GHCR_USERNAME
           script: |
+            # Clean up potential directory-mount fallback from failed docker runs
+            if [ -d "/opt/artha/nginx/nginx.conf" ]; then
+              rm -rf /opt/artha/nginx/nginx.conf
+            fi
+            
             chmod +x /opt/artha/scripts/deploy.sh
             
             export GHCR_PAT="${{ secrets.GHCR_PAT }}"

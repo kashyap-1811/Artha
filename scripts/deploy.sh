@@ -79,6 +79,10 @@ dcompose up -d --no-deps budget-service expense-service notification-service ana
 
 # Restart Nginx to verify configuration
 echo "Deploying nginx..."
+if [ -d "/opt/artha/nginx/nginx.conf" ]; then
+  echo "Removing invalid directory-mount fallback at /opt/artha/nginx/nginx.conf..."
+  rm -rf /opt/artha/nginx/nginx.conf
+fi
 dcompose up -d --no-deps nginx
 
 # 4. Cleanup old unused images

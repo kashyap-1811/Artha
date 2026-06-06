@@ -37,33 +37,49 @@ done
 # 3. Deploy service-by-service in dependency order
 export IMAGE_TAG
 
+# Detect environment file
+ENV_FILE=""
+if [ -f ".env.production" ]; then
+  ENV_FILE=".env.production"
+elif [ -f ".env" ]; then
+  ENV_FILE=".env"
+fi
+
+dcompose() {
+  if [ -n "$ENV_FILE" ]; then
+    docker compose --env-file "$ENV_FILE" "$@"
+  else
+    docker compose "$@"
+  fi
+}
+
 echo "Deploying service-registry..."
-docker compose up -d --no-deps service-registry
+dcompose up -d --no-deps service-registry
 echo "Waiting for service-registry healthcheck..."
 until [ "$(docker inspect --format='{{.State.Health.Status}}' artha-service-registry)" == "healthy" ]; do
   sleep 2
 done
 
 echo "Deploying user-service..."
-docker compose up -d --no-deps user-service
+dcompose up -d --no-deps user-service
 echo "Waiting for user-service healthcheck..."
 until [ "$(docker inspect --format='{{.State.Health.Status}}' artha-user-service)" == "healthy" ]; do
   sleep 2
 done
 
 echo "Deploying api-gateway..."
-docker compose up -d --no-deps api-gateway
+dcompose up -d --no-deps api-gateway
 echo "Waiting for api-gateway healthcheck..."
 until [ "$(docker inspect --format='{{.State.Health.Status}}' artha-api-gateway)" == "healthy" ]; do
   sleep 2
 done
 
 echo "Deploying other backend microservices..."
-docker compose up -d --no-deps budget-service expense-service notification-service analysis-service
+dcompose up -d --no-deps budget-service expense-service notification-service analysis-service
 
 # Restart Nginx to verify configuration
 echo "Deploying nginx..."
-docker compose up -d --no-deps nginx
+dcompose up -d --no-deps nginx
 
 # 4. Cleanup old unused images
 echo "Pruning unused Docker images..."

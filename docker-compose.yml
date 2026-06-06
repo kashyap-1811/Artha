@@ -56,9 +56,7 @@ services:
 
   # ── API Gateway ───────────────────────────────────────────────────────────
   api-gateway:
-    build:
-      context: ./api-gateway
-      dockerfile: Dockerfile
+    image: ghcr.io/kashyap-1811/api-gateway:${IMAGE_TAG:-latest}
     container_name: artha-api-gateway
     depends_on:
       service-registry:
@@ -96,9 +94,7 @@ services:
 
   # ── User Service ──────────────────────────────────────────────────────────
   user-service:
-    build:
-      context: ./user-service
-      dockerfile: Dockerfile
+    image: ghcr.io/kashyap-1811/user-service:${IMAGE_TAG:-latest}
     container_name: artha-user-service
     depends_on:
       service-registry:
@@ -143,9 +139,7 @@ services:
 
   # ── Budget Service ────────────────────────────────────────────────────────
   budget-service:
-    build:
-      context: ./budget
-      dockerfile: Dockerfile
+    image: ghcr.io/kashyap-1811/budget-service:${IMAGE_TAG:-latest}
     container_name: artha-budget-service
     depends_on:
       service-registry:
@@ -193,9 +187,7 @@ services:
 
   # ── Expense Service ───────────────────────────────────────────────────────
   expense-service:
-    build:
-      context: ./expense
-      dockerfile: Dockerfile
+    image: ghcr.io/kashyap-1811/expense-service:${IMAGE_TAG:-latest}
     container_name: artha-expense-service
     depends_on:
       service-registry:
@@ -243,9 +235,7 @@ services:
 
   # ── Notification Service ──────────────────────────────────────────────────
   notification-service:
-    build:
-      context: ./notification-service
-      dockerfile: Dockerfile
+    image: ghcr.io/kashyap-1811/notification-service:${IMAGE_TAG:-latest}
     container_name: artha-notification-service
     init: true
     depends_on:
@@ -285,9 +275,7 @@ services:
 
   # ── Analysis Service ──────────────────────────────────────────────────────
   analysis-service:
-    build:
-      context: ./analysis-service
-      dockerfile: Dockerfile
+    image: ghcr.io/kashyap-1811/analysis-service:${IMAGE_TAG:-latest}
     container_name: artha-analysis-service
     depends_on:
       service-registry:

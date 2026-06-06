@@ -13,7 +13,6 @@ on:
       - 'budget/**'
       - 'notification-service/**'
       - 'analysis-service/**'
-      - 'artha-frontend/**'
       - '.github/workflows/build-all.yml'
   workflow_dispatch:
 
@@ -38,8 +37,6 @@ jobs:
             path: ./notification-service
           - name: analysis-service
             path: ./analysis-service
-          - name: artha-frontend
-            path: ./artha-frontend
 
     permissions:
       contents: read
@@ -83,7 +80,5 @@ jobs:
             ${{ steps.prep.outputs.repo }}:${{ steps.vars.outputs.sha_short }}
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
-          build-args: |
-            ${{ matrix.service.name == 'artha-frontend' && 'VITE_API_BASE_URL=https://api.artha.systems' || '' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

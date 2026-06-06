@@ -34,9 +34,10 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Downcase Repository Owner Name
+      - name: Set Image Repository Name
+        id: prep
         run: |
-          echo "IMAGE_REPOSITORY=ghcr.io/${{ github.repository_owner }}/service-registry" | tr '[:upper:]' '[:lower:]' >> $GITHUB_ENV
+          echo "repo=$(echo "ghcr.io/${{ github.repository_owner }}/service-registry" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
 
       - name: Build and Push Image
         uses: docker/build-push-action@v6
@@ -45,7 +46,7 @@ jobs:
           file: ./service-registry/Dockerfile
           push: true
           tags: |
-            ${{ env.IMAGE_REPOSITORY }}:latest
-            ${{ env.IMAGE_REPOSITORY }}:${{ github.sha }}
+            ${{ steps.prep.outputs.repo }}:latest
+            ${{ steps.prep.outputs.repo }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

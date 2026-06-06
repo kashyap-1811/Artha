@@ -31,9 +31,7 @@ services:
 
   # ── Service Registry (Eureka) ─────────────────────────────────────────────
   service-registry:
-    build:
-      context: ./service-registry
-      dockerfile: Dockerfile
+    image: ghcr.io/kashyap-1811/service-registry:${IMAGE_TAG:-latest}
     container_name: artha-service-registry
     # Temporarily exposed for direct Eureka access/debugging
     ports:

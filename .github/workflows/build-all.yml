@@ -117,6 +117,9 @@ jobs:
             if [ -d "/opt/artha/nginx/nginx.conf" ]; then
               rm -rf /opt/artha/nginx/nginx.conf
             fi
+            if [ -d "/opt/artha/nginx/nginx.conf.production" ]; then
+              rm -rf /opt/artha/nginx/nginx.conf.production
+            fi
             
             chmod +x /opt/artha/scripts/deploy.sh
             

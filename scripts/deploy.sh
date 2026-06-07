@@ -53,6 +53,41 @@ dcompose() {
   fi
 }
 
+deploy_zero_downtime() {
+  SERVICE_NAME=$1
+  CONTAINER_NAME="artha-$SERVICE_NAME"
+  OLD_CONTAINER_NAME="${CONTAINER_NAME}-old"
+
+  echo "-----------------------------------------"
+  echo "Deploying $SERVICE_NAME with zero-downtime..."
+  echo "-----------------------------------------"
+
+  # 1. Rename existing container if it is running
+  if docker ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
+    echo "Renaming existing container to ${OLD_CONTAINER_NAME}..."
+    docker rm -f "$OLD_CONTAINER_NAME" 2>/dev/null || true
+    docker rename "$CONTAINER_NAME" "$OLD_CONTAINER_NAME"
+  fi
+
+  # 2. Start new container with new image tag
+  dcompose up -d --no-deps "$SERVICE_NAME"
+
+  # 3. Wait for new container to become healthy
+  echo "Waiting for new $SERVICE_NAME to become healthy..."
+  until [ "$(docker inspect --format='{{.State.Health.Status}}' "$CONTAINER_NAME" 2>/dev/null)" == "healthy" ]; do
+    sleep 2
+  done
+  echo "New $SERVICE_NAME is healthy!"
+
+  # 4. Stop and remove the old container
+  if docker ps -a --format '{{.Names}}' | grep -q "^${OLD_CONTAINER_NAME}$"; then
+    echo "Stopping and removing old $SERVICE_NAME container..."
+    docker stop "$OLD_CONTAINER_NAME"
+    docker rm "$OLD_CONTAINER_NAME"
+  fi
+  echo "$SERVICE_NAME deployed successfully with zero downtime!"
+}
+
 echo "Deploying service-registry..."
 dcompose up -d --no-deps service-registry
 echo "Waiting for service-registry healthcheck..."
@@ -60,24 +95,15 @@ until [ "$(docker inspect --format='{{.State.Health.Status}}' artha-service-regi
   sleep 2
 done
 
-echo "Deploying user-service..."
-dcompose up -d --no-deps user-service
-echo "Waiting for user-service healthcheck..."
-until [ "$(docker inspect --format='{{.State.Health.Status}}' artha-user-service)" == "healthy" ]; do
-  sleep 2
-done
+# Deploy microservices in dependency order with zero-downtime rolling updates
+deploy_zero_downtime user-service
+deploy_zero_downtime api-gateway
+deploy_zero_downtime budget-service
+deploy_zero_downtime expense-service
+deploy_zero_downtime notification-service
+deploy_zero_downtime analysis-service
 
-echo "Deploying api-gateway..."
-dcompose up -d --no-deps api-gateway
-echo "Waiting for api-gateway healthcheck..."
-until [ "$(docker inspect --format='{{.State.Health.Status}}' artha-api-gateway)" == "healthy" ]; do
-  sleep 2
-done
-
-echo "Deploying other backend microservices..."
-dcompose up -d --no-deps budget-service expense-service notification-service analysis-service
-
-# Restart Nginx with zero-downtime and verify configuration
+# Deploy nginx with zero-downtime config reload if running
 echo "Deploying nginx..."
 if [ -d "/opt/artha/nginx/nginx.conf" ]; then
   echo "Removing invalid directory-mount fallback at /opt/artha/nginx/nginx.conf..."
@@ -87,7 +113,14 @@ if [ -d "/opt/artha/nginx/nginx.conf.production" ]; then
   echo "Removing invalid directory-mount fallback at /opt/artha/nginx/nginx.conf.production..."
   rm -rf /opt/artha/nginx/nginx.conf.production
 fi
-dcompose up -d --no-deps nginx
+
+if docker ps --format '{{.Names}}' | grep -q "^artha-nginx$"; then
+  echo "Reloading nginx configuration..."
+  docker exec artha-nginx nginx -s reload
+else
+  echo "Starting nginx..."
+  dcompose up -d --no-deps nginx
+fi
 
 # 4. Cleanup old unused images
 echo "Pruning unused Docker images..."

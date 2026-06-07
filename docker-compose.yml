@@ -56,7 +56,7 @@ services:
       - artha-net
 
   # ── API Gateway ───────────────────────────────────────────────────────────
-  api-gateway:
+  api-gateway: &api-gateway-template
     image: ghcr.io/kashyap-1811/api-gateway:${IMAGE_TAG:-latest}
     container_name: artha-api-gateway
     depends_on:
@@ -91,10 +91,17 @@ services:
         max-size: "10m"
         max-file: "3"
     networks:
-      - artha-net
+      artha-net:
+        aliases:
+          - api-gateway
+
+  api-gateway-temp:
+    <<: *api-gateway-template
+    container_name: artha-api-gateway-temp
+    depends_on: []
 
   # ── User Service ──────────────────────────────────────────────────────────
-  user-service:
+  user-service: &user-service-template
     image: ghcr.io/kashyap-1811/user-service:${IMAGE_TAG:-latest}
     container_name: artha-user-service
     depends_on:
@@ -136,10 +143,17 @@ services:
     volumes:
       - ./certs:/app/certs:ro
     networks:
-      - artha-net
+      artha-net:
+        aliases:
+          - user-service
+
+  user-service-temp:
+    <<: *user-service-template
+    container_name: artha-user-service-temp
+    depends_on: []
 
   # ── Budget Service ────────────────────────────────────────────────────────
-  budget-service:
+  budget-service: &budget-service-template
     image: ghcr.io/kashyap-1811/budget-service:${IMAGE_TAG:-latest}
     container_name: artha-budget-service
     depends_on:
@@ -184,10 +198,17 @@ services:
     volumes:
       - ./certs:/app/certs:ro
     networks:
-      - artha-net
+      artha-net:
+        aliases:
+          - budget-service
+
+  budget-service-temp:
+    <<: *budget-service-template
+    container_name: artha-budget-service-temp
+    depends_on: []
 
   # ── Expense Service ───────────────────────────────────────────────────────
-  expense-service:
+  expense-service: &expense-service-template
     image: ghcr.io/kashyap-1811/expense-service:${IMAGE_TAG:-latest}
     container_name: artha-expense-service
     depends_on:
@@ -232,10 +253,17 @@ services:
     volumes:
       - ./certs:/app/certs:ro
     networks:
-      - artha-net
+      artha-net:
+        aliases:
+          - expense-service
+
+  expense-service-temp:
+    <<: *expense-service-template
+    container_name: artha-expense-service-temp
+    depends_on: []
 
   # ── Notification Service ──────────────────────────────────────────────────
-  notification-service:
+  notification-service: &notification-service-template
     image: ghcr.io/kashyap-1811/notification-service:${IMAGE_TAG:-latest}
     container_name: artha-notification-service
     init: true
@@ -272,10 +300,17 @@ services:
     volumes:
       - ./certs:/app/src/certs:ro
     networks:
-      - artha-net
+      artha-net:
+        aliases:
+          - notification-service
+
+  notification-service-temp:
+    <<: *notification-service-template
+    container_name: artha-notification-service-temp
+    depends_on: []
 
   # ── Analysis Service ──────────────────────────────────────────────────────
-  analysis-service:
+  analysis-service: &analysis-service-template
     image: ghcr.io/kashyap-1811/analysis-service:${IMAGE_TAG:-latest}
     container_name: artha-analysis-service
     depends_on:
@@ -310,7 +345,14 @@ services:
     volumes:
       - ./certs:/app/app/certs:ro
     networks:
-      - artha-net
+      artha-net:
+        aliases:
+          - analysis-service
+
+  analysis-service-temp:
+    <<: *analysis-service-template
+    container_name: artha-analysis-service-temp
+    depends_on: []
 
 # ── Network ──────────────────────────────────────────────────────────────────
 networks:

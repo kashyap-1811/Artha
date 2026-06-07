@@ -55,48 +55,30 @@ dcompose() {
 
 deploy_zero_downtime() {
   SERVICE_NAME=$1
-  PORT=$2
-  HEALTH_PATH=$3
-  VOLUME_IN_CONTAINER=$4  # optional, e.g. "/app/certs"
-
   CONTAINER_NAME="artha-$SERVICE_NAME"
+  TEMP_SERVICE_NAME="${SERVICE_NAME}-temp"
   TEMP_CONTAINER_NAME="${CONTAINER_NAME}-temp"
-  IMAGE_NAME="ghcr.io/kashyap-1811/$SERVICE_NAME:$IMAGE_TAG"
 
   echo "-----------------------------------------"
   echo "Deploying $SERVICE_NAME with zero-downtime..."
   echo "-----------------------------------------"
 
-  # 1. Clean up any existing temp container
-  docker rm -f "$TEMP_CONTAINER_NAME" 2>/dev/null || true
+  # 1. Clean up any leftover temp container
+  dcompose rm -f -s "$TEMP_SERVICE_NAME" 2>/dev/null || true
 
   # 2. Start the temp container with the new image
-  VOLUME_OPT=""
-  if [ -n "$VOLUME_IN_CONTAINER" ]; then
-    VOLUME_OPT="-v /opt/artha/certs:${VOLUME_IN_CONTAINER}:ro"
-  fi
-
-  echo "Starting temp container $TEMP_CONTAINER_NAME..."
-  docker run -d \
-    --name "$TEMP_CONTAINER_NAME" \
-    --network artha_artha-net \
-    --network-alias "$SERVICE_NAME" \
-    --env-file "$ENV_FILE" \
-    $VOLUME_OPT \
-    "$IMAGE_NAME"
+  echo "Starting temp container via Docker Compose..."
+  dcompose up -d --no-deps "$TEMP_SERVICE_NAME"
 
   # 3. Wait for temp container to become healthy
   echo "Waiting for temp $SERVICE_NAME to become healthy..."
-  until
-    if [ "$SERVICE_NAME" == "notification-service" ]; then
-      docker exec "$TEMP_CONTAINER_NAME" wget --spider -q http://localhost:${PORT}${HEALTH_PATH}
-    elif [ "$SERVICE_NAME" == "analysis-service" ]; then
-      docker exec "$TEMP_CONTAINER_NAME" wget --spider -q http://localhost:${PORT}${HEALTH_PATH}
-    else
-      # Spring Boot services
-      docker exec "$TEMP_CONTAINER_NAME" curl -s http://localhost:${PORT}${HEALTH_PATH} | grep -q "UP"
+  until [ "$(docker inspect --format='{{.State.Health.Status}}' "$TEMP_CONTAINER_NAME" 2>/dev/null)" == "healthy" ]; do
+    # Check if the container crashed to avoid infinite loop
+    if [ "$(docker inspect --format='{{.State.Status}}' "$TEMP_CONTAINER_NAME" 2>/dev/null)" == "exited" ]; then
+      echo "Error: Temp container $TEMP_CONTAINER_NAME exited unexpectedly. Logs:"
+      docker logs "$TEMP_CONTAINER_NAME"
+      exit 1
     fi
-  do
     sleep 2
   done
   echo "Temp $SERVICE_NAME is healthy!"
@@ -114,8 +96,8 @@ deploy_zero_downtime() {
 
   # 6. Stop and remove the temp container
   echo "Stopping and removing temp container..."
-  docker stop "$TEMP_CONTAINER_NAME"
-  docker rm "$TEMP_CONTAINER_NAME"
+  dcompose stop "$TEMP_SERVICE_NAME"
+  dcompose rm -f "$TEMP_SERVICE_NAME"
   
   echo "$SERVICE_NAME deployed successfully with zero downtime!"
 }
@@ -128,12 +110,12 @@ until [ "$(docker inspect --format='{{.State.Health.Status}}' artha-service-regi
 done
 
 # Deploy microservices in dependency order with zero-downtime rolling updates
-deploy_zero_downtime user-service 8083 /actuator/health /app/certs
-deploy_zero_downtime api-gateway 8080 /actuator/health
-deploy_zero_downtime budget-service 8081 /actuator/health /app/certs
-deploy_zero_downtime expense-service 8082 /actuator/health /app/certs
-deploy_zero_downtime notification-service 8086 /health /app/src/certs
-deploy_zero_downtime analysis-service 8084 /docs /app/app/certs
+deploy_zero_downtime user-service
+deploy_zero_downtime api-gateway
+deploy_zero_downtime budget-service
+deploy_zero_downtime expense-service
+deploy_zero_downtime notification-service
+deploy_zero_downtime analysis-service
 
 # Deploy nginx with zero-downtime config reload if running
 echo "Deploying nginx..."

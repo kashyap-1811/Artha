@@ -71,7 +71,7 @@ services:
       SERVER_IP: ${SERVER_IP}
       EUREKA_INSTANCE_HOSTNAME: api-gateway
       EUREKA_INSTANCE_PREFER_IP_ADDRESS: "false"
-      EUREKA_INSTANCE_INSTANCE_ID: ${SERVER_IP:-localhost}:api-gateway:8080
+      EUREKA_INSTANCE_INSTANCE_ID: ${SERVER_IP:-localhost}:api-gateway:8080:${HOSTNAME}
       JWT_SECRET: ${JWT_SECRET}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
       SPRING_DEVTOOLS_RESTART_ENABLED: "false"
@@ -124,7 +124,7 @@ services:
       SERVER_IP: ${SERVER_IP}
       EUREKA_INSTANCE_HOSTNAME: user-service
       EUREKA_INSTANCE_PREFER_IP_ADDRESS: "false"
-      EUREKA_INSTANCE_INSTANCE_ID: ${SERVER_IP:-localhost}:user-service:8083
+      EUREKA_INSTANCE_INSTANCE_ID: ${SERVER_IP:-localhost}:user-service:8083:${HOSTNAME}
       FRONTEND_URL: ${FRONTEND_URL}
       SPRING_DEVTOOLS_RESTART_ENABLED: "false"
     healthcheck:
@@ -180,7 +180,7 @@ services:
       SERVER_IP: ${SERVER_IP}
       EUREKA_INSTANCE_HOSTNAME: budget-service
       EUREKA_INSTANCE_PREFER_IP_ADDRESS: "false"
-      EUREKA_INSTANCE_INSTANCE_ID: ${SERVER_IP:-localhost}:budget-service:8081
+      EUREKA_INSTANCE_INSTANCE_ID: ${SERVER_IP:-localhost}:budget-service:8081:${HOSTNAME}
       SPRING_DEVTOOLS_RESTART_ENABLED: "false"
     healthcheck:
       test: ["CMD", "curl", "-s", "-o", "/dev/null", "http://localhost:8081/actuator/health"]
@@ -235,7 +235,7 @@ services:
       SERVER_IP: ${SERVER_IP}
       EUREKA_INSTANCE_HOSTNAME: expense-service
       EUREKA_INSTANCE_PREFER_IP_ADDRESS: "false"
-      EUREKA_INSTANCE_INSTANCE_ID: ${SERVER_IP:-localhost}:expense-service:8082
+      EUREKA_INSTANCE_INSTANCE_ID: ${SERVER_IP:-localhost}:expense-service:8082:${HOSTNAME}
       SPRING_DEVTOOLS_RESTART_ENABLED: "false"
     healthcheck:
       test: ["CMD", "curl", "-s", "-o", "/dev/null", "http://localhost:8082/actuator/health"]

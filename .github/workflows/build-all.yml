@@ -13,6 +13,9 @@ on:
       - 'budget/**'
       - 'notification-service/**'
       - 'analysis-service/**'
+      - 'docker-compose.yml'
+      - 'docker-compose.infra.yml'
+      - 'scripts/deploy.sh'
       - '.github/workflows/build-all.yml'
   workflow_dispatch:
 

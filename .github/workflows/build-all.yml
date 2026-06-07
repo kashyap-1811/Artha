@@ -73,6 +73,27 @@ jobs:
           echo "repo=$(echo "ghcr.io/${{ github.repository_owner }}/${{ matrix.service.name }}" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
 
       - name: Build and Push Image
+        id: build_push
+        uses: docker/build-push-action@v6
+        continue-on-error: true
+        with:
+          context: ${{ matrix.service.path }}
+          file: ${{ matrix.service.path }}/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.prep.outputs.repo }}:latest
+            ${{ steps.prep.outputs.repo }}:${{ steps.vars.outputs.sha_short }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Sleep before retry
+        if: steps.build_push.outcome == 'failure'
+        run: sleep 10
+
+      - name: Retry Build and Push Image
+        if: steps.build_push.outcome == 'failure'
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.service.path }}

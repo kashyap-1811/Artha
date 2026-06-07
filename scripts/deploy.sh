@@ -77,7 +77,7 @@ done
 echo "Deploying other backend microservices..."
 dcompose up -d --no-deps budget-service expense-service notification-service analysis-service
 
-# Restart Nginx to verify configuration
+# Restart Nginx with zero-downtime and verify configuration
 echo "Deploying nginx..."
 if [ -d "/opt/artha/nginx/nginx.conf" ]; then
   echo "Removing invalid directory-mount fallback at /opt/artha/nginx/nginx.conf..."

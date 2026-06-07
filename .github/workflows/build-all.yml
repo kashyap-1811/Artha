@@ -1,0 +1,153 @@
+name: Build and Deploy All Services
+
+on:
+  push:
+    branches:
+      - Jasmita
+      - main
+    paths:
+      - 'service-registry/**'
+      - 'api-gateway/**'
+      - 'user-service/**'
+      - 'expense/**'
+      - 'budget/**'
+      - 'notification-service/**'
+      - 'analysis-service/**'
+      - 'docker-compose.yml'
+      - 'docker-compose.infra.yml'
+      - 'scripts/deploy.sh'
+      - '.github/workflows/build-all.yml'
+  workflow_dispatch:
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - name: service-registry
+            path: ./service-registry
+          - name: api-gateway
+            path: ./api-gateway
+          - name: user-service
+            path: ./user-service
+          - name: expense-service
+            path: ./expense
+          - name: budget-service
+            path: ./budget
+          - name: notification-service
+            path: ./notification-service
+          - name: analysis-service
+            path: ./analysis-service
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Get Short Git SHA
+        id: vars
+        run: |
+          echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set Image Repository Name
+        id: prep
+        run: |
+          echo "repo=$(echo "ghcr.io/${{ github.repository_owner }}/${{ matrix.service.name }}" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
+      - name: Build and Push Image
+        id: build_push
+        uses: docker/build-push-action@v6
+        continue-on-error: true
+        with:
+          context: ${{ matrix.service.path }}
+          file: ${{ matrix.service.path }}/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.prep.outputs.repo }}:latest
+            ${{ steps.prep.outputs.repo }}:${{ steps.vars.outputs.sha_short }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Sleep before retry
+        if: steps.build_push.outcome == 'failure'
+        run: sleep 10
+
+      - name: Retry Build and Push Image
+        if: steps.build_push.outcome == 'failure'
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.service.path }}
+          file: ${{ matrix.service.path }}/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.prep.outputs.repo }}:latest
+            ${{ steps.prep.outputs.repo }}:${{ steps.vars.outputs.sha_short }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build-and-push
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Get Short Git SHA
+        id: vars
+        run: |
+          echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Copy deployment files to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "docker-compose.yml,docker-compose.infra.yml,scripts/deploy.sh,nginx"
+          target: "/opt/artha"
+
+      - name: SSH and run deploy script
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: GHCR_PAT,GHCR_USERNAME
+          script: |
+            # Clean up potential directory-mount fallback from failed docker runs
+            if [ -d "/opt/artha/nginx/nginx.conf" ]; then
+              rm -rf /opt/artha/nginx/nginx.conf
+            fi
+            if [ -d "/opt/artha/nginx/nginx.conf.production" ]; then
+              rm -rf /opt/artha/nginx/nginx.conf.production
+            fi
+            
+            chmod +x /opt/artha/scripts/deploy.sh
+            
+            export GHCR_PAT="${{ secrets.GHCR_PAT }}"
+            export GHCR_USERNAME="${{ secrets.GHCR_USERNAME }}"
+            
+            /opt/artha/scripts/deploy.sh ${{ steps.vars.outputs.sha_short }}

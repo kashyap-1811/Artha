@@ -55,36 +55,68 @@ dcompose() {
 
 deploy_zero_downtime() {
   SERVICE_NAME=$1
+  PORT=$2
+  HEALTH_PATH=$3
+  VOLUME_IN_CONTAINER=$4  # optional, e.g. "/app/certs"
+
   CONTAINER_NAME="artha-$SERVICE_NAME"
-  OLD_CONTAINER_NAME="${CONTAINER_NAME}-old"
+  TEMP_CONTAINER_NAME="${CONTAINER_NAME}-temp"
+  IMAGE_NAME="ghcr.io/kashyap-1811/$SERVICE_NAME:$IMAGE_TAG"
 
   echo "-----------------------------------------"
   echo "Deploying $SERVICE_NAME with zero-downtime..."
   echo "-----------------------------------------"
 
-  # 1. Rename existing container if it is running
-  if docker ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
-    echo "Renaming existing container to ${OLD_CONTAINER_NAME}..."
-    docker rm -f "$OLD_CONTAINER_NAME" 2>/dev/null || true
-    docker rename "$CONTAINER_NAME" "$OLD_CONTAINER_NAME"
+  # 1. Clean up any existing temp container
+  docker rm -f "$TEMP_CONTAINER_NAME" 2>/dev/null || true
+
+  # 2. Start the temp container with the new image
+  VOLUME_OPT=""
+  if [ -n "$VOLUME_IN_CONTAINER" ]; then
+    VOLUME_OPT="-v /opt/artha/certs:${VOLUME_IN_CONTAINER}:ro"
   fi
 
-  # 2. Start new container with new image tag
+  echo "Starting temp container $TEMP_CONTAINER_NAME..."
+  docker run -d \
+    --name "$TEMP_CONTAINER_NAME" \
+    --network artha_artha-net \
+    --network-alias "$SERVICE_NAME" \
+    --env-file "$ENV_FILE" \
+    $VOLUME_OPT \
+    "$IMAGE_NAME"
+
+  # 3. Wait for temp container to become healthy
+  echo "Waiting for temp $SERVICE_NAME to become healthy..."
+  until
+    if [ "$SERVICE_NAME" == "notification-service" ]; then
+      docker exec "$TEMP_CONTAINER_NAME" wget --spider -q http://localhost:${PORT}${HEALTH_PATH}
+    elif [ "$SERVICE_NAME" == "analysis-service" ]; then
+      docker exec "$TEMP_CONTAINER_NAME" wget --spider -q http://localhost:${PORT}${HEALTH_PATH}
+    else
+      # Spring Boot services
+      docker exec "$TEMP_CONTAINER_NAME" curl -s http://localhost:${PORT}${HEALTH_PATH} | grep -q "UP"
+    fi
+  do
+    sleep 2
+  done
+  echo "Temp $SERVICE_NAME is healthy!"
+
+  # 4. Recreate the main container using docker compose
+  echo "Recreating main $CONTAINER_NAME container via Docker Compose..."
   dcompose up -d --no-deps "$SERVICE_NAME"
 
-  # 3. Wait for new container to become healthy
-  echo "Waiting for new $SERVICE_NAME to become healthy..."
+  # 5. Wait for the new main container to become healthy
+  echo "Waiting for new main $CONTAINER_NAME to become healthy..."
   until [ "$(docker inspect --format='{{.State.Health.Status}}' "$CONTAINER_NAME" 2>/dev/null)" == "healthy" ]; do
     sleep 2
   done
-  echo "New $SERVICE_NAME is healthy!"
+  echo "New main $CONTAINER_NAME is healthy!"
 
-  # 4. Stop and remove the old container
-  if docker ps -a --format '{{.Names}}' | grep -q "^${OLD_CONTAINER_NAME}$"; then
-    echo "Stopping and removing old $SERVICE_NAME container..."
-    docker stop "$OLD_CONTAINER_NAME"
-    docker rm "$OLD_CONTAINER_NAME"
-  fi
+  # 6. Stop and remove the temp container
+  echo "Stopping and removing temp container..."
+  docker stop "$TEMP_CONTAINER_NAME"
+  docker rm "$TEMP_CONTAINER_NAME"
+  
   echo "$SERVICE_NAME deployed successfully with zero downtime!"
 }
 
@@ -96,12 +128,12 @@ until [ "$(docker inspect --format='{{.State.Health.Status}}' artha-service-regi
 done
 
 # Deploy microservices in dependency order with zero-downtime rolling updates
-deploy_zero_downtime user-service
-deploy_zero_downtime api-gateway
-deploy_zero_downtime budget-service
-deploy_zero_downtime expense-service
-deploy_zero_downtime notification-service
-deploy_zero_downtime analysis-service
+deploy_zero_downtime user-service 8083 /actuator/health /app/certs
+deploy_zero_downtime api-gateway 8080 /actuator/health
+deploy_zero_downtime budget-service 8081 /actuator/health /app/certs
+deploy_zero_downtime expense-service 8082 /actuator/health /app/certs
+deploy_zero_downtime notification-service 8086 /health /app/src/certs
+deploy_zero_downtime analysis-service 8084 /docs /app/app/certs
 
 # Deploy nginx with zero-downtime config reload if running
 echo "Deploying nginx..."

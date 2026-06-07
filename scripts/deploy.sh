@@ -65,6 +65,7 @@ deploy_zero_downtime() {
 
   # 1. Clean up any leftover temp container
   dcompose rm -f -s "$TEMP_SERVICE_NAME" 2>/dev/null || true
+  docker rm -f "$TEMP_CONTAINER_NAME" 2>/dev/null || true
 
   # 2. Start the temp container with the new image
   echo "Starting temp container via Docker Compose..."

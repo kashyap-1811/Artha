@@ -148,6 +148,6 @@ public class UserController {
 
     @GetMapping("/hello")
     public ResponseEntity<String> hello() {
-        return ResponseEntity.ok("Hello from User Service!");
+        return ResponseEntity.ok("Hello from User Service (Updated)!");
     }
 }

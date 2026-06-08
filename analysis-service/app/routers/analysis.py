@@ -107,3 +107,7 @@ async def get_top_spenders(budget_id: str, request: Request):
         end_time = time.time()
         print(f"====== Service Execution Time [Get Top Spenders]: {int((end_time - start_time) * 1000)}ms ======")
 
+
+@router.get("/hello")
+def hello():
+    return {"message": "Hello from Analysis Service!"}

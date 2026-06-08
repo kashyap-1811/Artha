@@ -21,6 +21,7 @@
 - [Event-Driven Flow](#event-driven-flow)
 - [Implementation Deep-Dives](#implementation-deep-dives)
 - [⚡ Optimization & Refactoring](#-optimization--refactoring)
+- [🚀 CI/CD & Zero-Downtime Deployment](#-cicd--zero-downtime-deployment)
 - [API Overview](#api-overview)
 
 ---
@@ -404,6 +405,7 @@ Detailed write-ups on key cross-cutting concerns implemented in this project:
 | **⚡ Optimization & Refactoring** | [`implementation/optimization.md`](implementation/optimization.md) | Second-round backend optimization: DB indexes, N+1 HTTP fix in FastAPI, async I/O fix, constraint-based validation, and aggregation query optimization across user, budget, and expense services. |
 | **🐳 Docker** | [`implementation/Docker.md`](implementation/Docker.md) | Multi-stage Docker builds with non-root users and JVM tuning for every service; production `docker-compose.yml` with Nginx reverse proxy, cloud-managed Kafka (SSL) and Redis (TLS), health-check dependency ordering, and memory limits; infra-only compose for local development. |
 | **📨 Kafka** | [`implementation/Kafka.md`](implementation/Kafka.md) | End-to-end Kafka event streaming: topic design (`expense-events`, `budget-events`, `company-events`), event schemas, producer transactional-outbox pattern (`afterCommit`), SSL/TLS configuration, and per-consumer group processing in the analysis and notification services. |
+| **🚀 CI/CD** | [`implementation/CI_CD.md`](implementation/CI_CD.md) | Automated CI/CD pipeline with GitHub Actions matrix builds, private GHCR image storage, and sequential zero-downtime rolling deployments on a strict 4GB RAM budget. |
 
 ---
 
@@ -428,6 +430,19 @@ A focused second round of backend optimization was applied across the Java Sprin
 | `GET /api/users/{id}` | 1037 | 703 | **+32%** |
 | `POST /api/budgets` | 1668 | 1294 | **+22%** |
 | `GET /api/users/by-email` | 1216 | 1078 | **+11%** |
+
+---
+
+## 🚀 CI/CD & Zero-Downtime Deployment
+
+The application features an automated build and deployment pipeline designed to support seamless, zero-downtime updates:
+
+- **GitHub Actions Workflow**: Runs on pushes to `Jasmita` and `main` branches. It concurrently builds and pushes all 7 backend microservice Docker images in parallel to **GitHub Container Registry (GHCR)** using a matrix strategy, then securely transfers configurations via SCP and triggers the deployment script on the production server via SSH.
+- **Zero-Downtime Rolling Restarts**: A custom deployment orchestrator (`scripts/deploy.sh`) updates microservices sequentially in dependency order on the production host.
+- **Resource-Constrained Handover**: Briefly spins up a temporary container (`-temp`) with the new image, blocks until the internal Spring Boot Actuator health checks report `"healthy"`, restarts the main container, blocks until the main container is healthy, and then terminates the temporary container—keeping memory overhead minimal on a 4GB RAM budget.
+- **Eureka Resolution**: Escapes Docker Compose hostname settings to `$${HOSTNAME}` to generate unique instance IDs inside Eureka, preventing status registration conflicts during rolling handovers.
+
+Full configuration details and code walkthrough are documented in [`implementation/CI_CD.md`](implementation/CI_CD.md).
 
 ---
 

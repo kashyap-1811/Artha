@@ -61,7 +61,11 @@ except KeyboardInterrupt:
     print("Ping summary:")
     print(f"  Total Requests: {total}")
     if total > 0:
-        print(f"  Success (200/401): {success} ({success/total*100:.1f}%)")
-        print(f"  Rate Limited (429): {rate_limited} ({rate_limited/total*100:.1f}%)")
-        print(f"  Failed/Down: {failed} ({failed/total*100:.1f}%)")
+        divisor = total
+        # pyrefly: ignore [division-by-zero]
+        print(f"  Success (200/401): {success} ({success/divisor*100:.1f}%)")
+        # pyrefly: ignore [division-by-zero]
+        print(f"  Rate Limited (429): {rate_limited} ({rate_limited/divisor*100:.1f}%)")
+        # pyrefly: ignore [division-by-zero]
+        print(f"  Failed/Down: {failed} ({failed/divisor*100:.1f}%)")
     print("="*60)

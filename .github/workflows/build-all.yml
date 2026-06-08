@@ -72,7 +72,12 @@ jobs:
             FILTERED_CHANGES=$(echo "$CHANGES" | jq -c 'map(select(. != "config"))')
             
             echo "services=$FILTERED_CHANGES" >> $GITHUB_OUTPUT
-            echo "any_changed=${{ steps.filter.outputs.any_changed }}" >> $GITHUB_OUTPUT
+            
+            if [ "$CHANGES" != "[]" ]; then
+              echo "any_changed=true" >> $GITHUB_OUTPUT
+            else
+              echo "any_changed=false" >> $GITHUB_OUTPUT
+            fi
             
             # If filtered microservices have changed, we need to run builds
             if [ "$FILTERED_CHANGES" != "[]" ]; then

@@ -68,11 +68,14 @@ jobs:
             CHANGES='${{ steps.filter.outputs.changes }}'
             CONFIG_CHANGED='${{ steps.filter.outputs.config }}'
             
-            echo "services=$CHANGES" >> $GITHUB_OUTPUT
+            # Filter out "config" from the services changes array
+            FILTERED_CHANGES=$(echo "$CHANGES" | jq -c 'map(select(. != "config"))')
+            
+            echo "services=$FILTERED_CHANGES" >> $GITHUB_OUTPUT
             echo "any_changed=${{ steps.filter.outputs.any_changed }}" >> $GITHUB_OUTPUT
             
-            # If microservices have changed, we need to run builds
-            if [ "$CHANGES" != "[]" ]; then
+            # If filtered microservices have changed, we need to run builds
+            if [ "$FILTERED_CHANGES" != "[]" ]; then
               echo "has_builds=true" >> $GITHUB_OUTPUT
             else
               echo "has_builds=false" >> $GITHUB_OUTPUT
@@ -83,8 +86,8 @@ jobs:
               # If docker-compose, nginx, or deploy.sh changed, redeploy ALL services
               echo "deploy_args=all" >> $GITHUB_OUTPUT
             else
-              # Otherwise, convert the JSON array of changes to a space-separated string for deploy.sh
-              SPACE_SEPARATED=$(echo "$CHANGES" | jq -r '. | join(" ")')
+              # Otherwise, convert the filtered JSON array to a space-separated string for deploy.sh
+              SPACE_SEPARATED=$(echo "$FILTERED_CHANGES" | jq -r '. | join(" ")')
               echo "deploy_args=$SPACE_SEPARATED" >> $GITHUB_OUTPUT
             fi
           fi

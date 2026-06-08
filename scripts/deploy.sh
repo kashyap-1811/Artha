@@ -52,16 +52,36 @@ SERVICES=(
   "analysis-service"
 )
 
+# Initialize pulled flags
+for SERVICE in "${SERVICES[@]}"; do
+  eval "PULLED_${SERVICE//-/_}=false"
+done
+
 for SERVICE in "${SERVICES[@]}"; do
   if should_deploy "$SERVICE"; then
     IMAGE_NAME="ghcr.io/kashyap-1811/$SERVICE"
     echo "Pulling $IMAGE_NAME:$IMAGE_TAG..."
-    docker pull "$IMAGE_NAME:$IMAGE_TAG" || echo "Warning: Failed to pre-pull $SERVICE, will try to build/pull during container startup."
+    if docker pull "$IMAGE_NAME:$IMAGE_TAG"; then
+      eval "PULLED_${SERVICE//-/_}=true"
+      echo "Successfully pulled $SERVICE with tag $IMAGE_TAG"
+    else
+      echo "Warning: Failed to pre-pull $SERVICE with tag $IMAGE_TAG. Falling back to latest."
+      eval "PULLED_${SERVICE//-/_}=false"
+      docker pull "$IMAGE_NAME:latest" || echo "Warning: Failed to pull latest for $SERVICE too."
+    fi
   fi
 done
 
-# 3. Deploy service-by-service conditionally
-export IMAGE_TAG
+# Helper function to dynamically resolve the image tag for a service
+get_service_tag() {
+  local SERVICE=$1
+  local SERVICE_VAR="PULLED_${SERVICE//-/_}"
+  if [ "${!SERVICE_VAR}" = "true" ]; then
+    echo "$IMAGE_TAG"
+  else
+    echo "latest"
+  fi
+}
 
 ENV_FILE=""
 if [ -f ".env.production" ]; then
@@ -79,13 +99,15 @@ dcompose() {
 }
 
 deploy_zero_downtime() {
-  SERVICE_NAME=$1
-  CONTAINER_NAME="artha-$SERVICE_NAME"
-  TEMP_SERVICE_NAME="${SERVICE_NAME}-temp"
-  TEMP_CONTAINER_NAME="${CONTAINER_NAME}-temp"
+  local SERVICE_NAME=$1
+  local IMAGE_TAG=$2
+  export IMAGE_TAG
+  local CONTAINER_NAME="artha-$SERVICE_NAME"
+  local TEMP_SERVICE_NAME="${SERVICE_NAME}-temp"
+  local TEMP_CONTAINER_NAME="${CONTAINER_NAME}-temp"
 
   echo "-----------------------------------------"
-  echo "Deploying $SERVICE_NAME with zero-downtime..."
+  echo "Deploying $SERVICE_NAME with tag: $IMAGE_TAG (zero-downtime)..."
   echo "-----------------------------------------"
 
   dcompose rm -f -s "$TEMP_SERVICE_NAME" 2>/dev/null || true
@@ -124,7 +146,11 @@ deploy_zero_downtime() {
 # Sequentially check and deploy each service
 if should_deploy "service-registry"; then
   echo "Deploying service-registry..."
-  dcompose up -d --no-deps service-registry
+  (
+    IMAGE_TAG=$(get_service_tag service-registry)
+    export IMAGE_TAG
+    dcompose up -d --no-deps service-registry
+  )
   echo "Waiting for service-registry healthcheck..."
   until [ "$(docker inspect --format='{{.State.Health.Status}}' artha-service-registry)" == "healthy" ]; do
     sleep 2
@@ -132,27 +158,27 @@ if should_deploy "service-registry"; then
 fi
 
 if should_deploy "user-service"; then
-  deploy_zero_downtime user-service
+  deploy_zero_downtime user-service $(get_service_tag user-service)
 fi
 
 if should_deploy "api-gateway"; then
-  deploy_zero_downtime api-gateway
+  deploy_zero_downtime api-gateway $(get_service_tag api-gateway)
 fi
 
 if should_deploy "budget-service"; then
-  deploy_zero_downtime budget-service
+  deploy_zero_downtime budget-service $(get_service_tag budget-service)
 fi
 
 if should_deploy "expense-service"; then
-  deploy_zero_downtime expense-service
+  deploy_zero_downtime expense-service $(get_service_tag expense-service)
 fi
 
 if should_deploy "notification-service"; then
-  deploy_zero_downtime notification-service
+  deploy_zero_downtime notification-service $(get_service_tag notification-service)
 fi
 
 if should_deploy "analysis-service"; then
-  deploy_zero_downtime analysis-service
+  deploy_zero_downtime analysis-service $(get_service_tag analysis-service)
 fi
 
 # Deploy nginx reload if config changes or it is part of full deploy

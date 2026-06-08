@@ -145,4 +145,9 @@ public class UserController {
             System.out.println("====== Service Execution Time [Get User Role]: " + (serviceEnd - serviceStart) + "ms ======");
         }
     }
+
+    @GetMapping("/hello")
+    public ResponseEntity<String> hello() {
+        return ResponseEntity.ok("Hello from User Service!");
+    }
 }

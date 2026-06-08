@@ -39,6 +39,7 @@ jobs:
         id: filter
         uses: dorny/paths-filter@v3
         with:
+          base: ${{ github.ref_name }}
           filters: |
             service-registry: 'service-registry/**'
             api-gateway: 'api-gateway/**'

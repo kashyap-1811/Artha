@@ -98,43 +98,30 @@ dcompose() {
   fi
 }
 
-# Global list of successfully deployed services in this run (for transactional rollback)
-DEPLOYED_SERVICES=()
+wait_for_health() {
+  local CONTAINER_NAME=$1
+  local TIMEOUT=${2:-120}
+  local ELAPSED=0
+  echo "Waiting for $CONTAINER_NAME to become healthy..."
+  while [ $ELAPSED -lt $TIMEOUT ]; do
+    local STATUS=$(docker inspect --format='{{.State.Health.Status}}' "$CONTAINER_NAME" 2>/dev/null || true)
+    local STATE=$(docker inspect --format='{{.State.Status}}' "$CONTAINER_NAME" 2>/dev/null || true)
 
-trigger_global_rollback() {
-  if [ ${#DEPLOYED_SERVICES[@]} -eq 0 ]; then
-    echo "No previously deployed services to roll back."
-    return
-  fi
+    if [ "$STATUS" == "healthy" ]; then
+      echo "$CONTAINER_NAME is healthy!"
+      return 0
+    fi
 
-  echo "========================================="
-  echo "GLOBAL TRANSACTION-STYLE ROLLBACK INITIATED!"
-  echo "Rolling back all successfully deployed services in this batch..."
-  echo "========================================="
+    if [ "$STATE" == "exited" ]; then
+      echo "Error: $CONTAINER_NAME has exited."
+      return 1
+    fi
 
-  # Loop backwards through DEPLOYED_SERVICES to roll back in reverse order
-  for (( i=${#DEPLOYED_SERVICES[@]}-1; i>=0; i-- )); do
-    local SERVICE="${DEPLOYED_SERVICES[$i]}"
-    local VAR_NAME="PREV_TAG_${SERVICE//-/_}"
-    local PREV_TAG="${!VAR_NAME}"
-    local CONTAINER_NAME="artha-$SERVICE"
-    
-    echo "Rolling back $SERVICE to previous stable tag: $PREV_TAG..."
-    (
-      IMAGE_TAG=$PREV_TAG
-      export IMAGE_TAG
-      dcompose up -d --no-deps "$SERVICE"
-    )
-    
-    echo "Waiting for rolled-back $SERVICE to become healthy..."
-    until [ "$(docker inspect --format='{{.State.Health.Status}}' "$CONTAINER_NAME" 2>/dev/null)" == "healthy" ]; do
-      sleep 2
-    done
-    echo "$SERVICE rollback successful."
+    sleep 2
+    ELAPSED=$((ELAPSED + 2))
   done
-  echo "========================================="
-  echo "GLOBAL ROLLBACK COMPLETED SUCCESSFULLY!"
-  echo "========================================="
+  echo "Error: Timed out waiting for $CONTAINER_NAME to become healthy."
+  return 1
 }
 
 deploy_zero_downtime() {
@@ -149,251 +136,243 @@ deploy_zero_downtime() {
   echo "Deploying $SERVICE_NAME with tag: $IMAGE_TAG (zero-downtime)..."
   echo "-----------------------------------------"
 
-  # Get the current running tag and image ID of the main container before touching it (for rollback)
-  local PREV_IMAGE=$(docker inspect --format='{{.Config.Image}}' "$CONTAINER_NAME" 2>/dev/null || true)
-  local PREV_IMAGE_ID=$(docker inspect --format='{{.Image}}' "$CONTAINER_NAME" 2>/dev/null || true)
-  local PREV_TAG=""
-  if [ -n "$PREV_IMAGE" ]; then
-    PREV_TAG=$(echo "$PREV_IMAGE" | awk -F':' '{print $NF}')
-  fi
-  if [ -z "$PREV_TAG" ]; then
-    PREV_TAG="latest"
-  fi
-  echo "Previous running tag for $SERVICE_NAME was: $PREV_TAG"
-  eval "PREV_TAG_${SERVICE_NAME//-/_}=\"$PREV_TAG\""
-
-  # Clean up any leftover temp containers
   dcompose rm -f -s "$TEMP_SERVICE_NAME" 2>/dev/null || true
   docker rm -f "$TEMP_CONTAINER_NAME" 2>/dev/null || true
 
-  # 1. Start temp container
   echo "Starting temp container via Docker Compose..."
-  dcompose up -d --no-deps "$TEMP_SERVICE_NAME"
+  if ! dcompose up -d --no-deps "$TEMP_SERVICE_NAME"; then
+    echo "Error: Failed to start temp container for $SERVICE_NAME"
+    return 1
+  fi
 
-  # 2. Poll temp container health with a timeout (120 seconds)
-  echo "Waiting for temp $SERVICE_NAME to become healthy..."
-  local TIMEOUT=120
-  local ELAPSED=0
-  local TEMP_HEALTHY=false
-
-  while [ $ELAPSED -lt $TIMEOUT ]; do
-    local STATUS=$(docker inspect --format='{{.State.Health.Status}}' "$TEMP_CONTAINER_NAME" 2>/dev/null || true)
-    local STATE=$(docker inspect --format='{{.State.Status}}' "$TEMP_CONTAINER_NAME" 2>/dev/null || true)
-    
-    if [ "$STATUS" == "healthy" ]; then
-      TEMP_HEALTHY=true
-      break
-    elif [ "$STATE" == "exited" ]; then
-      echo "Error: Temp container $TEMP_CONTAINER_NAME exited unexpectedly."
-      break
-    fi
-    
-    sleep 2
-    ELAPSED=$((ELAPSED + 2))
-  done
-
-  if [ "$TEMP_HEALTHY" != "true" ]; then
-    echo "========================================="
-    echo "ERROR: New version of $SERVICE_NAME failed health checks!"
-    echo "Cleaning up temp container..."
+  if ! wait_for_health "$TEMP_CONTAINER_NAME" 120; then
+    echo "Error: Temp container $TEMP_CONTAINER_NAME failed healthcheck. Logs:"
+    docker logs "$TEMP_CONTAINER_NAME"
     dcompose stop "$TEMP_SERVICE_NAME" 2>/dev/null || true
     dcompose rm -f "$TEMP_SERVICE_NAME" 2>/dev/null || true
-    echo "Old version remains running on production."
-    echo "========================================="
-    trigger_global_rollback
-    exit 1
+    return 1
   fi
-  echo "Temp $SERVICE_NAME is healthy!"
 
-  # 3. Recreate main container
   echo "Recreating main $CONTAINER_NAME container via Docker Compose..."
-  dcompose up -d --no-deps "$SERVICE_NAME"
-
-  # 4. Poll main container health with a timeout
-  echo "Waiting for new main $CONTAINER_NAME to become healthy..."
-  ELAPSED=0
-  local MAIN_HEALTHY=false
-
-  while [ $ELAPSED -lt $TIMEOUT ]; do
-    local STATUS=$(docker inspect --format='{{.State.Health.Status}}' "$CONTAINER_NAME" 2>/dev/null || true)
-    local STATE=$(docker inspect --format='{{.State.Status}}' "$CONTAINER_NAME" 2>/dev/null || true)
-    
-    if [ "$STATUS" == "healthy" ]; then
-      MAIN_HEALTHY=true
-      break
-    elif [ "$STATE" == "exited" ]; then
-      echo "Error: Main container $CONTAINER_NAME exited unexpectedly."
-      break
-    fi
-    
-    sleep 2
-    ELAPSED=$((ELAPSED + 2))
-  done
-
-  if [ "$MAIN_HEALTHY" != "true" ]; then
-    echo "========================================="
-    echo "ERROR: Main container $CONTAINER_NAME failed to become healthy!"
-    echo "TRIGGERING AUTOMATED ROLLBACK TO PREVIOUS TAG: $PREV_TAG..."
-    echo "========================================="
-    
-    # Rollback main container
-    IMAGE_TAG=$PREV_TAG dcompose up -d --no-deps "$SERVICE_NAME"
-    
-    # Wait for rolled-back container to be healthy
-    echo "Waiting for rolled-back main container to become healthy..."
-    until [ "$(docker inspect --format='{{.State.Health.Status}}' "$CONTAINER_NAME" 2>/dev/null)" == "healthy" ]; do
-      sleep 2
-    done
-    echo "Rollback successful! Previous stable version is running."
-    
-    # Cleanup temp container
+  if ! dcompose up -d --no-deps "$SERVICE_NAME"; then
+    echo "Error: Failed to recreate main container for $SERVICE_NAME"
     dcompose stop "$TEMP_SERVICE_NAME" 2>/dev/null || true
     dcompose rm -f "$TEMP_SERVICE_NAME" 2>/dev/null || true
-    
-    trigger_global_rollback
-    exit 1
+    return 1
   fi
-  echo "New main $CONTAINER_NAME is healthy!"
 
-  # 5. Clean up temp container
-  echo "Stopping and removing temp container..."
-  dcompose stop "$TEMP_SERVICE_NAME"
-  dcompose rm -f "$TEMP_SERVICE_NAME"
-  
-  # Register in successfully deployed list only if version actually changed
-  local NEW_IMAGE_ID=$(docker inspect --format='{{.Image}}' "$CONTAINER_NAME" 2>/dev/null || true)
-  if [ -n "$PREV_IMAGE_ID" ] && [ "$PREV_IMAGE_ID" != "$NEW_IMAGE_ID" ]; then
-    DEPLOYED_SERVICES+=("$SERVICE_NAME")
-    echo "$SERVICE_NAME version actually changed; registered for rollback."
-  else
-    echo "$SERVICE_NAME version did not change; skipping rollback registration."
+  if ! wait_for_health "$CONTAINER_NAME" 120; then
+    echo "Error: Main container $CONTAINER_NAME failed healthcheck. Logs:"
+    docker logs "$CONTAINER_NAME"
+    return 1
   fi
+
+  echo "Stopping and removing temp container..."
+  dcompose stop "$TEMP_SERVICE_NAME" 2>/dev/null || true
+  dcompose rm -f "$TEMP_SERVICE_NAME" 2>/dev/null || true
+  
   echo "$SERVICE_NAME deployed successfully with zero downtime!"
+  return 0
 }
 
-# Sequentially check and deploy each service
-if should_deploy "service-registry"; then
-  echo "Deploying service-registry..."
-  
-  # Get the current running tag and image ID of service-registry (for rollback)
-  PREV_REG_IMAGE=$(docker inspect --format='{{.Config.Image}}' artha-service-registry 2>/dev/null || true)
-  PREV_REG_IMAGE_ID=$(docker inspect --format='{{.Image}}' artha-service-registry 2>/dev/null || true)
-  PREV_REG_TAG=""
-  if [ -n "$PREV_REG_IMAGE" ]; then
-    PREV_REG_TAG=$(echo "$PREV_REG_IMAGE" | awk -F':' '{print $NF}')
-  fi
-  if [ -z "$PREV_REG_TAG" ]; then
-    PREV_REG_TAG="latest"
-  fi
-  echo "Previous running tag for service-registry was: $PREV_REG_TAG"
+cleanup_rollback_tags() {
+  echo "Cleaning up temporary rollback tags..."
+  for SERVICE in "${SERVICES[@]}"; do
+    local HAD_PREVIOUS_VAR="HAD_PREVIOUS_${SERVICE//-/_}"
+    if [ "${!HAD_PREVIOUS_VAR}" = "true" ]; then
+      local IMAGE_NAME="ghcr.io/kashyap-1811/$SERVICE"
+      docker rmi "$IMAGE_NAME:rollback-$SERVICE" 2>/dev/null || true
+    fi
+  done
+}
 
-  TARGET_REG_TAG=$(get_service_tag service-registry)
-  (
-    IMAGE_TAG=$TARGET_REG_TAG
-    export IMAGE_TAG
-    dcompose up -d --no-deps service-registry
+rollback_services() {
+  echo "========================================="
+  echo "CRITICAL: Deployment failed! Initiating rollback..."
+  echo "========================================="
+
+  # Roll back services in REVERSE order of deployment
+  local REVERSE_SERVICES=(
+    "analysis-service"
+    "notification-service"
+    "expense-service"
+    "budget-service"
+    "api-gateway"
+    "user-service"
+    "service-registry"
   )
 
-  echo "Waiting for service-registry healthcheck..."
-  TIMEOUT=120
-  ELAPSED=0
-  REG_HEALTHY=false
-
-  while [ $ELAPSED -lt $TIMEOUT ]; do
-    STATUS=$(docker inspect --format='{{.State.Health.Status}}' artha-service-registry 2>/dev/null || true)
-    STATE=$(docker inspect --format='{{.State.Status}}' artha-service-registry 2>/dev/null || true)
-    
-    if [ "$STATUS" == "healthy" ]; then
-      REG_HEALTHY=true
-      break
-    elif [ "$STATE" == "exited" ]; then
-      echo "Error: service-registry container exited unexpectedly."
-      break
+  for SERVICE in "${REVERSE_SERVICES[@]}"; do
+    local DEPLOYED_VAR="DEPLOYED_${SERVICE//-/_}"
+    if [ "${!DEPLOYED_VAR}" = "true" ]; then
+      local HAD_PREVIOUS_VAR="HAD_PREVIOUS_${SERVICE//-/_}"
+      local IMAGE_NAME="ghcr.io/kashyap-1811/$SERVICE"
+      
+      if [ "${!HAD_PREVIOUS_VAR}" = "true" ]; then
+        echo "Rolling back $SERVICE to previous version (Tag: rollback-$SERVICE)..."
+        if [ "$SERVICE" = "service-registry" ]; then
+          (
+            IMAGE_TAG="rollback-$SERVICE"
+            export IMAGE_TAG
+            dcompose up -d --no-deps "$SERVICE"
+          )
+          wait_for_health artha-service-registry 120 || echo "Warning: Failed to make service-registry healthy during rollback"
+        else
+          if ! deploy_zero_downtime "$SERVICE" "rollback-$SERVICE"; then
+            echo "Warning: Zero-downtime rollback failed for $SERVICE. Falling back to direct recreate..."
+            (
+              IMAGE_TAG="rollback-$SERVICE"
+              export IMAGE_TAG
+              dcompose up -d --no-deps "$SERVICE"
+            )
+            wait_for_health "artha-$SERVICE" 120 || echo "Warning: Failed to make $SERVICE healthy during fallback rollback"
+          fi
+        fi
+      else
+        echo "$SERVICE had no previous running container. Stopping and removing..."
+        dcompose stop "$SERVICE" 2>/dev/null || true
+        dcompose rm -f "$SERVICE" 2>/dev/null || true
+      fi
     fi
-    
-    sleep 2
-    ELAPSED=$((ELAPSED + 2))
   done
 
-  if [ "$REG_HEALTHY" != "true" ]; then
-    echo "========================================="
-    echo "ERROR: service-registry failed to become healthy!"
-    echo "TRIGGERING AUTOMATED ROLLBACK TO PREVIOUS TAG: $PREV_REG_TAG..."
-    echo "========================================="
-    
-    (
-      IMAGE_TAG=$PREV_REG_TAG
-      export IMAGE_TAG
-      dcompose up -d --no-deps service-registry
-    )
-    
-    until [ "$(docker inspect --format='{{.State.Health.Status}}' artha-service-registry)" == "healthy" ]; do
-      sleep 2
-    done
-    echo "Rollback successful for service-registry!"
-    trigger_global_rollback
-    exit 1
-  fi
+  cleanup_rollback_tags
 
-  # Register in successfully deployed list only if version actually changed
-  NEW_REG_IMAGE_ID=$(docker inspect --format='{{.Image}}' artha-service-registry 2>/dev/null || true)
-  if [ -n "$PREV_REG_IMAGE_ID" ] && [ "$PREV_REG_IMAGE_ID" != "$NEW_REG_IMAGE_ID" ]; then
-    eval "PREV_TAG_service_registry=\"$PREV_REG_TAG\""
-    DEPLOYED_SERVICES+=("service-registry")
-    echo "service-registry version actually changed; registered for rollback."
+  echo "========================================="
+  echo "Rollback completed."
+  echo "========================================="
+}
+
+# Initialize deployed and rollback tracker flags
+for SERVICE in "${SERVICES[@]}"; do
+  eval "DEPLOYED_${SERVICE//-/_}=false"
+  eval "OLD_IMAGE_${SERVICE//-/_}=\"\""
+  eval "HAD_PREVIOUS_${SERVICE//-/_}=false"
+done
+
+# Back up current running images/tags and create rollback tags
+echo "Backing up current service states..."
+for SERVICE in "${SERVICES[@]}"; do
+  if should_deploy "$SERVICE"; then
+    CONTAINER_NAME="artha-$SERVICE"
+    OLD_IMAGE_ID=$(docker inspect --format='{{.Image}}' "$CONTAINER_NAME" 2>/dev/null || true)
+    if [ -n "$OLD_IMAGE_ID" ]; then
+      eval "OLD_IMAGE_${SERVICE//-/_}=\"$OLD_IMAGE_ID\""
+      eval "HAD_PREVIOUS_${SERVICE//-/_}=true"
+      IMAGE_NAME="ghcr.io/kashyap-1811/$SERVICE"
+      echo "Backing up $SERVICE (Image: $OLD_IMAGE_ID) as $IMAGE_NAME:rollback-$SERVICE..."
+      docker tag "$OLD_IMAGE_ID" "$IMAGE_NAME:rollback-$SERVICE" || echo "Warning: Failed to tag rollback image for $SERVICE"
+    else
+      echo "$SERVICE is not currently running. No rollback backup needed."
+    fi
+  fi
+done
+
+DEPLOY_FAILED=false
+
+# Helper to mark a service as successfully deployed in this run
+mark_deployed() {
+  local SERVICE=$1
+  eval "DEPLOYED_${SERVICE//-/_}=true"
+}
+
+# 3. Sequentially check and deploy each service
+if should_deploy "service-registry"; then
+  echo "Deploying service-registry..."
+  IMAGE_TAG=$(get_service_tag service-registry)
+  export IMAGE_TAG
+  if dcompose up -d --no-deps service-registry && wait_for_health artha-service-registry 120; then
+    mark_deployed "service-registry"
   else
-    echo "service-registry version did not change; skipping rollback registration."
+    echo "Error: Failed to deploy service-registry"
+    DEPLOY_FAILED=true
   fi
-  echo "service-registry deployed successfully!"
 fi
 
-if should_deploy "user-service"; then
-  deploy_zero_downtime user-service $(get_service_tag user-service)
+if [ "$DEPLOY_FAILED" = "false" ] && should_deploy "user-service"; then
+  if deploy_zero_downtime user-service "$(get_service_tag user-service)"; then
+    mark_deployed "user-service"
+  else
+    echo "Error: Failed to deploy user-service"
+    DEPLOY_FAILED=true
+  fi
 fi
 
-if should_deploy "api-gateway"; then
-  deploy_zero_downtime api-gateway $(get_service_tag api-gateway)
+if [ "$DEPLOY_FAILED" = "false" ] && should_deploy "api-gateway"; then
+  if deploy_zero_downtime api-gateway "$(get_service_tag api-gateway)"; then
+    mark_deployed "api-gateway"
+  else
+    echo "Error: Failed to deploy api-gateway"
+    DEPLOY_FAILED=true
+  fi
 fi
 
-if should_deploy "budget-service"; then
-  deploy_zero_downtime budget-service $(get_service_tag budget-service)
+if [ "$DEPLOY_FAILED" = "false" ] && should_deploy "budget-service"; then
+  if deploy_zero_downtime budget-service "$(get_service_tag budget-service)"; then
+    mark_deployed "budget-service"
+  else
+    echo "Error: Failed to deploy budget-service"
+    DEPLOY_FAILED=true
+  fi
 fi
 
-if should_deploy "expense-service"; then
-  deploy_zero_downtime expense-service $(get_service_tag expense-service)
+if [ "$DEPLOY_FAILED" = "false" ] && should_deploy "expense-service"; then
+  if deploy_zero_downtime expense-service "$(get_service_tag expense-service)"; then
+    mark_deployed "expense-service"
+  else
+    echo "Error: Failed to deploy expense-service"
+    DEPLOY_FAILED=true
+  fi
 fi
 
-if should_deploy "notification-service"; then
-  deploy_zero_downtime notification-service $(get_service_tag notification-service)
+if [ "$DEPLOY_FAILED" = "false" ] && should_deploy "notification-service"; then
+  if deploy_zero_downtime notification-service "$(get_service_tag notification-service)"; then
+    mark_deployed "notification-service"
+  else
+    echo "Error: Failed to deploy notification-service"
+    DEPLOY_FAILED=true
+  fi
 fi
 
-if should_deploy "analysis-service"; then
-  deploy_zero_downtime analysis-service $(get_service_tag analysis-service)
+if [ "$DEPLOY_FAILED" = "false" ] && should_deploy "analysis-service"; then
+  if deploy_zero_downtime analysis-service "$(get_service_tag analysis-service)"; then
+    mark_deployed "analysis-service"
+  else
+    echo "Error: Failed to deploy analysis-service"
+    DEPLOY_FAILED=true
+  fi
 fi
 
 # Deploy nginx reload if config changes or it is part of full deploy
-if [ "$SHOULD_DEPLOY_ALL" = "true" ] || [[ " $DEPLOY_ARGS " =~ " nginx " ]]; then
-  echo "Deploying/Reloading nginx..."
-  if [ -d "/opt/artha/nginx/nginx.conf" ]; then
-    rm -rf /opt/artha/nginx/nginx.conf
-  fi
-  if [ -d "/opt/artha/nginx/nginx.conf.production" ]; then
-    rm -rf /opt/artha/nginx/nginx.conf.production
-  fi
+if [ "$DEPLOY_FAILED" = "false" ]; then
+  if [ "$SHOULD_DEPLOY_ALL" = "true" ] || [[ " $DEPLOY_ARGS " =~ " nginx " ]]; then
+    echo "Deploying/Reloading nginx..."
+    if [ -d "/opt/artha/nginx/nginx.conf" ]; then
+      rm -rf /opt/artha/nginx/nginx.conf
+    fi
+    if [ -d "/opt/artha/nginx/nginx.conf.production" ]; then
+      rm -rf /opt/artha/nginx/nginx.conf.production
+    fi
 
-  if docker ps --format '{{.Names}}' | grep -q "^artha-nginx$"; then
-    echo "Reloading nginx configuration..."
-    docker exec artha-nginx nginx -s reload
-  else
-    echo "Starting nginx..."
-    dcompose up -d --no-deps nginx
+    if docker ps --format '{{.Names}}' | grep -q "^artha-nginx$"; then
+      echo "Reloading nginx configuration..."
+      docker exec artha-nginx nginx -s reload
+    else
+      echo "Starting nginx..."
+      dcompose up -d --no-deps nginx
+    fi
   fi
 fi
 
-# 4. Cleanup old unused images
-echo "Pruning unused Docker images..."
-docker image prune -f
-
-echo "========================================="
-echo "Deployment completed successfully!"
-echo "========================================="
+# 4. Cleanup
+if [ "$DEPLOY_FAILED" = "true" ]; then
+  rollback_services
+  exit 1
+else
+  cleanup_rollback_tags
+  echo "Pruning unused Docker images..."
+  docker image prune -f
+  echo "========================================="
+  echo "Deployment completed successfully!"
+  echo "========================================="
+fi

@@ -354,6 +354,16 @@ services:
     container_name: artha-analysis-service-temp
     depends_on: []
 
+  # ── Autoheal (Self-Healing Daemon) ──────────────────────────────────────────
+  autoheal:
+    image: willfarrell/autoheal:latest
+    container_name: autoheal
+    restart: unless-stopped
+    environment:
+      - AUTOHEAL_CONTAINER_LABEL=all
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
 # ── Network ──────────────────────────────────────────────────────────────────
 networks:
   artha-net:

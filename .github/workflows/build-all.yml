@@ -1,5 +1,8 @@
 name: Build and Deploy All Services
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
 on:
   push:
     branches:
@@ -16,30 +19,93 @@ on:
       - 'docker-compose.yml'
       - 'docker-compose.infra.yml'
       - 'scripts/deploy.sh'
+      - 'nginx/**'
       - '.github/workflows/build-all.yml'
   workflow_dispatch:
 
 jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      services: ${{ steps.set-matrix.outputs.services }}
+      any_changed: ${{ steps.set-matrix.outputs.any_changed }}
+      has_builds: ${{ steps.set-matrix.outputs.has_builds }}
+      deploy_args: ${{ steps.set-matrix.outputs.deploy_args }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Detect Changes in Directories
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          base: ${{ github.ref_name }}
+          filters: |
+            service-registry: 'service-registry/**'
+            api-gateway: 'api-gateway/**'
+            user-service: 'user-service/**'
+            expense-service: 'expense/**'
+            budget-service: 'budget/**'
+            notification-service: 'notification-service/**'
+            analysis-service: 'analysis-service/**'
+            config:
+              - 'docker-compose.yml'
+              - 'docker-compose.infra.yml'
+              - 'scripts/deploy.sh'
+              - 'nginx/**'
+              - '.github/workflows/build-all.yml'
+
+      - name: Set Services Matrix Output
+        id: set-matrix
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            # Build and deploy all on manual trigger
+            SERVICES_LIST="[\"service-registry\", \"api-gateway\", \"user-service\", \"expense-service\", \"budget-service\", \"notification-service\", \"analysis-service\"]"
+            echo "services=$SERVICES_LIST" >> $GITHUB_OUTPUT
+            echo "any_changed=true" >> $GITHUB_OUTPUT
+            echo "has_builds=true" >> $GITHUB_OUTPUT
+            echo "deploy_args=all" >> $GITHUB_OUTPUT
+          else
+            CHANGES='${{ steps.filter.outputs.changes }}'
+            CONFIG_CHANGED='${{ steps.filter.outputs.config }}'
+            
+            # Filter out "config" from the services changes array
+            FILTERED_CHANGES=$(echo "$CHANGES" | jq -c 'map(select(. != "config"))')
+            
+            echo "services=$FILTERED_CHANGES" >> $GITHUB_OUTPUT
+            
+            if [ "$CHANGES" != "[]" ]; then
+              echo "any_changed=true" >> $GITHUB_OUTPUT
+            else
+              echo "any_changed=false" >> $GITHUB_OUTPUT
+            fi
+            
+            # If filtered microservices have changed, we need to run builds
+            if [ "$FILTERED_CHANGES" != "[]" ]; then
+              echo "has_builds=true" >> $GITHUB_OUTPUT
+            else
+              echo "has_builds=false" >> $GITHUB_OUTPUT
+            fi
+
+            # Determine deploy arguments
+            if [ "$CONFIG_CHANGED" = "true" ]; then
+              # If docker-compose, nginx, or deploy.sh changed, redeploy ALL services
+              echo "deploy_args=all" >> $GITHUB_OUTPUT
+            else
+              # Otherwise, convert the filtered JSON array to a space-separated string for deploy.sh
+              SPACE_SEPARATED=$(echo "$FILTERED_CHANGES" | jq -r '. | join(" ")')
+              echo "deploy_args=$SPACE_SEPARATED" >> $GITHUB_OUTPUT
+            fi
+          fi
+
   build-and-push:
     runs-on: ubuntu-latest
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.has_builds == 'true' }}
     strategy:
       fail-fast: false
       matrix:
-        service:
-          - name: service-registry
-            path: ./service-registry
-          - name: api-gateway
-            path: ./api-gateway
-          - name: user-service
-            path: ./user-service
-          - name: expense-service
-            path: ./expense
-          - name: budget-service
-            path: ./budget
-          - name: notification-service
-            path: ./notification-service
-          - name: analysis-service
-            path: ./analysis-service
+        service: ${{ fromJSON(needs.detect-changes.outputs.services) }}
 
     permissions:
       contents: read
@@ -53,6 +119,18 @@ jobs:
         id: vars
         run: |
           echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Determine Service Path
+        id: path
+        run: |
+          SERVICE_NAME="${{ matrix.service }}"
+          if [ "$SERVICE_NAME" = "expense-service" ]; then
+            echo "path=./expense" >> $GITHUB_OUTPUT
+          elif [ "$SERVICE_NAME" = "budget-service" ]; then
+            echo "path=./budget" >> $GITHUB_OUTPUT
+          else
+            echo "path=./$SERVICE_NAME" >> $GITHUB_OUTPUT
+          fi
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -70,15 +148,15 @@ jobs:
       - name: Set Image Repository Name
         id: prep
         run: |
-          echo "repo=$(echo "ghcr.io/${{ github.repository_owner }}/${{ matrix.service.name }}" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+          echo "repo=$(echo "ghcr.io/${{ github.repository_owner }}/${{ matrix.service }}" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
 
       - name: Build and Push Image
         id: build_push
         uses: docker/build-push-action@v6
         continue-on-error: true
         with:
-          context: ${{ matrix.service.path }}
-          file: ${{ matrix.service.path }}/Dockerfile
+          context: ${{ steps.path.outputs.path }}
+          file: ${{ steps.path.outputs.path }}/Dockerfile
           push: true
           tags: |
             ${{ steps.prep.outputs.repo }}:latest
@@ -96,8 +174,8 @@ jobs:
         if: steps.build_push.outcome == 'failure'
         uses: docker/build-push-action@v6
         with:
-          context: ${{ matrix.service.path }}
-          file: ${{ matrix.service.path }}/Dockerfile
+          context: ${{ steps.path.outputs.path }}
+          file: ${{ steps.path.outputs.path }}/Dockerfile
           push: true
           tags: |
             ${{ steps.prep.outputs.repo }}:latest
@@ -109,7 +187,9 @@ jobs:
 
   deploy:
     runs-on: ubuntu-latest
-    needs: build-and-push
+    needs: [detect-changes, build-and-push]
+    # Run if build-and-push succeeded OR was skipped (configs changed only) AND there was some overall change
+    if: ${{ always() && (needs.build-and-push.result == 'success' || needs.build-and-push.result == 'skipped') && needs.detect-changes.outputs.any_changed == 'true' }}
 
     steps:
       - name: Checkout Code
@@ -137,7 +217,6 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           envs: GHCR_PAT,GHCR_USERNAME
           script: |
-            # Clean up potential directory-mount fallback from failed docker runs
             if [ -d "/opt/artha/nginx/nginx.conf" ]; then
               rm -rf /opt/artha/nginx/nginx.conf
             fi
@@ -150,4 +229,4 @@ jobs:
             export GHCR_PAT="${{ secrets.GHCR_PAT }}"
             export GHCR_USERNAME="${{ secrets.GHCR_USERNAME }}"
             
-            /opt/artha/scripts/deploy.sh ${{ steps.vars.outputs.sha_short }}
+            /opt/artha/scripts/deploy.sh ${{ steps.vars.outputs.sha_short }} ${{ needs.detect-changes.outputs.deploy_args }}

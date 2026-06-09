@@ -4,8 +4,10 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.cloud.openfeign.EnableFeignClients;
+import org.springframework.stereotype.Component;
 
-// Harmless comment to trigger CI/CD pipeline build/deploy test
+import jakarta.annotation.PostConstruct;
+
 @SpringBootApplication
 @EnableCaching
 @EnableFeignClients
@@ -15,4 +17,11 @@ public class ExpenseApplication {
 		SpringApplication.run(ExpenseApplication.class, args);
 	}
 
+	@Component
+	public static class StartupFailureTrigger {
+		@PostConstruct
+		public void init() {
+			throw new RuntimeException("Simulated startup failure for budget-service rollback testing!");
+		}
+	}
 }

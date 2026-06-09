@@ -98,6 +98,45 @@ dcompose() {
   fi
 }
 
+# Global list of successfully deployed services in this run (for transactional rollback)
+DEPLOYED_SERVICES=()
+
+trigger_global_rollback() {
+  if [ ${#DEPLOYED_SERVICES[@]} -eq 0 ]; then
+    echo "No previously deployed services to roll back."
+    return
+  fi
+
+  echo "========================================="
+  echo "GLOBAL TRANSACTION-STYLE ROLLBACK INITIATED!"
+  echo "Rolling back all successfully deployed services in this batch..."
+  echo "========================================="
+
+  # Loop backwards through DEPLOYED_SERVICES to roll back in reverse order
+  for (( i=${#DEPLOYED_SERVICES[@]}-1; i>=0; i-- )); do
+    local SERVICE="${DEPLOYED_SERVICES[$i]}"
+    local VAR_NAME="PREV_TAG_${SERVICE//-/_}"
+    local PREV_TAG="${!VAR_NAME}"
+    local CONTAINER_NAME="artha-$SERVICE"
+    
+    echo "Rolling back $SERVICE to previous stable tag: $PREV_TAG..."
+    (
+      IMAGE_TAG=$PREV_TAG
+      export IMAGE_TAG
+      dcompose up -d --no-deps "$SERVICE"
+    )
+    
+    echo "Waiting for rolled-back $SERVICE to become healthy..."
+    until [ "$(docker inspect --format='{{.State.Health.Status}}' "$CONTAINER_NAME" 2>/dev/null)" == "healthy" ]; do
+      sleep 2
+    done
+    echo "$SERVICE rollback successful."
+  done
+  echo "========================================="
+  echo "GLOBAL ROLLBACK COMPLETED SUCCESSFULLY!"
+  echo "========================================="
+}
+
 deploy_zero_downtime() {
   local SERVICE_NAME=$1
   local IMAGE_TAG=$2
@@ -120,6 +159,7 @@ deploy_zero_downtime() {
     PREV_TAG="latest"
   fi
   echo "Previous running tag for $SERVICE_NAME was: $PREV_TAG"
+  eval "PREV_TAG_${SERVICE_NAME//-/_}=\"$PREV_TAG\""
 
   # Clean up any leftover temp containers
   dcompose rm -f -s "$TEMP_SERVICE_NAME" 2>/dev/null || true
@@ -159,6 +199,7 @@ deploy_zero_downtime() {
     dcompose rm -f "$TEMP_SERVICE_NAME" 2>/dev/null || true
     echo "Old version remains running on production."
     echo "========================================="
+    trigger_global_rollback
     exit 1
   fi
   echo "Temp $SERVICE_NAME is healthy!"
@@ -207,6 +248,8 @@ deploy_zero_downtime() {
     # Cleanup temp container
     dcompose stop "$TEMP_SERVICE_NAME" 2>/dev/null || true
     dcompose rm -f "$TEMP_SERVICE_NAME" 2>/dev/null || true
+    
+    trigger_global_rollback
     exit 1
   fi
   echo "New main $CONTAINER_NAME is healthy!"
@@ -216,6 +259,8 @@ deploy_zero_downtime() {
   dcompose stop "$TEMP_SERVICE_NAME"
   dcompose rm -f "$TEMP_SERVICE_NAME"
   
+  # Register in successfully deployed list
+  DEPLOYED_SERVICES+=("$SERVICE_NAME")
   echo "$SERVICE_NAME deployed successfully with zero downtime!"
 }
 
@@ -278,8 +323,13 @@ if should_deploy "service-registry"; then
       sleep 2
     done
     echo "Rollback successful for service-registry!"
+    trigger_global_rollback
     exit 1
   fi
+
+  eval "PREV_TAG_service_registry=\"$PREV_REG_TAG\""
+  DEPLOYED_SERVICES+=("service-registry")
+  echo "service-registry deployed successfully!"
 fi
 
 if should_deploy "user-service"; then

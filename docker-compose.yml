@@ -99,6 +99,7 @@ services:
     <<: *api-gateway-template
     container_name: artha-api-gateway-temp
     depends_on: []
+    restart: "no"
 
   # ── User Service ──────────────────────────────────────────────────────────
   user-service: &user-service-template
@@ -151,6 +152,7 @@ services:
     <<: *user-service-template
     container_name: artha-user-service-temp
     depends_on: []
+    restart: "no"
 
   # ── Budget Service ────────────────────────────────────────────────────────
   budget-service: &budget-service-template
@@ -206,6 +208,7 @@ services:
     <<: *budget-service-template
     container_name: artha-budget-service-temp
     depends_on: []
+    restart: "no"
 
   # ── Expense Service ───────────────────────────────────────────────────────
   expense-service: &expense-service-template
@@ -261,6 +264,7 @@ services:
     <<: *expense-service-template
     container_name: artha-expense-service-temp
     depends_on: []
+    restart: "no"
 
   # ── Notification Service ──────────────────────────────────────────────────
   notification-service: &notification-service-template
@@ -308,6 +312,7 @@ services:
     <<: *notification-service-template
     container_name: artha-notification-service-temp
     depends_on: []
+    restart: "no"
 
   # ── Analysis Service ──────────────────────────────────────────────────────
   analysis-service: &analysis-service-template
@@ -353,6 +358,7 @@ services:
     <<: *analysis-service-template
     container_name: artha-analysis-service-temp
     depends_on: []
+    restart: "no"
 
   # ── Autoheal (Self-Healing Daemon) ──────────────────────────────────────────
   autoheal:

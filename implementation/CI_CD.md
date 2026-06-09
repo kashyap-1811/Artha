@@ -82,7 +82,53 @@ For each target microservice (e.g. `user-service`):
 
 ---
 
-## 3. Key Technical Challenges & Solutions
+## 3. Coordinated Rollback System (Transactional Deployments)
+
+To prevent partial updates where some services in a git commit succeed but others fail to start or pass health checks, the deployment script implements a transactional, coordinated rollback system.
+
+### A. Pre-Deployment State Backup
+Before any updates occur, the script queries Docker for the current running image ID of each target service and tags it locally as `rollback-<service>` to serve as a restore point:
+```bash
+OLD_IMAGE_ID=$(docker inspect --format='{{.Image}}' "$CONTAINER_NAME" 2>/dev/null || true)
+if [ -n "$OLD_IMAGE_ID" ]; then
+  docker tag "$OLD_IMAGE_ID" "$IMAGE_NAME:rollback-$SERVICE"
+fi
+```
+
+### B. Sequential Deployment & Halt on Failure
+The script deploys target services one by one. If any service fails during its healthcheck, the script sets `DEPLOY_FAILED=true` and immediately skips deployment of all subsequent services:
+```bash
+if [ "$DEPLOY_FAILED" = "false" ] && should_deploy "budget-service"; then
+  if deploy_zero_downtime budget-service "$(get_service_tag budget-service)"; then
+    mark_deployed "budget-service"
+  else
+    DEPLOY_FAILED=true
+  fi
+fi
+```
+
+### C. Reverse-Order Rollback Execution
+If `DEPLOY_FAILED` is set to `true`, a global rollback is initiated. The script loops through all services in **reverse order** of deployment. For each service marked as successfully deployed in the current run:
+- If a previous container was running, the script rolls it back to the `rollback-<service>` image tag (using zero-downtime rolling updates if supported).
+- If no previous container was running, the service is stopped and removed.
+```bash
+# Rollback snippet
+if [ "$HAD_PREVIOUS" = "true" ]; then
+  deploy_zero_downtime "$SERVICE" "rollback-$SERVICE"
+else
+  dcompose stop "$SERVICE" && dcompose rm -f "$SERVICE"
+fi
+```
+
+### D. Temporary Tag Cleanup
+At the end of the script (on both success and failure paths), the local temporary `rollback-<service>` docker tags are cleaned up to keep the environment pristine:
+```bash
+docker rmi "$IMAGE_NAME:rollback-$SERVICE" 2>/dev/null || true
+```
+
+---
+
+## 4. Key Technical Challenges & Solutions
 
 ### A. Eureka Instance ID Collisions
 *   **Problem**: Spring Cloud Netflix Eureka requires unique instance IDs. Using `${HOSTNAME}` in `docker-compose.yml` led to collisions (both main and temp containers registered as `134.209.153.30:user-service:8083:`) because `HOSTNAME` is evaluated by Docker Compose on the host machine where the variable is unset. When the temp container stopped, it sent a `DOWN` status update, which remained stuck for the collided instance ID despite heartbeats from the main container.
@@ -97,6 +143,6 @@ For each target microservice (e.g. `user-service`):
 
 ---
 
-## 4. Production Host Maintenance
+## 5. Production Host Maintenance
 
 *   **Dangling Image Pruning**: The deployment script runs `docker image prune -f` at the end of every run to clean up old dangling container layers and preserve the host's disk space.

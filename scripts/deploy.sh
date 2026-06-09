@@ -224,8 +224,8 @@ if should_deploy "service-registry"; then
   echo "Deploying service-registry..."
   
   # Get the current running tag of service-registry (for rollback)
-  local PREV_REG_IMAGE=$(docker inspect --format='{{.Config.Image}}' artha-service-registry 2>/dev/null || true)
-  local PREV_REG_TAG=""
+  PREV_REG_IMAGE=$(docker inspect --format='{{.Config.Image}}' artha-service-registry 2>/dev/null || true)
+  PREV_REG_TAG=""
   if [ -n "$PREV_REG_IMAGE" ]; then
     PREV_REG_TAG=$(echo "$PREV_REG_IMAGE" | awk -F':' '{print $NF}')
   fi
@@ -234,7 +234,7 @@ if should_deploy "service-registry"; then
   fi
   echo "Previous running tag for service-registry was: $PREV_REG_TAG"
 
-  local TARGET_REG_TAG=$(get_service_tag service-registry)
+  TARGET_REG_TAG=$(get_service_tag service-registry)
   (
     IMAGE_TAG=$TARGET_REG_TAG
     export IMAGE_TAG
@@ -242,13 +242,13 @@ if should_deploy "service-registry"; then
   )
 
   echo "Waiting for service-registry healthcheck..."
-  local TIMEOUT=120
-  local ELAPSED=0
-  local REG_HEALTHY=false
+  TIMEOUT=120
+  ELAPSED=0
+  REG_HEALTHY=false
 
   while [ $ELAPSED -lt $TIMEOUT ]; do
-    local STATUS=$(docker inspect --format='{{.State.Health.Status}}' artha-service-registry 2>/dev/null || true)
-    local STATE=$(docker inspect --format='{{.State.Status}}' artha-service-registry 2>/dev/null || true)
+    STATUS=$(docker inspect --format='{{.State.Health.Status}}' artha-service-registry 2>/dev/null || true)
+    STATE=$(docker inspect --format='{{.State.Status}}' artha-service-registry 2>/dev/null || true)
     
     if [ "$STATUS" == "healthy" ]; then
       REG_HEALTHY=true

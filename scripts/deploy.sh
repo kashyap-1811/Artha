@@ -149,8 +149,9 @@ deploy_zero_downtime() {
   echo "Deploying $SERVICE_NAME with tag: $IMAGE_TAG (zero-downtime)..."
   echo "-----------------------------------------"
 
-  # Get the current running tag of the main container before touching it (for rollback)
+  # Get the current running tag and image ID of the main container before touching it (for rollback)
   local PREV_IMAGE=$(docker inspect --format='{{.Config.Image}}' "$CONTAINER_NAME" 2>/dev/null || true)
+  local PREV_IMAGE_ID=$(docker inspect --format='{{.Image}}' "$CONTAINER_NAME" 2>/dev/null || true)
   local PREV_TAG=""
   if [ -n "$PREV_IMAGE" ]; then
     PREV_TAG=$(echo "$PREV_IMAGE" | awk -F':' '{print $NF}')
@@ -259,8 +260,14 @@ deploy_zero_downtime() {
   dcompose stop "$TEMP_SERVICE_NAME"
   dcompose rm -f "$TEMP_SERVICE_NAME"
   
-  # Register in successfully deployed list
-  DEPLOYED_SERVICES+=("$SERVICE_NAME")
+  # Register in successfully deployed list only if version actually changed
+  local NEW_IMAGE_ID=$(docker inspect --format='{{.Image}}' "$CONTAINER_NAME" 2>/dev/null || true)
+  if [ -n "$PREV_IMAGE_ID" ] && [ "$PREV_IMAGE_ID" != "$NEW_IMAGE_ID" ]; then
+    DEPLOYED_SERVICES+=("$SERVICE_NAME")
+    echo "$SERVICE_NAME version actually changed; registered for rollback."
+  else
+    echo "$SERVICE_NAME version did not change; skipping rollback registration."
+  fi
   echo "$SERVICE_NAME deployed successfully with zero downtime!"
 }
 
@@ -268,8 +275,9 @@ deploy_zero_downtime() {
 if should_deploy "service-registry"; then
   echo "Deploying service-registry..."
   
-  # Get the current running tag of service-registry (for rollback)
+  # Get the current running tag and image ID of service-registry (for rollback)
   PREV_REG_IMAGE=$(docker inspect --format='{{.Config.Image}}' artha-service-registry 2>/dev/null || true)
+  PREV_REG_IMAGE_ID=$(docker inspect --format='{{.Image}}' artha-service-registry 2>/dev/null || true)
   PREV_REG_TAG=""
   if [ -n "$PREV_REG_IMAGE" ]; then
     PREV_REG_TAG=$(echo "$PREV_REG_IMAGE" | awk -F':' '{print $NF}')
@@ -327,8 +335,15 @@ if should_deploy "service-registry"; then
     exit 1
   fi
 
-  eval "PREV_TAG_service_registry=\"$PREV_REG_TAG\""
-  DEPLOYED_SERVICES+=("service-registry")
+  # Register in successfully deployed list only if version actually changed
+  NEW_REG_IMAGE_ID=$(docker inspect --format='{{.Image}}' artha-service-registry 2>/dev/null || true)
+  if [ -n "$PREV_REG_IMAGE_ID" ] && [ "$PREV_REG_IMAGE_ID" != "$NEW_REG_IMAGE_ID" ]; then
+    eval "PREV_TAG_service_registry=\"$PREV_REG_TAG\""
+    DEPLOYED_SERVICES+=("service-registry")
+    echo "service-registry version actually changed; registered for rollback."
+  else
+    echo "service-registry version did not change; skipping rollback registration."
+  fi
   echo "service-registry deployed successfully!"
 fi
 

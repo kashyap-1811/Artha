@@ -403,4 +403,35 @@ docker rmi "$IMAGE_NAME:rollback-$SERVICE" 2>/dev/null || true
 
 ## 5. Production Host Maintenance
 
-*   **Dangling Image Pruning**: The deployment script runs `docker image prune -f` at the end of every run to clean up old dangling container layers and preserve the host's disk space.
+*   **Automated Image Pruning**: The deployment script runs `docker image prune -a -f --filter "until=24h"` at the end of every deployment. This deletes all unused images (both tagged and untagged) older than 24 hours while keeping recently used/built images, freeing up massive disk space (e.g., reclaiming ~15+ GB of wasted storage).
+
+---
+
+## 6. Real-time Monitoring & Self-Healing (Telegram Alerts)
+
+To ensure the production environment is completely self-monitoring and self-healing, a sidecar auto-healing daemon and a real-time event watcher are deployed on the DigitalOcean host.
+
+### A. Auto-Restarting and Self-Healing
+1.  **Process Crashes**: If a microservice crashes (e.g., exits with a non-zero exit code due to an Out of Memory error or unhandled JVM crash), Docker’s `restart: unless-stopped` policy automatically restarts the container process within seconds.
+2.  **App Freezes & Deadlocks**: If a container stays running but stops responding (e.g., database connection pool exhaustion or infinite loop), its health check will fail. After 5 retries (100 seconds total), its health status changes from `healthy` to `unhealthy`.
+3.  **Autoheal Daemon**: The `autoheal` container (configured in `docker-compose.yml`) listens to Docker daemon events. When a container becomes `unhealthy`, Autoheal automatically executes a restart on that container.
+
+### B. Telegram Alert Notification Daemon
+A lightweight shell script [`scripts/monitor-docker.sh`](../scripts/monitor-docker.sh) runs as a persistent Linux `systemd` background service (`docker-monitor.service`) to stream real-time alert notifications directly to a private Telegram group.
+
+#### 1. Event Monitoring Pipeline
+The daemon listens to Docker events for `die`, `health_status`, and `start` actions:
+```
+  Container Crashes  ──► (die event, exit != 0) ──► Send "💥 Crash Alert" (with exit code/OOM and logs)
+  Container Freezes  ──► (health unhealthy)     ──► Send "🚨 Health Alert" (with failed health logs)
+  Autoheal Restarts  ──► (start event)          ──► Send "🔄 Recovery Alert" (booting up...)
+  Healthy Status     ──► (health healthy)       ──► Send "✅ Healthy Alert" (fully online)
+```
+
+#### 2. Advanced Diagnostic Capturing
+*   **OOM Detection**: The script inspects the container's `.State.OOMKilled` attribute using `docker inspect` to report if the OS kernel terminated the process due to memory limits.
+*   **Log Extraction**: It retrieves the last 25 lines of stdout/stderr logs from the failing container, escapes HTML special characters, and formats them inside a `<pre><code>` block.
+*   **State Tracking**: It maintains an internal state machine (using variables like `CRASHED` and `RECOVERING`) to track transitions. This ensures "Healthy" notifications are only sent when a container is recovering from a previous failure, avoiding spam during normal git deployments.
+*   **Safe JSON Payload Construction**: The script uses `jq --arg` options to dynamically build the JSON payload, ensuring complex log formatting (newlines, tabs, quotes) does not break curl payload parsing when hitting the Telegram Bot API endpoint:
+    `https://api.telegram.org/bot<TOKEN>/sendMessage`
+

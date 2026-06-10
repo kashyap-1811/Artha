@@ -30,3 +30,5 @@ nginx/nginx.local.conf
 .agents
 skills-lock.json
 .claude
+
+.vscode

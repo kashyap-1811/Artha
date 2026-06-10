@@ -28,8 +28,10 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**", "/auth/**", "/login/oauth2/**", "/oauth2/**").permitAll()
+                        .requestMatchers("/actuator/**").permitAll()
                         // Internal service-to-service endpoint — no JWT needed
                         .requestMatchers("/api/users/*/companies/*/role").permitAll()
+                        .requestMatchers("/api/users/hello").permitAll()
                         .requestMatchers("/api/companies/*/members").permitAll()
                         .requestMatchers("/api/companies/*/members/*").permitAll()
                         .anyRequest().authenticated()

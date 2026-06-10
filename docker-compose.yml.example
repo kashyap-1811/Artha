@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 # Artha — Production Docker Compose
-# Target: Single DigitalOcean Droplet (4GB RAM, 2 vCPU)
+# Target: Single DigitalOcean Droplet (8GB RAM, 2 vCPU)
 # ═══════════════════════════════════════════════════════════════════════════════
 
 services:
@@ -16,7 +16,6 @@ services:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro
       - /var/lib/letsencrypt:/var/lib/letsencrypt:ro
-      - /var/www/certbot:/var/www/certbot:ro
     depends_on:
       api-gateway:
         condition: service_healthy
@@ -32,10 +31,15 @@ services:
 
   # ── Service Registry (Eureka) ─────────────────────────────────────────────
   service-registry:
-    image: ghcr.io/kashyap-1811/service-registry:${IMAGE_TAG:-latest}
+    build:
+      context: ./service-registry
+      dockerfile: Dockerfile
     container_name: artha-service-registry
+    # Temporarily exposed for direct Eureka access/debugging
+    ports:
+      - "8761:8761"
     healthcheck:
-      test: ["CMD", "curl", "-f", "-s", "-o", "/dev/null", "http://localhost:8761/actuator/health"]
+      test: ["CMD", "curl", "-s", "-o", "/dev/null", "http://localhost:8761/actuator/health"]
       interval: 20s
       timeout: 5s
       retries: 5
@@ -53,8 +57,10 @@ services:
       - artha-net
 
   # ── API Gateway ───────────────────────────────────────────────────────────
-  api-gateway: &api-gateway-template
-    image: ghcr.io/kashyap-1811/api-gateway:${IMAGE_TAG:-latest}
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
     container_name: artha-api-gateway
     depends_on:
       service-registry:
@@ -68,14 +74,14 @@ services:
       SERVER_IP: ${SERVER_IP}
       EUREKA_INSTANCE_HOSTNAME: api-gateway
       EUREKA_INSTANCE_PREFER_IP_ADDRESS: "false"
-      EUREKA_INSTANCE_INSTANCE_ID: ${SERVER_IP:-localhost}:api-gateway:8080:$${HOSTNAME}
+      EUREKA_INSTANCE_INSTANCE_ID: ${SERVER_IP:-localhost}:api-gateway:8080
       JWT_SECRET: ${JWT_SECRET}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
       SPRING_DEVTOOLS_RESTART_ENABLED: "false"
     # Port 8080 not exposed publicly — all traffic goes through Nginx on port 80
     # To access locally for debugging: docker compose exec api-gateway curl localhost:8080
     healthcheck:
-      test: ["CMD", "curl", "-f", "-s", "-o", "/dev/null", "http://localhost:8080/actuator/health"]
+      test: ["CMD", "curl", "-s", "-o", "/dev/null", "http://localhost:8080/actuator/health"]
       interval: 20s
       timeout: 5s
       retries: 5
@@ -88,18 +94,13 @@ services:
         max-size: "10m"
         max-file: "3"
     networks:
-      artha-net:
-        aliases:
-          - api-gateway
-
-  api-gateway-temp:
-    <<: *api-gateway-template
-    container_name: artha-api-gateway-temp
-    depends_on: []
+      - artha-net
 
   # ── User Service ──────────────────────────────────────────────────────────
-  user-service: &user-service-template
-    image: ghcr.io/kashyap-1811/user-service:${IMAGE_TAG:-latest}
+  user-service:
+    build:
+      context: ./user-service
+      dockerfile: Dockerfile
     container_name: artha-user-service
     depends_on:
       service-registry:
@@ -121,11 +122,11 @@ services:
       SERVER_IP: ${SERVER_IP}
       EUREKA_INSTANCE_HOSTNAME: user-service
       EUREKA_INSTANCE_PREFER_IP_ADDRESS: "false"
-      EUREKA_INSTANCE_INSTANCE_ID: ${SERVER_IP:-localhost}:user-service:8083:$${HOSTNAME}
+      EUREKA_INSTANCE_INSTANCE_ID: ${SERVER_IP:-localhost}:user-service:8083
       FRONTEND_URL: ${FRONTEND_URL}
       SPRING_DEVTOOLS_RESTART_ENABLED: "false"
     healthcheck:
-      test: ["CMD", "curl", "-f", "-s", "-o", "/dev/null", "http://localhost:8083/actuator/health"]
+      test: ["CMD", "curl", "-s", "-o", "/dev/null", "http://localhost:8083/actuator/health"]
       interval: 20s
       timeout: 5s
       retries: 5
@@ -140,18 +141,13 @@ services:
     volumes:
       - ./certs:/app/certs:ro
     networks:
-      artha-net:
-        aliases:
-          - user-service
-
-  user-service-temp:
-    <<: *user-service-template
-    container_name: artha-user-service-temp
-    depends_on: []
+      - artha-net
 
   # ── Budget Service ────────────────────────────────────────────────────────
-  budget-service: &budget-service-template
-    image: ghcr.io/kashyap-1811/budget-service:${IMAGE_TAG:-latest}
+  budget-service:
+    build:
+      context: ./budget
+      dockerfile: Dockerfile
     container_name: artha-budget-service
     depends_on:
       service-registry:
@@ -177,10 +173,10 @@ services:
       SERVER_IP: ${SERVER_IP}
       EUREKA_INSTANCE_HOSTNAME: budget-service
       EUREKA_INSTANCE_PREFER_IP_ADDRESS: "false"
-      EUREKA_INSTANCE_INSTANCE_ID: ${SERVER_IP:-localhost}:budget-service:8081:$${HOSTNAME}
+      EUREKA_INSTANCE_INSTANCE_ID: ${SERVER_IP:-localhost}:budget-service:8081
       SPRING_DEVTOOLS_RESTART_ENABLED: "false"
     healthcheck:
-      test: ["CMD", "curl", "-f", "-s", "-o", "/dev/null", "http://localhost:8081/actuator/health"]
+      test: ["CMD", "curl", "-s", "-o", "/dev/null", "http://localhost:8081/actuator/health"]
       interval: 20s
       timeout: 5s
       retries: 5
@@ -195,18 +191,13 @@ services:
     volumes:
       - ./certs:/app/certs:ro
     networks:
-      artha-net:
-        aliases:
-          - budget-service
-
-  budget-service-temp:
-    <<: *budget-service-template
-    container_name: artha-budget-service-temp
-    depends_on: []
+      - artha-net
 
   # ── Expense Service ───────────────────────────────────────────────────────
-  expense-service: &expense-service-template
-    image: ghcr.io/kashyap-1811/expense-service:${IMAGE_TAG:-latest}
+  expense-service:
+    build:
+      context: ./expense
+      dockerfile: Dockerfile
     container_name: artha-expense-service
     depends_on:
       service-registry:
@@ -232,10 +223,10 @@ services:
       SERVER_IP: ${SERVER_IP}
       EUREKA_INSTANCE_HOSTNAME: expense-service
       EUREKA_INSTANCE_PREFER_IP_ADDRESS: "false"
-      EUREKA_INSTANCE_INSTANCE_ID: ${SERVER_IP:-localhost}:expense-service:8082:$${HOSTNAME}
+      EUREKA_INSTANCE_INSTANCE_ID: ${SERVER_IP:-localhost}:expense-service:8082
       SPRING_DEVTOOLS_RESTART_ENABLED: "false"
     healthcheck:
-      test: ["CMD", "curl", "-f", "-s", "-o", "/dev/null", "http://localhost:8082/actuator/health"]
+      test: ["CMD", "curl", "-s", "-o", "/dev/null", "http://localhost:8082/actuator/health"]
       interval: 20s
       timeout: 5s
       retries: 5
@@ -250,18 +241,13 @@ services:
     volumes:
       - ./certs:/app/certs:ro
     networks:
-      artha-net:
-        aliases:
-          - expense-service
-
-  expense-service-temp:
-    <<: *expense-service-template
-    container_name: artha-expense-service-temp
-    depends_on: []
+      - artha-net
 
   # ── Notification Service ──────────────────────────────────────────────────
-  notification-service: &notification-service-template
-    image: ghcr.io/kashyap-1811/notification-service:${IMAGE_TAG:-latest}
+  notification-service:
+    build:
+      context: ./notification-service
+      dockerfile: Dockerfile
     container_name: artha-notification-service
     init: true
     depends_on:
@@ -297,18 +283,13 @@ services:
     volumes:
       - ./certs:/app/src/certs:ro
     networks:
-      artha-net:
-        aliases:
-          - notification-service
-
-  notification-service-temp:
-    <<: *notification-service-template
-    container_name: artha-notification-service-temp
-    depends_on: []
+      - artha-net
 
   # ── Analysis Service ──────────────────────────────────────────────────────
-  analysis-service: &analysis-service-template
-    image: ghcr.io/kashyap-1811/analysis-service:${IMAGE_TAG:-latest}
+  analysis-service:
+    build:
+      context: ./analysis-service
+      dockerfile: Dockerfile
     container_name: artha-analysis-service
     depends_on:
       service-registry:
@@ -342,24 +323,7 @@ services:
     volumes:
       - ./certs:/app/app/certs:ro
     networks:
-      artha-net:
-        aliases:
-          - analysis-service
-
-  analysis-service-temp:
-    <<: *analysis-service-template
-    container_name: artha-analysis-service-temp
-    depends_on: []
-
-  # ── Autoheal (Self-Healing Daemon) ──────────────────────────────────────────
-  autoheal:
-    image: willfarrell/autoheal:latest
-    container_name: autoheal
-    restart: unless-stopped
-    environment:
-      - AUTOHEAL_CONTAINER_LABEL=all
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
+      - artha-net
 
 # ── Network ──────────────────────────────────────────────────────────────────
 networks:

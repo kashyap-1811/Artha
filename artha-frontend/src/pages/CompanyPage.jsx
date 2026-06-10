@@ -248,6 +248,11 @@ export default function CompanyPage() {
         </div>
         
         <div className={companyStyles.actions}>
+          {isPrivileged && (
+            <button className={`${companyStyles.actionBtn} ${companyStyles.btnPrimary}`} onClick={() => setShowCreateBudget(true)}>
+              <Plus size={14} /> New Budget
+            </button>
+          )}
           <button className={`${companyStyles.actionBtn} ${companyStyles.btnSecondary}`} onClick={() => setShowShareModal(true)}>
             <Users size={14} /> Share
           </button>

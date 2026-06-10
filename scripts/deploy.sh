@@ -371,7 +371,7 @@ if [ "$DEPLOY_FAILED" = "true" ]; then
 else
   cleanup_rollback_tags
   echo "Pruning unused Docker images..."
-  docker image prune -f
+  docker image prune -a -f --filter "until=24h"
   echo "========================================="
   echo "Deployment completed successfully!"
   echo "========================================="

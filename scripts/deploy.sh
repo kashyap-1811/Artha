@@ -37,9 +37,8 @@ elif [ -f ".env" ]; then
 fi
 
 if [ -n "$ENV_FILE" ]; then
-  set -a
-  source "$ENV_FILE"
-  set +a
+  TELEGRAM_BOT_TOKEN=$(grep -E "^TELEGRAM_BOT_TOKEN=" "$ENV_FILE" | cut -d'=' -f2- | sed -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//")
+  TELEGRAM_CHAT_ID=$(grep -E "^TELEGRAM_CHAT_ID=" "$ENV_FILE" | cut -d'=' -f2- | sed -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//")
 fi
 
 send_telegram() {

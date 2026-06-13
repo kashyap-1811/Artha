@@ -28,6 +28,54 @@ fi
 
 cd /opt/artha
 
+# Load environment variables for Telegram notifications
+ENV_FILE=""
+if [ -f ".env.production" ]; then
+  ENV_FILE=".env.production"
+elif [ -f ".env" ]; then
+  ENV_FILE=".env"
+fi
+
+if [ -n "$ENV_FILE" ]; then
+  set -a
+  source "$ENV_FILE"
+  set +a
+fi
+
+send_telegram() {
+  local MESSAGE="$1"
+  if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
+    return 0
+  fi
+  local PAYLOAD
+  PAYLOAD=$(jq -n \
+    --arg chat_id "${TELEGRAM_CHAT_ID}" \
+    --arg text "${MESSAGE}" \
+    --arg parse_mode "HTML" \
+    '{chat_id: $chat_id, text: $text, parse_mode: $parse_mode}')
+
+  curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+       -H "Content-Type: application/json" \
+       -d "${PAYLOAD}" > /dev/null
+}
+
+# Create lock file to suppress monitor-docker alerts
+touch .deploying 2>/dev/null || true
+
+# Send start deployment alert to Telegram
+TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S")
+if [ "$SHOULD_DEPLOY_ALL" = "true" ]; then
+  TARGET_SERVICES="Full Deployment (All Services)"
+else
+  TARGET_SERVICES="Services: ${DEPLOY_ARGS}"
+fi
+
+START_PAYLOAD="🚀 <b>Artha Deployment Started</b> 🚀
+<b>Target:</b> ${TARGET_SERVICES}
+<b>Image Tag:</b> ${IMAGE_TAG}
+<b>Time:</b> ${TIMESTAMP} UTC"
+send_telegram "$START_PAYLOAD"
+
 # 1. Authenticate with GHCR
 echo "$GHCR_PAT" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
 
@@ -187,6 +235,16 @@ cleanup_rollback_tags() {
 }
 
 rollback_services() {
+  # Clean lock file so monitor-docker resumes monitoring the rollback events
+  rm -f /opt/artha/.deploying .deploying 2>/dev/null || true
+
+  # Send failure deployment alert to Telegram
+  TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S")
+  FAILURE_PAYLOAD="❌ <b>Artha Deployment Failed</b> ❌
+Initiating rollback of services to previous working versions...
+<b>Time:</b> ${TIMESTAMP} UTC"
+  send_telegram "$FAILURE_PAYLOAD"
+
   echo "========================================="
   echo "CRITICAL: Deployment failed! Initiating rollback..."
   echo "========================================="
@@ -372,6 +430,18 @@ else
   cleanup_rollback_tags
   echo "Pruning unused Docker images..."
   docker image prune -a -f --filter "until=24h"
+
+  # Clean lock file
+  rm -f /opt/artha/.deploying .deploying 2>/dev/null || true
+
+  # Send success deployment alert to Telegram
+  TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S")
+  SUCCESS_PAYLOAD="✅ <b>Artha Deployment Succeeded</b> ✅
+All services are healthy and running.
+<b>Image Tag:</b> ${IMAGE_TAG}
+<b>Time:</b> ${TIMESTAMP} UTC"
+  send_telegram "$SUCCESS_PAYLOAD"
+
   echo "========================================="
   echo "Deployment completed successfully!"
   echo "========================================="

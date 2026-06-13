@@ -40,6 +40,12 @@ do
     continue
   fi
 
+  # Suppress alerts if a deployment is in progress
+  if [ -f "/opt/artha/.deploying" ]; then
+    echo "$(date +"%Y-%m-%d %H:%M:%S") [INFO] Suppressed $EVENT event for $CONTAINER_NAME (deployment in progress)"
+    continue
+  fi
+
   # 1. Handle Unhealthy Containers (Freezes / Healthcheck Failures)
   if [ "$EVENT" = "health_status: unhealthy" ]; then
     TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S")

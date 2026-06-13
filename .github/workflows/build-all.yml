@@ -6,7 +6,6 @@ env:
 on:
   push:
     branches:
-      - Jasmita
       - main
     paths:
       - 'service-registry/**'

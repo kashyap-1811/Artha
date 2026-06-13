@@ -28,9 +28,18 @@ echo "Starting Telegram Docker Failure Monitor Daemon..."
 echo "Monitoring 'die', 'health_status', and 'start' events..."
 echo "=================================================="
 
-# Listen to docker events in real-time
 docker events --filter 'event=die' --filter 'event=health_status' --filter 'event=start' --format '{{.Actor.Attributes.name}} {{.Action}}' | while read -r CONTAINER_NAME EVENT
 do
+  # Ignore non-core/non-Artha and third-party containers (except autoheal)
+  if [[ ! "$CONTAINER_NAME" =~ ^(artha-|autoheal) ]]; then
+    continue
+  fi
+
+  # Ignore temporary pipeline-only or zero-downtime temporary containers
+  if [[ "$CONTAINER_NAME" == *"-temp"* ]]; then
+    continue
+  fi
+
   # 1. Handle Unhealthy Containers (Freezes / Healthcheck Failures)
   if [ "$EVENT" = "health_status: unhealthy" ]; then
     TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S")

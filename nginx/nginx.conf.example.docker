@@ -58,6 +58,11 @@ http {
             add_header Content-Type application/json;
         }
 
+        # ── Block Public Access to Internal Routes ─────────────────────────
+        location /internal/ {
+            return 403;
+        }
+
         # ── Proxy all traffic to API Gateway ─────────────────────────────────
         location / {
             limit_req zone=api burst=20 nodelay;

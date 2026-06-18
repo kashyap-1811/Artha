@@ -31,6 +31,7 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/**").permitAll()
                         // Internal service-to-service endpoint — no JWT needed
                         .requestMatchers("/api/users/*/companies/*/role").permitAll()
+                        .requestMatchers("/api/users/hello").permitAll()
                         .requestMatchers("/api/companies/*/members").permitAll()
                         .requestMatchers("/api/companies/*/members/*").permitAll()
                         .anyRequest().authenticated()

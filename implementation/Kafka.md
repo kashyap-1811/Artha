@@ -178,9 +178,11 @@ The `analysis-service` consumer distinguishes the two types by checking `event.g
 
 ## 5. Java Producers (Spring Kafka)
 
-### 5.1 KafkaEventPublisher — Transactional-Aware
+### 5.1 KafkaEventPublisher — Transactional Outbox Pattern
 
-All three Java services (`expense-service`, `budget-service`, `user-service`) share an identical `KafkaEventPublisher` component:
+All three Java services (`expense-service`, `budget-service`, `user-service`) share an identical `KafkaEventPublisher` component implementing the **Transactional Outbox Pattern**. Rather than publishing directly to Kafka during business operations, the event is saved to the database as a `PENDING` outbox record inside the same database transaction.
+
+Post-transaction commit, the publisher triggers the event dispatch asynchronously. If the broker is unavailable, the event is left in the DB as `FAILED` to be recovered by the background scheduler, ensuring **at-least-once delivery guarantees**.
 
 ```java
 @Component
@@ -189,30 +191,60 @@ All three Java services (`expense-service`, `budget-service`, `user-service`) sh
 public class KafkaEventPublisher {
 
     private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final OutboxMessageRepository outboxRepository;
+    private final ObjectMapper objectMapper;
 
     public void send(String topic, String key, Object event) {
+        String payloadJson;
+        try {
+            payloadJson = objectMapper.writeValueAsString(event);
+        } catch (Exception e) {
+            log.error("Failed to serialize Kafka event payload for topic: {}", topic, e);
+            return;
+        }
+
+        // 1. Create and Save Outbox Message (Transactional Outbox)
+        OutboxMessage outbox = OutboxMessage.builder()
+                .topic(topic)
+                .key(key)
+                .payload(payloadJson)
+                .status("PENDING")
+                .build();
+        
+        outboxRepository.save(outbox);
+
+        // 2. Publish to Kafka post-commit or immediately
         if (TransactionSynchronizationManager.isActualTransactionActive()) {
-            // Inside a @Transactional method — defer send until after DB commit
+            log.debug("Transaction active, deferring Kafka send to afterCommit for topic: {}", topic);
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
-                    doSend(topic, key, event);
+                    doSend(outbox, event);
                 }
             });
         } else {
-            // No active transaction — send immediately
-            doSend(topic, key, event);
+            log.debug("No active transaction, sending Kafka event immediately for topic: {}", topic);
+            doSend(outbox, event);
         }
     }
 
-    private void doSend(String topic, String key, Object event) {
-        kafkaTemplate.send(topic, key, event).whenComplete((result, ex) -> {
-            if (ex != null) {
-                log.error("Failed to publish event to topic: {} with key: {}", topic, key, ex);
-            } else {
-                log.debug("Successfully published event to topic: {} with key: {}", topic, key);
-            }
-        });
+    private void doSend(OutboxMessage outbox, Object event) {
+        try {
+            kafkaTemplate.send(outbox.getTopic(), outbox.getKey(), event).whenComplete((result, ex) -> {
+                if (ex != null) {
+                    log.error("Failed to publish event to topic: {} with key: {}. Leaving in Outbox.", outbox.getTopic(), outbox.getKey(), ex);
+                    outbox.setStatus("FAILED");
+                    outboxRepository.save(outbox);
+                } else {
+                    log.debug("Successfully published event to topic: {} with key: {}", outbox.getTopic(), outbox.getKey());
+                    outboxRepository.delete(outbox); // Success: clean database
+                }
+            });
+        } catch (Exception e) {
+            log.error("Exception thrown during kafkaTemplate.send for topic: {} with key: {}. Leaving in Outbox.", outbox.getTopic(), outbox.getKey(), e);
+            outbox.setStatus("FAILED");
+            outboxRepository.save(outbox);
+        }
     }
 }
 ```
@@ -224,7 +256,60 @@ All write operations in the Java services run inside `@Transactional` methods. I
 - A transaction rollback (e.g., validation failure, DB error) would still result in an event being published — consumers would receive an event for a change that never actually persisted.
 - By registering the send in `afterCommit()`, the event is only dispatched once the database row is durably committed.
 
-**Failure handling:** If the Kafka broker is unavailable after commit, the event is lost (at-most-once delivery). This is an acceptable trade-off for this use case — the analytics read model will resync when the next event arrives, and the notification service uses deduplication to avoid double alerts.
+**Failure handling:** If the Kafka broker is unavailable after commit, or if the producer initialization throws a synchronous error (e.g., DNS timeout), the error is caught inside the `try-catch` wrapper. The message remains in the outbox database with status `FAILED` and is processed by the scheduler, avoiding any data loss or controller failure.
+
+### 5.1.1 Outbox Background Scheduler
+
+To recover any failed or delayed event publishes, a background scheduler polls the database every 10 seconds:
+- **`FAILED` messages**: Retried immediately.
+- **`PENDING` messages**: Retried only if they are older than **10 seconds** to avoid a race condition with the initial immediate/post-commit attempt.
+- Successfully sent messages are deleted from PostgreSQL to prevent table bloat and index performance degradation.
+
+```java
+@Component
+@Slf4j
+@RequiredArgsConstructor
+public class OutboxScheduler {
+
+    private final OutboxMessageRepository outboxRepository;
+    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final ObjectMapper objectMapper;
+
+    @Scheduled(fixedDelay = 10000) // Poll every 10 seconds
+    @Transactional
+    public void processOutbox() {
+        List<OutboxMessage> failedMessages = outboxRepository.findByStatus("FAILED");
+        List<OutboxMessage> pendingMessages = outboxRepository.findByStatusAndCreatedAtBefore(
+                "PENDING", java.time.LocalDateTime.now().minusSeconds(10)
+        );
+        
+        failedMessages.addAll(pendingMessages);
+
+        if (failedMessages.isEmpty()) {
+            return;
+        }
+
+        log.info("Found {} pending/failed outbox messages. Retrying publish...", failedMessages.size());
+
+        for (OutboxMessage message : failedMessages) {
+            try {
+                Object payload = objectMapper.readValue(message.getPayload(), Object.class);
+
+                // Synchronous wait to ensure transactional safety during processing loop
+                kafkaTemplate.send(message.getTopic(), message.getKey(), payload).get(5, TimeUnit.SECONDS);
+
+                log.info("Successfully republished outbox message ID {} to topic {}", message.getId(), message.getTopic());
+                outboxRepository.delete(message);
+            } catch (Exception e) {
+                log.error("Failed to republish outbox message {}: {}", message.getId(), e.getMessage());
+                message.setStatus("FAILED");
+                message.setRetryCount(message.getRetryCount() + 1);
+                outboxRepository.save(message);
+            }
+        }
+    }
+}
+```
 
 ### 5.2 Spring Kafka Producer Configuration
 
@@ -292,13 +377,15 @@ Key design decisions:
 | **Retry loop** | If the broker is temporarily unavailable or the consumer crashes, the loop restarts after 10 seconds |
 | **`asyncio.CancelledError` break** | Cleanly exits the loop during graceful shutdown |
 
-### 6.2 Expense Event Processing
+### 6.2 Expense Event Processing (Idempotent)
 
-| `action` field | MongoDB operation |
+To ensure **at-least-once delivery** from the transactional outbox doesn't cause duplicate calculations or data drift, the consumer processes events in an idempotent manner:
+
+| `action` field | Idempotent Processing Logic |
 |---|---|
-| `CREATED` | `update_one` with `$inc` on `total_approved_amount` + `$push` expense entry to `expense_history` (upsert=True) |
-| `UPDATED` | `update_one` with `$inc` of the diff (`amount - oldAmount`) + `$set` the matching `expense_history` entry by `expense_id` |
-| `DELETED` | `update_one` with `$inc` of `-amount` + `$pull` expense entry by `expense_id` |
+| `CREATED` | First checks if `expense_id` exists in the history array. If not, performs `$inc` on `total_approved_amount` and `$push`es the entry (upsert=True). |
+| `UPDATED` | Retrieves the stored amount of the expense directly from the database to calculate the true diff (`new_amount - stored_amount`). Increments the total by this delta, preventing drift on duplicate event processing. |
+| `DELETED` | Retrieves the stored amount from history first. Only decrements the total by this stored amount and pulls the entry if the expense is present in the database, avoiding double-decrements. |
 
 After every operation, `clear_analysis_cache(redis, company_id, budget_id)` evicts the Redis cache keys for that company/budget using a `keys("company_analysis:comp-xxx:*")` pattern scan.
 

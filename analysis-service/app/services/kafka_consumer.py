@@ -54,8 +54,19 @@ async def consume_expense_events(app):
                     if not budget_id or not company_id: continue
 
                     if action == "CREATED":
+                        # Step 1: Ensure the budget/company document exists first (idempotent, safe `$setOnInsert` upsert)
                         await collection.update_one(
                             {"budget_id": budget_id, "company_id": company_id},
+                            {"$setOnInsert": {"total_approved_amount": 0.0, "expense_history": []}},
+                            upsert=True
+                        )
+                        # Step 2: Push to history and increment amount ONLY if the expense does not already exist
+                        await collection.update_one(
+                            {
+                                "budget_id": budget_id,
+                                "company_id": company_id,
+                                "expense_history.expense_id": {"$ne": expense_id}
+                            },
                             {
                                 "$inc": {"total_approved_amount": amount},
                                 "$push": {
@@ -67,32 +78,44 @@ async def consume_expense_events(app):
                                         "date": expense_data.get("spentDate")
                                     }
                                 }
-                            },
-                            upsert=True
+                            }
                         )
                     elif action == "UPDATED":
-                        old_amount = expense_data.get("oldAmount", 0.0)
-                        diff = amount - old_amount
-                        await collection.update_one(
+                        # Find the current stored amount for this expense to calculate the true diff
+                        doc = await collection.find_one(
                             {"budget_id": budget_id, "company_id": company_id, "expense_history.expense_id": expense_id},
-                            {
-                                "$inc": {"total_approved_amount": diff},
-                                "$set": {
-                                    "expense_history.$.amount": amount,
-                                    "expense_history.$.allocation_id": allocation_id,
-                                    "expense_history.$.category": allocation_name,
-                                    "expense_history.$.date": expense_data.get("spentDate")
+                            projection={"expense_history.$": 1}
+                        )
+                        if doc and "expense_history" in doc and len(doc["expense_history"]) > 0:
+                            current_amount = doc["expense_history"][0].get("amount", 0.0)
+                            diff = amount - current_amount
+                            await collection.update_one(
+                                {"budget_id": budget_id, "company_id": company_id, "expense_history.expense_id": expense_id},
+                                {
+                                    "$inc": {"total_approved_amount": diff},
+                                    "$set": {
+                                        "expense_history.$.amount": amount,
+                                        "expense_history.$.allocation_id": allocation_id,
+                                        "expense_history.$.category": allocation_name,
+                                        "expense_history.$.date": expense_data.get("spentDate")
+                                    }
                                 }
-                            }
-                        )
+                            )
                     elif action == "DELETED":
-                        await collection.update_one(
-                            {"budget_id": budget_id, "company_id": company_id},
-                            {
-                                "$inc": {"total_approved_amount": -amount},
-                                "$pull": {"expense_history": {"expense_id": expense_id}}
-                            }
+                        # Find the current stored amount to ensure we only decrement if it exists
+                        doc = await collection.find_one(
+                            {"budget_id": budget_id, "company_id": company_id, "expense_history.expense_id": expense_id},
+                            projection={"expense_history.$": 1}
                         )
+                        if doc and "expense_history" in doc and len(doc["expense_history"]) > 0:
+                            stored_amount = doc["expense_history"][0].get("amount", 0.0)
+                            await collection.update_one(
+                                {"budget_id": budget_id, "company_id": company_id},
+                                {
+                                    "$inc": {"total_approved_amount": -stored_amount},
+                                    "$pull": {"expense_history": {"expense_id": expense_id}}
+                                }
+                            )
                     
                     # Invalidate Cache
                     await clear_analysis_cache(app.state.redis, company_id=company_id, budget_id=budget_id)

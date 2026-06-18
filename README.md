@@ -433,14 +433,16 @@ A focused second round of backend optimization was applied across the Java Sprin
 
 ---
 
-## 🚀 CI/CD & Zero-Downtime Deployment
+## 🚀 CI/CD, Monitoring & Self-Healing
 
-The application features an automated build and deployment pipeline designed to support seamless, zero-downtime updates:
+The application features an automated build, deployment, and health monitoring system designed for high availability and zero manual maintenance:
 
-- **GitHub Actions Workflow**: Runs on pushes to `Jasmita` and `main` branches. It concurrently builds and pushes all 7 backend microservice Docker images in parallel to **GitHub Container Registry (GHCR)** using a matrix strategy, then securely transfers configurations via SCP and triggers the deployment script on the production server via SSH.
-- **Zero-Downtime Rolling Restarts**: A custom deployment orchestrator (`scripts/deploy.sh`) updates microservices sequentially in dependency order on the production host.
-- **Resource-Constrained Handover**: Briefly spins up a temporary container (`-temp`) with the new image, blocks until the internal Spring Boot Actuator health checks report `"healthy"`, restarts the main container, blocks until the main container is healthy, and then terminates the temporary container—keeping memory overhead minimal on a 4GB RAM budget.
-- **Eureka Resolution**: Escapes Docker Compose hostname settings to `$${HOSTNAME}` to generate unique instance IDs inside Eureka, preventing status registration conflicts during rolling handovers.
+- **GitHub Actions Workflow**: Runs on pushes to `Jasmita` and `main` branches. It concurrently builds all 7 backend microservice Docker images in parallel to **GitHub Container Registry (GHCR)** using a matrix strategy, transfers production files via SCP, and triggers the deployment script on the droplet via SSH.
+- **Zero-Downtime Rolling Restarts**: A custom deployment orchestrator (`scripts/deploy.sh`) updates microservices sequentially in dependency order on the host. It spins up a temporary container (`-temp`), blocks until Spring Boot Actuator health checks pass, restarts the main container, blocks until the main container is healthy, and then terminates the temp container—keeping memory overhead minimal on a 4GB RAM budget.
+- **Self-Healing (Autoheal)**: A background sidecar container (`willfarrell/autoheal`) monitors container health status. If a container hangs, freezes, or loses database connectivity (causing its healthcheck to fail), Autoheal automatically executes a restart to restore service.
+- **Real-Time Telegram Alerts**: A background daemon (`scripts/monitor-docker.sh`) runs as a Linux `systemd` service, listening to Docker system events. It sends instant HTML alerts to a private Telegram group if a container crashes (capturing exit code, OOM killer termination, and recent stack trace logs) or successfully recovers.
+- **Automated Disk Clean-up**: Pruning is executed at the end of each deployment (`docker image prune -a -f --filter "until=24h"`), cleaning up all unused images older than 24 hours. This prevents the server's 120GB SSD from running out of space due to image build accumulation (freeing ~15+ GB of wasted disk space).
+
 
 Full configuration details and code walkthrough are documented in [`implementation/CI_CD.md`](implementation/CI_CD.md).
 

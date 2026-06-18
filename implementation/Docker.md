@@ -116,16 +116,19 @@ This file orchestrates the full application stack targeting a **production serve
 
 Services in `docker-compose.yml`:
 
-| Container | Internal port | External access |
+| Container | Internal port | External access / Description |
 |---|---|---|
 | `nginx` | 80, 443 | Exposed on host ports 80 / 443 — sole entry point |
-| `service-registry` | 8761 | Internal only |
+| `service-registry` | 8761 | Internal only (Eureka service discovery) |
 | `api-gateway` | 8080 | Internal only (via Nginx) |
 | `user-service` | 8083 | Internal only |
 | `budget-service` | 8081 | Internal only |
 | `expense-service` | 8082 | Internal only |
 | `notification-service` | 8086 | Internal only |
 | `analysis-service` | 8084 | Internal only |
+| `autoheal` | — | Internal only — monitors docker socket to restart unhealthy containers |
+
+> **Note on Zero-Downtime Templates (`-temp` services):** The production `docker-compose.yml` also includes definition blocks for temporary services (`api-gateway-temp`, `user-service-temp`, `budget-service-temp`, `expense-service-temp`, `notification-service-temp`, `analysis-service-temp`). These are non-running templates that copy the base service configurations and are spun up dynamically as buffer containers by the deployment script during zero-downtime rolling upgrades.
 
 ### 3.1 Nginx Reverse Proxy
 
@@ -295,6 +298,7 @@ Open `.env` and fill in every placeholder. The tables below describe each variab
 | Variable | Default | Description |
 |---|---|---|
 | `SERVER_IP` | `localhost` | Server's public IP — used in Eureka instance IDs and Kafka advertised listeners |
+| `API_GATEWAY_URL` | — | URL of the API Gateway (used by notification-service to interact with APIs) |
 | `REDIS_HOST` | — | Cloud Redis hostname |
 | `REDIS_PORT` | `6379` | Redis port |
 | `REDIS_PASSWORD` | — | Redis password |
@@ -338,6 +342,7 @@ Each Java service connects to its own PostgreSQL database. [Neon](https://neon.t
 | `JWT_SECRET` | Strong random string used to sign and verify JWT tokens |
 | `GOOGLE_CLIENT_ID` | Google OAuth 2.0 client ID (from Google Cloud Console) |
 | `GOOGLE_CLIENT_SECRET` | Google OAuth 2.0 client secret |
+| `FRONTEND_URL` | URL of the frontend application (used by user-service for OAuth redirects) |
 
 #### NoSQL — MongoDB Atlas
 
@@ -467,6 +472,7 @@ docker compose up
 | Build strategy | Multi-stage builds for all services; production images contain only runtime artifacts |
 | Security | All containers run as non-root users (`spring:spring`, `appuser`, `node`) |
 | Startup ordering | `depends_on: condition: service_healthy` with per-container health checks and start periods |
+| Self-healing | `autoheal` container monitors container health and auto-restarts unhealthy services |
 | External infrastructure | Cloud-managed Kafka (SSL) and Redis (TLS) — not run locally in production compose |
 | Local dev infrastructure | `docker-compose.infra.yml` — Redis, Kafka + Zookeeper, Kafka UI, Redis Insight |
 | Nginx | Single external entry point on ports 80/443; proxies all traffic to `api-gateway:8080` |

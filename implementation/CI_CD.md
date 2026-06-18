@@ -360,28 +360,69 @@ if [ "$DEPLOY_FAILED" = "false" ] && should_deploy "budget-service"; then
   if deploy_zero_downtime budget-service "$(get_service_tag budget-service)"; then
     mark_deployed "budget-service"
   else
+    echo "Error: Failed to deploy budget-service"
     DEPLOY_FAILED=true
   fi
 fi
 ```
 
 ### C. Reverse-Order Rollback Execution
-If `DEPLOY_FAILED` is set to `true`, a global rollback is initiated. The script loops through all services in **reverse order** of deployment. For each service marked as successfully deployed in the current run:
-- If a previous container was running, the script rolls it back to the `rollback-<service>` image tag (using zero-downtime rolling updates if supported).
-- If no previous container was running, the service is stopped and removed.
-```bash
-# Rollback snippet
-if [ "$HAD_PREVIOUS" = "true" ]; then
-  deploy_zero_downtime "$SERVICE" "rollback-$SERVICE"
-else
-  dcompose stop "$SERVICE" && dcompose rm -f "$SERVICE"
-fi
-```
+If `DEPLOY_FAILED` is set to `true`, a global rollback is initiated. The process runs as follows:
+
+1. **Unlock Monitoring**: The `.deploying` lock file is removed so that the `monitor-docker.sh` daemon is un-suppressed and can trace/report the rollback events:
+   ```bash
+   rm -f /opt/artha/.deploying .deploying 2>/dev/null || true
+   ```
+2. **Alert Telegram**: A Telegram failure notification is sent immediately to announce the rollback initiation:
+   ```bash
+   FAILURE_PAYLOAD="❌ <b>Artha Deployment Failed</b> ❌
+   Initiating rollback of services to previous working versions...
+   <b>Time:</b> ${TIMESTAMP} UTC"
+   send_telegram "$FAILURE_PAYLOAD"
+   ```
+3. **Reverse Execution**: The script loops through all services in **reverse order** of deployment:
+   * `analysis-service`
+   * `notification-service`
+   * `expense-service`
+   * `budget-service`
+   * `api-gateway`
+   * `user-service`
+   * `service-registry`
+4. **Service-Specific Rollback Strategies**:
+   * **Service Registry**: Since it acts as the primary service directory, it rolls back using direct recreate via Docker Compose:
+     ```bash
+     IMAGE_TAG="rollback-service-registry"
+     export IMAGE_TAG
+     dcompose up -d --no-deps service-registry
+     wait_for_health artha-service-registry 120
+     ```
+   * **Standard Microservices**: The script first attempts zero-downtime rollback using the `deploy_zero_downtime` function with the `rollback-<service>` tag. If that fails, it falls back to a direct recreate:
+     ```bash
+     if ! deploy_zero_downtime "$SERVICE" "rollback-$SERVICE"; then
+       IMAGE_TAG="rollback-$SERVICE"
+       export IMAGE_TAG
+       dcompose up -d --no-deps "$SERVICE"
+       wait_for_health "artha-$SERVICE" 120
+     fi
+     ```
+   * **Clean Removal**: If a service had no previous running container before this deployment run, it is stopped and removed:
+     ```bash
+     dcompose stop "$SERVICE" 2>/dev/null || true
+     dcompose rm -f "$SERVICE" 2>/dev/null || true
+     ```
 
 ### D. Temporary Tag Cleanup
 At the end of the script (on both success and failure paths), the local temporary `rollback-<service>` docker tags are cleaned up to keep the environment pristine:
 ```bash
-docker rmi "$IMAGE_NAME:rollback-$SERVICE" 2>/dev/null || true
+cleanup_rollback_tags() {
+  for SERVICE in "${SERVICES[@]}"; do
+    local HAD_PREVIOUS_VAR="HAD_PREVIOUS_${SERVICE//-/_}"
+    if [ "${!HAD_PREVIOUS_VAR}" = "true" ]; then
+      local IMAGE_NAME="ghcr.io/kashyap-1811/$SERVICE"
+      docker rmi "$IMAGE_NAME:rollback-$SERVICE" 2>/dev/null || true
+    fi
+  done
+}
 ```
 
 ---
@@ -409,18 +450,24 @@ docker rmi "$IMAGE_NAME:rollback-$SERVICE" 2>/dev/null || true
 
 ## 6. Real-time Monitoring & Self-Healing (Telegram Alerts)
 
-To ensure the production environment is completely self-monitoring and self-healing, a sidecar auto-healing daemon and a real-time event watcher are deployed on the DigitalOcean host.
+To ensure the production environment is completely self-monitoring and self-healing, a sidecar auto-healing daemon, a deployment alert mechanism, and a real-time event watcher are integrated.
 
 ### A. Auto-Restarting and Self-Healing
 1.  **Process Crashes**: If a microservice crashes (e.g., exits with a non-zero exit code due to an Out of Memory error or unhandled JVM crash), Docker’s `restart: unless-stopped` policy automatically restarts the container process within seconds.
 2.  **App Freezes & Deadlocks**: If a container stays running but stops responding (e.g., database connection pool exhaustion or infinite loop), its health check will fail. After 5 retries (100 seconds total), its health status changes from `healthy` to `unhealthy`.
 3.  **Autoheal Daemon**: The `autoheal` container (configured in `docker-compose.yml`) listens to Docker daemon events. When a container becomes `unhealthy`, Autoheal automatically executes a restart on that container.
 
-### B. Telegram Alert Notification Daemon
+### B. Deployment Lifecycle Alerts (via `deploy.sh`)
+During deployments, `deploy.sh` communicates the progress directly to Telegram:
+- **Deployment Started**: Sends an alert containing the deployment target (Full or Service-Specific), the target image tag, and a timestamp.
+- **Deployment Failed**: Sends a critical warning if any service health check fails, announcing the rollback process.
+- **Deployment Succeeded**: Sends a success notification when all updated services are fully healthy and running.
+
+### C. Telegram Alert Notification Daemon (via `monitor-docker.sh`)
 A lightweight shell script [`scripts/monitor-docker.sh`](../scripts/monitor-docker.sh) runs as a persistent Linux `systemd` background service (`docker-monitor.service`) to stream real-time alert notifications directly to a private Telegram group.
 
 #### 1. Event Monitoring Pipeline
-The daemon listens to Docker events for `die`, `health_status`, and `start` actions:
+The daemon listens to Docker events for `die` (crashes), `health_status` (unhealthy/healthy), and `start` (booting up) actions:
 ```
   Container Crashes  ──► (die event, exit != 0) ──► Send "💥 Crash Alert" (with exit code/OOM and logs)
   Container Freezes  ──► (health unhealthy)     ──► Send "🚨 Health Alert" (with failed health logs)
@@ -428,10 +475,10 @@ The daemon listens to Docker events for `die`, `health_status`, and `start` acti
   Healthy Status     ──► (health healthy)       ──► Send "✅ Healthy Alert" (fully online)
 ```
 
-#### 2. Advanced Diagnostic Capturing
+#### 2. Advanced Features of the Daemon
 *   **OOM Detection**: The script inspects the container's `.State.OOMKilled` attribute using `docker inspect` to report if the OS kernel terminated the process due to memory limits.
 *   **Log Extraction**: It retrieves the last 25 lines of stdout/stderr logs from the failing container, escapes HTML special characters, and formats them inside a `<pre><code>` block.
+*   **Suppression During Deployment**: To prevent alert spam during intentional container recreates/stops, `monitor-docker.sh` checks for the existence of `/opt/artha/.deploying`. If this lock file is present, all monitoring events for Artha containers are suppressed.
 *   **State Tracking**: It maintains an internal state machine (using variables like `CRASHED` and `RECOVERING`) to track transitions. This ensures "Healthy" notifications are only sent when a container is recovering from a previous failure, avoiding spam during normal git deployments.
-*   **Safe JSON Payload Construction**: The script uses `jq --arg` options to dynamically build the JSON payload, ensuring complex log formatting (newlines, tabs, quotes) does not break curl payload parsing when hitting the Telegram Bot API endpoint:
-    `https://api.telegram.org/bot<TOKEN>/sendMessage`
+*   **Safe JSON Payload Construction**: The script uses `jq --arg` options to dynamically build the JSON payload, ensuring complex log formatting (newlines, tabs, quotes) does not break curl payload parsing when hitting the Telegram Bot API endpoint.
 

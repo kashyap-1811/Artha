@@ -331,3 +331,80 @@ Internal service-to-service routes (`/internal/**`) deliberately **do not** have
 - **Graduated health response.** The current health decision tree has hard thresholds. A smoother curve (e.g., linearly scaling limit between 60 % and 85 % CPU) would reduce oscillation when CPU hovers near a threshold boundary.
 - **Per-endpoint limits.** Some endpoints (e.g., analytics queries) are more expensive than others. `requestedTokens` can be set higher for expensive routes so they consume more tokens per call, naturally throttling them more aggressively.
 - **Stricter emergency floor.** Currently, health-based emergencies return a hardcoded limit of 1 RPS which is then floored back up to `minLimit` (5 RPS) by the clamp. Wiring the emergency path to `minLimit` directly (instead of a hardcoded `1`) would make the floor fully configurable.
+
+
+Viewed RateLimitConfig.java:1-66
+Viewed SystemMetricsHolder.java:1-87
+Viewed DynamicRateLimitUpdater.java:1-352
+Searched for "ActiveUserTrackingFilter"
+Viewed ActiveUserTrackingFilter.java:1-81
+
+Here is the detailed code-level breakdown, including exactly how things are tracked, followed by an industry standards review (where I found a few **critical issues** that you need to fix).
+
+### 1. Code-Level Implementation Details (Step-by-Step)
+
+The code is divided into three main components: The Tracker, The Metrics Holder, and The Updater.
+
+#### A. The Tracker (`ActiveUserTrackingFilter.java`)
+This is a `GlobalFilter` meaning it intercepts every single request that hits the Gateway.
+*   **Where:** Runs on the Netty Event Loop.
+*   **What it does:** 
+    1. Grabs the user's ID or IP.
+    2. Pushes the user to Redis into a Sorted Set (`ZSET`) called `active_users` using the current time as the "score".
+    3. It does this using `.subscribe()` which is "fire-and-forget". It doesn't wait for Redis to reply, meaning the request continues instantly.
+    4. Using the `.doFinally()` reactive hook, it waits for the backend service to finish, calculates how long it took (latency), checks the HTTP status code, and sends this to the Metrics Holder.
+
+#### B. The Metrics Holder (`SystemMetricsHolder.java`)
+*   **Where:** In-memory, accessed by both the Netty event loop and the background scheduler.
+*   **How it's written:** It uses `AtomicLong` for counting requests, errors, and latency.
+*   **Why this is great:** `AtomicLong` uses CPU-level CAS (Compare-And-Swap) operations instead of `synchronized` locks. This means thousands of concurrent requests can update the metrics simultaneously without ever blocking each other. Every time the background job runs, it calls `.snapshotAndReset()` to grab the numbers and reset them to 0 instantly.
+
+#### C. The Background Brain (`DynamicRateLimitUpdater.java`)
+*   **Where:** Runs on a Spring `@Scheduled` background thread (`ThreadPoolTaskScheduler`).
+*   **What it does:** 
+    1. Calls `removeRangeByScore` on Redis to delete users who haven't made a request in the last 60 seconds.
+    2. Calls `count` to get the number of remaining active users.
+    3. Grabs the snapshot from `SystemMetricsHolder`.
+    4. Grabs CPU usage from Micrometer.
+    5. Calculates the new limits and updates the Spring `RedisRateLimiter.Config` map in-memory for all routes.
+
+---
+
+### 2. How are CPU, Latency, and Errors Tracked?
+
+*   **Latency:** In `ActiveUserTrackingFilter`, a stopwatch starts before the request goes to the backend (`System.currentTimeMillis()`). When the response comes back, it calculates `Current Time - Start Time`. This is added to the `AtomicLong` total latency counter. The updater later divides this by total requests to get the average.
+*   **Errors:** In `ActiveUserTrackingFilter`, it checks the response HTTP status code. Currently, it counts **both 4xx (Client Errors like 404 Not Found or 400 Bad Request) and 5xx (Server Errors)** as "errors" in the system metrics.
+*   **CPU:** In `DynamicRateLimitUpdater`, it queries Spring Boot's built-in Micrometer metrics registry (`meterRegistry.find("process.cpu.usage").gauge()`). If the metric is missing (sometimes happens in Docker before the JVM warms up), it safely defaults to 50% CPU so it doesn't accidentally trigger an emergency.
+
+---
+
+### 3. Industry Standards Review (The Good, The Bad, & What Needs Updating)
+
+Overall, the architecture is **highly professional**. Using atomic counters, separating the heavy math to a scheduler thread, and using non-blocking Redis calls are all top-tier enterprise patterns. 
+
+However, **I found 3 issues in your code** that you need to update:
+
+#### 🚨 1. CRITICAL BUG: The Scheduler Timing is Wrong
+*   **The Issue:** Your documentation and architecture are designed around a 10-second window. `SystemMetricsHolder` expects to be reset every 10 seconds. However, in `DynamicRateLimitUpdater.java`, the code is written as:
+    ```java
+    @Scheduled(fixedRate = 60_000)
+    ```
+    `60_000` milliseconds is **60 seconds (1 minute)**! 
+*   **Why it's bad:** If your server CPU spikes to 100%, it will take up to a full minute for the rate limiter to react and apply the emergency brake. By then, the server will have already crashed. 
+*   **The Fix:** Change it to `@Scheduled(fixedRate = 10_000)`.
+
+#### 🚨 2. SECURITY FLAW: 4xx Errors trigger System Emergency
+*   **The Issue:** In `ActiveUserTrackingFilter.java`, an error is defined as:
+    ```java
+    boolean isError = status != null && (status.is4xxClientError() || status.is5xxServerError());
+    ```
+*   **Why it's bad:** 4xx errors are *client* mistakes (wrong password, missing page, bad input). 5xx errors are *system* health failures. If a malicious attacker intentionally sends thousands of requests to a fake URL (getting `404 Not Found`), your error rate will spike above 3%. Your system will think it is failing and will drop the rate limit to 1 RPS for **all legitimate users**. This is a classic Denial-of-Service (DoS) vulnerability.
+*   **The Fix:** Only track 5xx errors for system health limit calculations. 
+    ```java
+    boolean isError = status != null && status.is5xxServerError();
+    ```
+
+#### ⚠️ 3. MAINTAINABILITY: Hardcoded Route List
+*   **The Issue:** In `DynamicRateLimitUpdater.java`, you have a hardcoded list of routes (`"auth-service"`, `"user-service"`, etc.). 
+*   **Why it's bad:** If another developer adds a new microservice (e.g., `"payment-service"`) to `application.yaml`, they will likely forget to add it to this Java list. The new service will skip startup initialization and will be unmanaged for the first 10 seconds.
+*   **The Fix:** Ideally, you should inject the `RouteLocator` bean and dynamically fetch the route IDs at startup, rather than hardcoding them.

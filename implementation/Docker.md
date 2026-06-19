@@ -38,7 +38,7 @@ Stage 2 — runtime : eclipse-temurin:17-jre
   • Copies *.jar from builder → /app/app.jar
   • EXPOSE <service-port>
   • ENTRYPOINT ["java",
-      "-Xms128m", "-Xmx256m",             (heap bounds — tuned for 8 GB droplet)
+      "-Xms128m", "-Xmx256m",             (heap bounds — tuned for 4 GB droplet)
       "-XX:+UseG1GC",                      (low-pause garbage collector)
       "-XX:+UseStringDeduplication",
       "-Djava.security.egd=file:/dev/./urandom",
@@ -112,7 +112,7 @@ The build-time argument `VITE_API_BASE_URL` is injected at compose build time fr
 
 ## 3. docker-compose.yml — Production Deployment
 
-This file orchestrates the full application stack targeting a **production server** (e.g., a single DigitalOcean Droplet with 8 GB RAM / 2 vCPU). It does **not** spin up Kafka, Zookeeper, Redis, or any local infrastructure — those are expected to be cloud-managed external services. All credentials and connection strings are injected via the root `.env` file.
+This file orchestrates the full application stack targeting a **production server** (e.g., a single DigitalOcean Droplet with 4 GB RAM / 2 vCPU). It does **not** spin up Kafka, Zookeeper, Redis, or any local infrastructure — those are expected to be cloud-managed external services. All credentials and connection strings are injected via the root `.env` file.
 
 Services in `docker-compose.yml`:
 
@@ -471,7 +471,7 @@ docker compose up
 | Local dev infrastructure | `docker-compose.infra.yml` — Redis, Kafka + Zookeeper, Kafka UI, Redis Insight |
 | Nginx | Single external entry point on ports 80/443; proxies all traffic to `api-gateway:8080` |
 | SSL/TLS certs | Kafka SSL certs in `./certs/` mounted read-only into each service that uses Kafka |
-| Memory limits | Hard `mem_limit` per container, tuned for an 8 GB / 2 vCPU droplet |
+| Memory limits | Hard `mem_limit` per container, tuned for an 4 GB / 2 vCPU droplet |
 | Log rotation | `json-file` driver, `max-size: 10m`, `max-file: 3` on every container |
 | Restart policy | `restart: unless-stopped` on every container |
 | JVM tuning | `-Xms128m -Xmx256m -XX:+UseG1GC -XX:+UseStringDeduplication` on all Java services |

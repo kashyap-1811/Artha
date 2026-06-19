@@ -12,7 +12,7 @@ To optimize deployment speed and resource utilization on the host, the pipeline 
 
 ```
                       ┌─────────────────────────┐
-                      │  Git Push to Jasmita /  │
+                      │  Git Push to            │
                       │       main branch       │
                       └────────────┬────────────┘
                                    │

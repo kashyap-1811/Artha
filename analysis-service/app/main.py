@@ -128,4 +128,5 @@ def root():
     return {"message": "Analysis Service Running"}
 
 # venv\Scripts\Activate    
+# source venv/bin/activate
 # uvicorn app.main:app --host 0.0.0.0 --port 8084 --reload

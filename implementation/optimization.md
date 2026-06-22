@@ -10,12 +10,24 @@ This document covers the second round of backend optimization applied to the Art
 - Replacing **in-memory filtering** and redundant existence checks with DB-level operations
 - Eliminating **race conditions** in create/add/delete operations using DB constraint handling
 - Optimizing the **budget summary query** into a single aggregation instead of multiple round trips
+- Tuning the **database connection pool (HikariCP)** to minimize latency and prevent resource exhaustion
 
 ---
 
 ## 2. Key Refactorings
 
-### 2.1 Fixed N+1 HTTP Calls — `getExpenseChart`
+### 2.1 Fixed N+1 JPA Queries — `@EntityGraph`
+
+| | Detail |
+|---|---|
+| **Before** | Fetching `UserCompany` or `Budget` entities triggered multiple lazy-loading queries for their related associations, causing the N+1 query problem. |
+| **After** | Solved using `@EntityGraph` to eagerly fetch related entities in a single `JOIN` query. |
+| **Where it was optimized** | - `user-service/src/main/java/com/artha/user/repository/UserCompanyRepository.java` (optimized to fetch `user` and `company` details)<br>- `budget/src/main/java/com/artha/budget/repository/BudgetRepository.java` (optimized to fetch `allocations`) |
+| **Why it helps** | Eliminates N+1 database queries when fetching lists of budgets or user-company memberships, reducing database round-trips and drastically improving endpoint response times.
+
+---
+
+### 2.2 Fixed N+1 HTTP Calls — `getExpenseChart`
 
 | | Detail |
 |---|---|
@@ -25,7 +37,7 @@ This document covers the second round of backend optimization applied to the Art
 
 ---
 
-### 2.2 Replaced Blocking I/O in Async FastAPI
+### 2.3 Replaced Blocking I/O in Async FastAPI
 
 | | Detail |
 |---|---|
@@ -35,7 +47,7 @@ This document covers the second round of backend optimization applied to the Art
 
 ---
 
-### 2.3 Added Database Indexes
+### 2.4 Added Database Indexes
 
 | Index | Table | Benefit |
 |---|---|---|
@@ -48,7 +60,7 @@ Without indexes, every query that filters by `company_id`, `user_id`, or `active
 
 ---
 
-### 2.4 Optimized Budget Summary Query
+### 2.5 Optimized Budget Summary Query
 
 | | Detail |
 |---|---|
@@ -58,7 +70,7 @@ Without indexes, every query that filters by `company_id`, `user_id`, or `active
 
 ---
 
-### 2.5 Replaced In-Memory Filtering with DB `COUNT`
+### 2.6 Replaced In-Memory Filtering with DB `COUNT`
 
 | | Detail |
 |---|---|
@@ -68,13 +80,23 @@ Without indexes, every query that filters by `company_id`, `user_id`, or `active
 
 ---
 
-### 2.6 Constraint-Based Validation — `addMember`, `delete`, `create`
+### 2.7 Constraint-Based Validation — `addMember`, `delete`, `create`
 
 | | Detail |
 |---|---|
 | **Before** | Operations performed a pre-check `SELECT` to verify existence/uniqueness, then executed the write — two DB round trips with a race condition window between them. |
 | **After** | Pre-checks removed. The write is attempted directly; unique constraint violations and not-found errors are caught and handled in the exception layer. |
 | **Why it helps** | Reduces every such operation from 2 DB calls to 1. Eliminates the TOCTOU (time-of-check/time-of-use) race condition under concurrent requests. |
+
+---
+
+### 2.8 Connection Pool Optimization — HikariCP
+
+| | Detail |
+|---|---|
+| **Before** | Default database connections could lead to high latency per request (due to TCP/SSL handshake overhead) or resource exhaustion under load. |
+| **After** | Configured **HikariCP** explicitly across `user-service`, `expense`, and `budget` services with `maximum-pool-size=5`, `minimum-idle=0`, and strict timeouts (`max-lifetime=9m`, `idle-timeout=10m`). |
+| **Why it helps** | 1. **Near-Zero Latency:** Reuses pre-established connections, eliminating 50-200ms connection overhead per query.<br>2. **Resource Protection:** Caps concurrent connections at 5 per instance, preventing database crash under heavy load.<br>3. **Memory Efficiency:** Frees idle connections (`minimum-idle=0`) during low traffic. |
 
 ---
 
@@ -132,6 +154,7 @@ This refactoring round focused on correctness, scalability, and query efficiency
 
 - **Query scalability:** Added indexes on `expense.company_id`, `user_company`, and `company.type` ensure that query performance degrades logarithmically rather than linearly as data grows.
 - **Race condition elimination:** Removing pre-check + write patterns in `addMember`, `delete`, and `create` makes these operations atomically safe under concurrent load — a critical correctness fix independent of throughput.
+- **Connection pooling (HikariCP):** Tuning the pool size and lifecycles protects the database from connection exhaustion while eliminating the latency overhead of opening new TCP connections per request.
 - **Async efficiency:** Fixing blocking I/O in the FastAPI Analysis Service means the service can handle concurrent requests without event-loop starvation, directly improving throughput under load.
 - **Reduced DB round trips:** Constraint-based validation and aggregation queries reduce the number of database calls per request, lowering both latency and connection pool pressure.
 

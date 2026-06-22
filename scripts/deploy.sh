@@ -53,9 +53,9 @@ send_telegram() {
     --arg parse_mode "HTML" \
     '{chat_id: $chat_id, text: $text, parse_mode: $parse_mode}')
 
-  curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+  curl -s --max-time 5 -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
        -H "Content-Type: application/json" \
-       -d "${PAYLOAD}" > /dev/null
+       -d "${PAYLOAD}" > /dev/null || true
 }
 
 # Create lock file to suppress monitor-docker alerts

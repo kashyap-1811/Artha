@@ -214,15 +214,7 @@ jobs:
           host: ${{ secrets.SERVER_IP }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          envs: GHCR_PAT,GHCR_USERNAME
           script: |
-            if [ -d "/opt/artha/nginx/nginx.conf" ]; then
-              rm -rf /opt/artha/nginx/nginx.conf
-            fi
-            if [ -d "/opt/artha/nginx/nginx.conf.production" ]; then
-              rm -rf /opt/artha/nginx/nginx.conf.production
-            fi
-            
             chmod +x /opt/artha/scripts/deploy.sh
             
             export GHCR_PAT="${{ secrets.GHCR_PAT }}"

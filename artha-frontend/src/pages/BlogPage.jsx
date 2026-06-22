@@ -167,12 +167,6 @@ export default function BlogPage() {
   return (
     <AppSidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen}>
 
-      <div className={commonStyles.topBar} style={{ padding: '1rem 1.5rem', border: 'none', background: 'transparent' }}>
-        <button type="button" className={commonStyles.hamburger} onClick={() => setSidebarOpen(true)}>
-          <Menu size={22} />
-        </button>
-      </div>
-
     <div className={styles.page}>
 
       {/* ── Hero ── */}

@@ -158,31 +158,61 @@ export default function ProfilePage() {
             )}
           </AnimatePresence>
 
-          {/* Identity Hero */}
-          {user && (
-            <motion.div className={profStyles.identityHero} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-              <div className={profStyles.heroMesh} />
-              <div className={profStyles.avatarContainer}>
-                <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user.fullName)}&background=3b82f6&color=fff&size=200`} className={profStyles.avatarImg} alt="Identity" />
-              </div>
-              <div className={profStyles.heroContent}>
-                <h2 className={profStyles.userName}>{user.fullName}</h2>
-                <div className={profStyles.userMeta}>
-                  <p style={{ color: '#64748b', fontWeight: 600 }}>{user.email}</p>
-                  <span className={profStyles.badge} style={{ background: '#3b82f615', color: '#3b82f6' }}>
-                    Active Member · {membershipDays}D
-                  </span>
+          {/* Identity Hero & Content */}
+          {isLoading ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+              {/* Skeleton Hero Card */}
+              <div className={profStyles.identityHero} style={{ opacity: 0.7, pointerEvents: 'none' }}>
+                <div className={profStyles.heroMesh} />
+                <div className={profStyles.avatarContainer}>
+                  <div className={styles.skeleton} style={{ width: 120, height: 120, borderRadius: '50%' }} />
+                </div>
+                <div className={profStyles.heroContent} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', alignItems: 'center' }}>
+                  <div className={styles.skeleton} style={{ width: '220px', height: '32px', borderRadius: '8px' }} />
+                  <div className={styles.skeleton} style={{ width: '160px', height: '18px', borderRadius: '6px' }} />
                 </div>
               </div>
-              {!isEditing && (
-                <button onClick={() => setIsEditing(true)} className={styles.btnPrimary}>
-                  <Edit3 size={18} /> Update Identity
-                </button>
-              )}
-            </motion.div>
-          )}
 
-          {isEditing ? (
+              {/* Skeleton Info Grid */}
+              <div className={profStyles.profileGrid}>
+                {/* Profile Card */}
+                <div className={`${profStyles.infoTile} ${profStyles.span4}`}>
+                  <div className={styles.skeleton} style={{ width: '100px', height: '20px', marginBottom: '1.5rem' }} />
+                  <div className={styles.skeleton} style={{ width: '80%', height: '16px', marginBottom: '1rem' }} />
+                  <div className={styles.skeleton} style={{ width: '60%', height: '16px' }} />
+                </div>
+
+                {/* Organizations Card */}
+                <div className={`${profStyles.infoTile} ${profStyles.span4}`}>
+                  <div className={styles.skeleton} style={{ width: '120px', height: '20px', marginBottom: '1.5rem' }} />
+                  <div className={styles.skeleton} style={{ width: '90%', height: '16px', marginBottom: '1rem' }} />
+                  <div className={styles.skeleton} style={{ width: '70%', height: '16px' }} />
+                </div>
+
+                {/* Contact Card */}
+                <div className={`${profStyles.infoTile} ${profStyles.span4}`}>
+                  <div className={styles.skeleton} style={{ width: '100px', height: '20px', marginBottom: '1.5rem' }} />
+                  <div className={styles.skeleton} style={{ width: '85%', height: '16px', marginBottom: '1rem' }} />
+                  <div className={styles.skeleton} style={{ width: '50%', height: '16px' }} />
+                </div>
+
+                {/* Biography Card */}
+                <div className={`${profStyles.infoTile} ${profStyles.span8}`}>
+                  <div className={styles.skeleton} style={{ width: '110px', height: '20px', marginBottom: '1.5rem' }} />
+                  <div className={styles.skeleton} style={{ width: '95%', height: '16px', marginBottom: '0.75rem' }} />
+                  <div className={styles.skeleton} style={{ width: '90%', height: '16px', marginBottom: '0.75rem' }} />
+                  <div className={styles.skeleton} style={{ width: '40%', height: '16px' }} />
+                </div>
+
+                {/* System Card */}
+                <div className={`${profStyles.infoTile} ${profStyles.span4}`}>
+                  <div className={styles.skeleton} style={{ width: '100px', height: '20px', marginBottom: '1.5rem' }} />
+                  <div className={styles.skeleton} style={{ width: '70%', height: '16px', marginBottom: '1rem' }} />
+                  <div className={styles.skeleton} style={{ width: '50%', height: '16px' }} />
+                </div>
+              </div>
+            </div>
+          ) : isEditing ? (
             <motion.div className={profStyles.editFormTile} initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }}>
               <div style={{ marginBottom: '2rem' }}>
                 <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a' }}>Edit Information</h2>
@@ -219,66 +249,88 @@ export default function ProfilePage() {
                 </div>
               </form>
             </motion.div>
-          ) : user && (
-            <>
-              <motion.div className={profStyles.profileGrid} variants={containerVariants} initial="hidden" animate="visible">
-                <motion.div className={`${profStyles.infoTile} ${profStyles.span4}`} variants={itemVariants}>
-                  <h3 className={profStyles.sectionTitle}><User size={16} color="#3b82f6" /> Profile</h3>
-                  <div className={profStyles.field}><span className={profStyles.fieldLabel}>Name</span><p className={profStyles.fieldText}>{user.fullName}</p></div>
-                  <div className={profStyles.field}><span className={profStyles.fieldLabel}>Role</span><p className={profStyles.fieldText}>{user.jobTitle || "User"}</p></div>
-                </motion.div>
-
-                <motion.div className={`${profStyles.infoTile} ${profStyles.span4}`} variants={itemVariants}>
-                  <h3 className={profStyles.sectionTitle}><Building2 size={16} color="#10b981" /> Organizations</h3>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                    {user.memberships?.length > 0 ? user.memberships.map((m) => (
-                      <div key={m.companyId} className={profStyles.roleItem}>
-                        <span className={profStyles.membershipLabel}>{m.companyName}</span>
-                        <span className={profStyles.badge} style={{ background: '#3b82f610', color: '#3b82f6' }}>{m.role}</span>
-                      </div>
-                    )) : <div style={{ color: '#94a3b8', fontSize: '0.85rem' }}>No linked orgs</div>}
+          ) : (
+            user && (
+              <>
+                {/* Identity Hero */}
+                <motion.div className={profStyles.identityHero} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+                  <div className={profStyles.heroMesh} />
+                  <div className={profStyles.avatarContainer}>
+                    <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user.fullName)}&background=3b82f6&color=fff&size=200`} className={profStyles.avatarImg} alt="Identity" />
                   </div>
-                </motion.div>
-
-                <motion.div className={`${profStyles.infoTile} ${profStyles.span4}`} variants={itemVariants}>
-                  <h3 className={profStyles.sectionTitle}><Mail size={16} color="#4f46e5" /> Contact</h3>
-                  <div className={profStyles.field}><span className={profStyles.fieldLabel}>Email</span><p className={profStyles.fieldText} style={{ fontSize: '0.9rem' }}>{user.email}</p></div>
-                  <div className={profStyles.field}><span className={profStyles.fieldLabel}>Phone</span><p className={profStyles.fieldText}>{user.phoneNumber || "Not set"}</p></div>
-                </motion.div>
-
-                <motion.div className={`${profStyles.infoTile} ${profStyles.span8}`} variants={itemVariants}>
-                  <h3 className={profStyles.sectionTitle}><BookOpen size={16} color="#f59e0b" /> Biography</h3>
-                  <p className={profStyles.bioText}>{user.bio || "No bio established yet."}</p>
-                </motion.div>
-
-                <motion.div className={`${profStyles.infoTile} ${profStyles.span4}`} variants={itemVariants}>
-                  <h3 className={profStyles.sectionTitle}><ShieldCheck size={16} color="#6366f1" /> System</h3>
-                  <div className={profStyles.field}>
-                    <span className={profStyles.fieldLabel}>Account Status</span>
-                    <span className={profStyles.badge} style={{ background: user.active ? '#f0fdf4' : '#fef2f2', color: user.active ? '#166534' : '#b91c1c' }}>
-                      {user.active ? "FULL ACCESS" : "RESTRICTED"}
-                    </span>
+                  <div className={profStyles.heroContent}>
+                    <h2 className={profStyles.userName}>{user.fullName}</h2>
+                    <div className={profStyles.userMeta}>
+                      <p style={{ color: '#64748b', fontWeight: 600 }}>{user.email}</p>
+                      <span className={profStyles.badge} style={{ background: '#3b82f615', color: '#3b82f6' }}>
+                        Active Member · {membershipDays}D
+                      </span>
+                    </div>
                   </div>
+                  <button onClick={() => setIsEditing(true)} className={styles.btnPrimary}>
+                    <Edit3 size={18} /> Update Identity
+                  </button>
                 </motion.div>
-              </motion.div>
 
-              <motion.div 
-                className={profStyles.span12} 
-                initial={{ opacity: 0 }} 
-                animate={{ opacity: 1 }} 
-                transition={{ delay: 0.5 }}
-                style={{ marginTop: '3rem', display: 'flex', justifyContent: 'center' }}
-              >
-                <button 
-                  onClick={handleLogout} 
-                  className={profStyles.logoutButton}
-                >
-                  <LogOut size={20} strokeWidth={2.5} /> 
-                  <span>Logout from Artha</span>
-                </button>
-              </motion.div>
-            </>
+                <motion.div className={profStyles.profileGrid} variants={containerVariants} initial="hidden" animate="visible">
+                  <motion.div className={`${profStyles.infoTile} ${profStyles.span4}`} variants={itemVariants}>
+                    <h3 className={profStyles.sectionTitle}><User size={16} color="#3b82f6" /> Profile</h3>
+                    <div className={profStyles.field}><span className={profStyles.fieldLabel}>Name</span><p className={profStyles.fieldText}>{user.fullName}</p></div>
+                    <div className={profStyles.field}><span className={profStyles.fieldLabel}>Role</span><p className={profStyles.fieldText}>{user.jobTitle || "User"}</p></div>
+                  </motion.div>
+
+                  <motion.div className={`${profStyles.infoTile} ${profStyles.span4}`} variants={itemVariants}>
+                    <h3 className={profStyles.sectionTitle}><Building2 size={16} color="#10b981" /> Organizations</h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                      {user.memberships?.length > 0 ? user.memberships.map((m) => (
+                        <div key={m.companyId} className={profStyles.roleItem}>
+                          <span className={profStyles.membershipLabel}>{m.companyName}</span>
+                          <span className={profStyles.badge} style={{ background: '#3b82f610', color: '#3b82f6' }}>{m.role}</span>
+                        </div>
+                      )) : <div style={{ color: '#94a3b8', fontSize: '0.85rem' }}>No linked orgs</div>}
+                    </div>
+                  </motion.div>
+
+                  <motion.div className={`${profStyles.infoTile} ${profStyles.span4}`} variants={itemVariants}>
+                    <h3 className={profStyles.sectionTitle}><Mail size={16} color="#4f46e5" /> Contact</h3>
+                    <div className={profStyles.field}><span className={profStyles.fieldLabel}>Email</span><p className={profStyles.fieldText} style={{ fontSize: '0.9rem' }}>{user.email}</p></div>
+                    <div className={profStyles.field}><span className={profStyles.fieldLabel}>Phone</span><p className={profStyles.fieldText}>{user.phoneNumber || "Not set"}</p></div>
+                  </motion.div>
+
+                  <motion.div className={`${profStyles.infoTile} ${profStyles.span8}`} variants={itemVariants}>
+                    <h3 className={profStyles.sectionTitle}><BookOpen size={16} color="#f59e0b" /> Biography</h3>
+                    <p className={profStyles.bioText}>{user.bio || "No bio established yet."}</p>
+                  </motion.div>
+
+                  <motion.div className={`${profStyles.infoTile} ${profStyles.span4}`} variants={itemVariants}>
+                    <h3 className={profStyles.sectionTitle}><ShieldCheck size={16} color="#6366f1" /> System</h3>
+                    <div className={profStyles.field}>
+                      <span className={profStyles.fieldLabel}>Account Status</span>
+                      <span className={profStyles.badge} style={{ background: user.active ? '#f0fdf4' : '#fef2f2', color: user.active ? '#166534' : '#b91c1c' }}>
+                        {user.active ? "FULL ACCESS" : "RESTRICTED"}
+                      </span>
+                    </div>
+                  </motion.div>
+                </motion.div>
+              </>
+            )
           )}
+
+          {/* Logout Button (Permanently Shown) */}
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            transition={{ delay: 0.5 }}
+            style={{ marginTop: '3rem', display: 'flex', justifyContent: 'center' }}
+          >
+            <button 
+              onClick={handleLogout} 
+              className={profStyles.logoutButton}
+            >
+              <LogOut size={20} strokeWidth={2.5} /> 
+              <span>Logout from Artha</span>
+            </button>
+          </motion.div>
         </section>
       </div>
     </AppSidebar>

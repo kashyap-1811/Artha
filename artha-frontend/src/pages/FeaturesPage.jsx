@@ -240,9 +240,6 @@ export default function FeaturesPage() {
 
       {/* ── HERO ── */}
       <section style={{ textAlign: "center", padding: "3.5rem 2rem 2rem", maxWidth: 680, margin: "0 auto", position: 'relative' }}>
-          <button type="button" className={styles.hamburger} onClick={() => setSidebarOpen(true)} style={{ position: 'absolute', top: '1rem', left: '1rem' }}>
-            <Menu size={22} />
-          </button>
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55 }}>
 
             <span style={{ display: "inline-block", background: "linear-gradient(135deg, #dbeafe, #ede9fe)", border: "1px solid #c7d2fe", borderRadius: 999, padding: "0.3rem 1rem", fontSize: "0.72rem", fontWeight: 700, color: "#4f46e5", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "1rem" }}>

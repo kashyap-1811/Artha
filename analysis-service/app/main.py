@@ -48,10 +48,8 @@ async def lifespan(app: FastAPI):
     )
     print("Successfully connected to Redis!")
 
-    # Startup: Register with Eureka
-    try:
-        # If running in Docker, always use the service name for internal routing
-        # If running locally, prefer SERVER_IP
+    # Startup: Register with Eureka in the background with retry loop
+    async def register_eureka():
         in_docker = os.path.exists("/.dockerenv")
         server_ip = os.getenv("SERVER_IP", "localhost")
         
@@ -60,15 +58,25 @@ async def lifespan(app: FastAPI):
         else:
             host_ip = server_ip if server_ip != "localhost" else get_local_ip()
             
-        await eureka_client.init_async(
-            eureka_server=EUREKA_SERVER,
-            app_name="analysis-service",
-            instance_port=8084,
-            instance_host=host_ip,
-            instance_id=f"{server_ip if server_ip != 'localhost' else host_ip}:analysis-service:8084"
-        )
-    except Exception as e:
-        print(f"Eureka init failed: {e}")
+        retries = 0
+        while True:
+            try:
+                print(f"Registering with Eureka at {EUREKA_SERVER} (Attempt {retries + 1})...")
+                await eureka_client.init_async(
+                    eureka_server=EUREKA_SERVER,
+                    app_name="analysis-service",
+                    instance_port=8084,
+                    instance_host=host_ip,
+                    instance_id=f"{server_ip if server_ip != 'localhost' else host_ip}:analysis-service:8084"
+                )
+                print("Successfully registered with Eureka!")
+                break
+            except Exception as e:
+                retries += 1
+                print(f"Eureka registration attempt {retries} failed: {e}. Retrying in 5 seconds...")
+                await asyncio.sleep(5)
+
+    eureka_task = asyncio.create_task(register_eureka())
 
     # Start Kafka Consumers in the background
     expense_task = asyncio.create_task(consume_expense_events(app))
@@ -76,6 +84,13 @@ async def lifespan(app: FastAPI):
         
     yield
     
+    # Cancel Eureka registration task if it is running
+    eureka_task.cancel()
+    try:
+        await eureka_task
+    except Exception:
+        pass
+
     # Cancel the Kafka Consumer tasks gracefully
     expense_task.cancel()
     budget_task.cancel()

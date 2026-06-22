@@ -1,4 +1,5 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import { useEffect } from "react";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import Layout from "./components/Layout";
 import HomePage from "./pages/HomePage";
 import AuthPage from "./pages/AuthPage";
@@ -14,9 +15,20 @@ import BlogPage from "./pages/BlogPage";
 import FeaturesPage from "./pages/FeaturesPage";
 import DotBackground from "./components/DotBackground";
 
+function ScrollToTop() {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+
+  return null;
+}
+
 function App() {
   return (
     <>
+      <ScrollToTop />
       <DotBackground />
       <Routes>
         {/* Public Routes */}

@@ -51,6 +51,7 @@ async def clear_analysis_cache(redis, company_id: str = None, budget_id: str = N
     patterns = []
     if company_id:
         patterns.append(f"company_analysis:{company_id}:*")
+        patterns.append(f"company_analysis_v4:{company_id}:*")
     if budget_id:
         patterns.append(f"budget_analysis:{budget_id}:*")
     

@@ -16,8 +16,8 @@ function AuthPage() {
     password: ""
   });
   const [loginForm, setLoginForm] = useState({
-    email: "",
-    password: ""
+    email: "test@gmail.com",
+    password: "test"
   });
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -186,6 +186,9 @@ function AuthPage() {
           </>
         ) : (
           <>
+            <div style={{ padding: '8px 12px', background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '6px', fontSize: '13px', color: '#93c5fd', marginBottom: '12px' }}>
+              💡 <strong>Demo Account:</strong> <code>test@gmail.com</code> / <code>test</code>
+            </div>
             <DarkInput
                id="login_email"
               label="Email"

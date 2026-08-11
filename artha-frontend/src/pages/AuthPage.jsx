@@ -16,8 +16,8 @@ function AuthPage() {
     password: ""
   });
   const [loginForm, setLoginForm] = useState({
-    email: "test@gmail.com",
-    password: "test"
+    email: "",
+    password: ""
   });
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);

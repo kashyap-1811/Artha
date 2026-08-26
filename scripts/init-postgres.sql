@@ -1,0 +1,3 @@
+CREATE DATABASE "user";
+CREATE DATABASE budget;
+CREATE DATABASE expense;

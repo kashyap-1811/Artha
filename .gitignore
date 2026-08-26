@@ -34,3 +34,4 @@ skills-lock.json
 .vscode
 docker-compose.override.yml
 deploy.md
+.vercel
